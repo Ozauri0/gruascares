@@ -48,10 +48,11 @@ export default function Home() {
         <div className={"nav-links " + (menuOpen ? "open" : "")}>
           <a href="#nosotros" onClick={() => setMenuOpen(false)}>Nosotros</a>
           <a href="#servicios" onClick={() => setMenuOpen(false)}>Servicios</a>
-          <a href="#catalogo" onClick={() => setMenuOpen(false)}>Catálogo</a>
+          <a href="/catalogo" onClick={() => setMenuOpen(false)}>Catálogo</a>
+          <a href="/login" onClick={() => setMenuOpen(false)}>Portal</a>
           <a href="#contacto" onClick={() => setMenuOpen(false)}>Contacto</a>
         </div>
-        <a className="nav-cta" href="#agenda">Agendar servicio <span>↗</span></a>
+        <a className="nav-cta" href="/agendar">Agendar servicio <span>↗</span></a>
         <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menú">☰</button>
       </nav>
 
@@ -60,7 +61,7 @@ export default function Home() {
           <p className="eyebrow light">Grúas Cares · Villarrica</p>
           <h1>Rescate y<br /><em>transporte</em><br />cuando lo necesitas.</h1>
           <p className="hero-copy">Servicio de grúas rápido y confiable en Villarrica y toda la IX Región. Atendemos emergencias las 24 horas.</p>
-          <div className="hero-actions"><a className="button yellow" href="#agenda">Llámanos ahora <span>↗</span></a><a className="text-link" href="#catalogo">Ver servicios <span>↓</span></a></div>
+          <div className="hero-actions"><a className="button yellow" href="/agendar">Llámanos ahora <span>↗</span></a><a className="text-link" href="/catalogo">Ver servicios <span>↓</span></a></div>
         </div>
         <div className="hero-gallery">
           {slides.map((slide, index) => <div className={"hero-slide " + (activeSlide === index ? "active" : "")} key={slide.image} style={{ backgroundImage: `url(${slide.image})` }} aria-hidden={activeSlide !== index} />)}
@@ -73,14 +74,14 @@ export default function Home() {
 
       <section className="intro wrap" id="nosotros">
         <div><p className="eyebrow">Transporte seguro</p><h2>Tu carga es<br />nuestra <em>responsabilidad.</em></h2></div>
-        <div className="intro-text"><p>Somos Grúas Cares, especialistas en transporte de cargas pesadas y servicios de camiones grúa. Contamos con una flota moderna y un equipo de profesionales comprometidos con la puntualidad, la seguridad y la calidad.</p><a className="arrow-link" href="#contacto">Conoce Grúas Cares <span>↗</span></a></div>
+        <div className="intro-text"><p>Somos Grúas Cares, especialistas en transporte de cargas pesadas y servicios de camiones grúa. Contamos con una flota moderna y un equipo de profesionales comprometidos con la puntualidad, la seguridad y la calidad.</p><a className="arrow-link" href="/catalogo">Explora el catálogo <span>↗</span></a></div>
       </section>
 
       <section className="services-section" id="servicios"><div className="wrap"><div className="section-head"><div><p className="eyebrow">Lo que hacemos</p><h2>Soluciones para<br /><em>seguir avanzando.</em></h2></div><p className="section-note">Una flota preparada y un equipo que entiende que tu tiempo también se transporta.</p></div>
-        <div className="service-grid">{services.map((item) => <article className="service-card" key={item.number}><div className="service-image" style={{ backgroundImage: `url(${item.image})` }}><span>{item.number}</span></div><div className="service-info"><h3>{item.title}</h3><p>{item.text}</p><a href="#agenda" onClick={() => setService(item.title)}>Solicitar servicio <span>↗</span></a></div></article>)}</div>
+        <div className="service-grid">{services.map((item) => <article className="service-card" key={item.number}><div className="service-image" style={{ backgroundImage: `url(${item.image})` }}><span>{item.number}</span></div><div className="service-info"><h3>{item.title}</h3><p>{item.text}</p><a href={`/agendar?servicio=${encodeURIComponent(item.title)}`} onClick={() => setService(item.title)}>Solicitar servicio <span>↗</span></a></div></article>)}</div>
       </div></section>
 
-      <section className="catalog wrap" id="catalogo"><div className="catalog-image"><div className="catalog-label">Flota<br /><strong>Cares</strong></div></div><div className="catalog-copy"><p className="eyebrow">Catálogo de soluciones</p><h2>Una flota<br />para cada<br /><em>necesidad.</em></h2><p>Conoce los servicios de Grúas Cares y encuentra una solución segura, eficiente y adaptada a tu traslado.</p><a className="button dark" href="#agenda">Solicitar información <span>↗</span></a><div className="stats"><div><strong>24/7</strong><span>Atención</span></div><div><strong>IX</strong><span>Región</span></div><div><strong>3</strong><span>Teléfonos</span></div></div></div></section>
+      <section className="catalog wrap" id="catalogo"><div className="catalog-image"><div className="catalog-label">Flota<br /><strong>Cares</strong></div></div><div className="catalog-copy"><p className="eyebrow">Catálogo de soluciones</p><h2>Una flota<br />para cada<br /><em>necesidad.</em></h2><p>Conoce los servicios de Grúas Cares y encuentra una solución segura, eficiente y adaptada a tu traslado.</p><a className="button dark" href="/catalogo">Ver catálogo completo <span>↗</span></a><div className="stats"><div><strong>24/7</strong><span>Atención</span></div><div><strong>IX</strong><span>Región</span></div><div><strong>3</strong><span>Teléfonos</span></div></div></div></section>
 
       <section className="booking" id="agenda"><div className="wrap booking-layout"><div><p className="eyebrow light">Agenda tu servicio</p><h2>Cuéntanos qué<br /><em>necesitas mover.</em></h2><p className="booking-copy">Déjanos tus datos y te contactaremos para coordinar la mejor solución.</p><div className="contact-line"><span>¿Es urgente?</span><a href="tel:+56991627809">Llámanos ahora ↗</a></div></div><form onSubmit={submit}>{sent ? <div className="success"><span>✓</span><h3>Solicitud recibida</h3><p>Te contactaremos a la brevedad para coordinar tu servicio.</p><button type="button" className="button yellow" onClick={() => setSent(false)}>Enviar otra solicitud</button></div> : <><div className="form-row"><label>Nombre completo<input required placeholder="Tu nombre" /></label><label>Teléfono<input required type="tel" placeholder="+56 9 ..." /></label></div><label>¿Qué necesitas?<select value={service} onChange={(e) => setService(e.target.value)}><option>Grúa de plataforma hidráulica</option><option>Transporte de cargas pesadas</option><option>Camiones grúa</option></select></label><label>Cuéntanos brevemente<textarea placeholder="Lugar, fecha y detalles del servicio" rows={3} /></label><button className="button yellow" type="submit">Solicitar contacto <span>↗</span></button></>}</form></div></section>
 
