@@ -48,6 +48,29 @@ footer{background:#fff;color:var(--ink);padding:55px 0 25px}.footer-main{display
 .hero{height:100svh;height:100dvh;min-height:0;max-height:100dvh;overflow:hidden}
 @media(max-width:760px){.hero{height:100svh;height:100dvh;min-height:0;max-height:100dvh}.hero-meta{bottom:max(12px,env(safe-area-inset-bottom))}}
 
+.service-category{display:grid;gap:8px}
+.field-label{font:10px 'DM Mono';color:#666;text-transform:uppercase}
+.service-category-tabs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.service-category-tab{display:grid;gap:4px;border:1px solid #d2d2d2;background:#fafafa;color:#333;padding:11px 12px;cursor:pointer;text-align:left;transition:border-color .2s,background .2s,transform .2s}
+.service-category-tab:hover{border-color:var(--green);transform:translateY(-1px)}
+.service-category-tab.selected{border-color:var(--green);background:rgba(2,152,52,.1);box-shadow:inset 0 0 0 1px var(--green)}
+.service-category-tab strong{font:500 17px 'Space Grotesk'}
+.service-category-tab small{color:#777;font:9px 'DM Mono';line-height:1.4}
+.service-category-tab.selected small{color:var(--green-dark)}
+.service-hint{display:block!important;margin-top:2px;color:#888!important;font:10px 'DM Mono'!important;text-transform:none}
+.schedule-fieldset{border:0;padding:0;margin:0;min-width:0}
+.schedule-fieldset legend{font:10px 'DM Mono';color:#666;text-transform:uppercase;padding:0;margin-bottom:8px}
+.schedule-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;color:#666;font-size:12px}
+.schedule-heading small{color:#999;font:9px 'DM Mono';text-transform:uppercase;text-align:right}
+.time-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.time-slot{display:grid;gap:3px;border:1px solid #d2d2d2;background:#fafafa;color:#333;padding:9px 8px;cursor:pointer;text-align:left;transition:border-color .2s,background .2s,transform .2s}
+.time-slot:hover{border-color:var(--green);transform:translateY(-1px)}
+.time-slot.selected{border-color:var(--green);background:rgba(2,152,52,.1);box-shadow:inset 0 0 0 1px var(--green)}
+.time-slot small{color:#888;font:9px 'DM Mono';text-transform:uppercase}
+.time-slot.selected small{color:var(--green-dark)}
+.field-error{margin:9px 0 0;color:#b42318;font:10px 'DM Mono'}
+@media(max-width:760px){.service-category-tab{padding:10px}.service-category-tab strong{font-size:16px}.schedule-heading{display:block}.schedule-heading small{display:block;text-align:left;margin-top:5px}.time-slots{grid-template-columns:repeat(2,1fr)}}
+
 /* Booking page refinement */
 .booking-page{background:var(--paper)}.booking-page .booking-intro{padding-top:25px;max-width:1180px}.booking-form-section{background:#e8e8e4;position:relative;overflow:hidden}.booking-form-section:before{content:'';position:absolute;width:430px;height:430px;border-radius:50%;background:rgba(2,152,52,.08);right:-170px;top:-210px}.booking-form-layout{position:relative;z-index:1}.booking-form-layout aside{background:var(--ink);border-radius:24px;padding:52px 45px;box-shadow:0 18px 40px rgba(0,0,0,.12);min-height:520px}.booking-form-layout aside .aside-kicker{font:10px 'DM Mono';color:var(--pink);text-transform:uppercase;letter-spacing:.08em}.booking-form-layout aside h2{font-size:58px;margin:32px 0 25px}.booking-form-layout aside p:not(.aside-kicker){color:#b9b9b9}.booking-points{border-top:1px solid #3e3e3e;border-bottom:1px solid #3e3e3e;padding:20px 0;margin:35px 0;display:grid;gap:12px;font:11px 'DM Mono';color:#aaa}.booking-points span{display:flex;justify-content:space-between}.booking-points b{font-size:16px;color:var(--green)}.booking-form-layout aside>a{color:var(--green)}.wide-form,.booking-success{background:#fff;color:var(--ink);border-radius:24px;padding:45px 48px;box-shadow:0 18px 40px rgba(0,0,0,.1)}.form-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.form-heading span{font:500 22px 'Space Grotesk'}.form-heading small{font:10px 'DM Mono';color:#999}.wide-form label{color:#666}.wide-form input,.wide-form select,.wide-form textarea{color:var(--ink);border-bottom-color:#c2c2c2}.wide-form select option{color:var(--ink)}.wide-form input:focus,.wide-form select:focus,.wide-form textarea:focus{border-bottom-color:var(--green)}.wide-form .button{border:0;cursor:pointer;margin-top:4px;justify-self:start}.booking-success{align-self:stretch;display:flex;flex-direction:column;justify-content:center}.booking-success>span{background:var(--green)}.booking-success h2{font:500 40px 'Space Grotesk';margin:25px 0 7px}.booking-success p{color:#666;line-height:1.6}.booking-success .button{align-self:flex-start;background:var(--green);color:#fff;margin-top:15px}
 @media(max-width:760px){.booking-page .booking-intro{padding-top:20px}.booking-form-layout aside{min-height:0;padding:35px 28px;border-radius:20px}.booking-form-layout aside h2{font-size:47px;margin:22px 0}.wide-form,.booking-success{padding:30px 24px;border-radius:20px}.form-heading{display:block}.form-heading small{display:block;margin-top:8px}.booking-form-section:before{width:250px;height:250px;right:-140px}.booking-success h2{font-size:32px}}
@@ -86,3 +109,18 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 @media(min-width:761px){.cart-page .cart-layout{max-width:1080px;grid-template-columns:1fr 1fr;gap:20px}.cart-page .cart-items,.cart-page .cart-aside{height:100%;min-height:435px}.cart-page .cart-aside{padding-left:34px;padding-right:34px}}
 
 @media(min-width:761px){.cart-page{min-height:100svh;display:flex;flex-direction:column}.cart-page .cart-section{flex:1;display:flex;align-items:center;width:100%;padding-top:20px;padding-bottom:20px}.cart-page .cart-layout{width:100%;align-items:center}.cart-page .cart-items,.cart-page .cart-aside{height:max-content}}
+/* Keep the appointment flow inside one viewport on desktop and mobile. */
+@media(min-width:761px){.booking-page{height:100dvh;min-height:0;overflow:hidden;display:flex;flex-direction:column}.booking-page .booking-intro{flex:0 0 auto}.booking-form-section{flex:1;min-height:0;display:flex}.booking-form-layout{height:100%;align-items:stretch}.booking-form-layout aside,.wide-form,.booking-success{min-height:0}}
+@media(max-width:760px){.booking-page{height:100dvh;min-height:0;overflow:hidden;padding-top:108px;display:flex;flex-direction:column}.booking-page .booking-intro{padding:6px 0 10px;flex:0 0 auto}.booking-page .booking-intro h1{font-size:38px;margin:8px 0 0}.booking-page .booking-intro>p{display:none}.booking-form-section{flex:1;min-height:0;padding:0 0 10px;display:flex}.booking-form-layout{display:block;height:100%;width:calc(100% - 32px)}.booking-form-layout aside{display:none}.wide-form,.booking-success{height:100%;min-height:0;overflow:hidden;padding:14px 16px;border-radius:16px;gap:8px}.wide-form .form-heading{margin-bottom:0}.wide-form .form-heading small{display:none}.wide-form .form-row{grid-template-columns:1fr 1fr;gap:8px}.wide-form label{gap:4px}.wide-form input,.wide-form select,.wide-form textarea{padding:6px 0}.service-hint{display:none!important}.schedule-fieldset legend{margin-bottom:4px}.schedule-heading{font-size:10px}.schedule-heading small{font-size:8px;margin-top:3px}.time-slots{grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px}.time-slot{padding:6px 3px;font-size:12px;text-align:center}.time-slot small{font-size:7px}.wide-form textarea{min-height:34px;max-height:38px}.wide-form>.button{padding:10px 14px}}
+@media(max-width:760px) and (max-height:680px){.booking-page{padding-top:104px}.booking-page .booking-intro{padding-bottom:5px}.booking-page .booking-intro h1{font-size:34px;margin-top:4px}.wide-form,.booking-success{padding:10px 12px;gap:6px}.service-category-tab{padding:7px 8px}.service-category-tab strong{font-size:14px}.service-category-tab small{font-size:8px}.wide-form input,.wide-form select{padding:4px 0}.time-slot{padding:4px 2px}.wide-form>.button{padding:8px 12px}}
+
+/* Mobile forms need natural height so every field remains reachable. */
+@media(max-width:760px){.booking-page{height:auto;min-height:100dvh;overflow:visible;display:block;padding-top:108px}.booking-form-section{display:block;min-height:0;padding:0 0 24px}.booking-form-layout{height:auto}.wide-form,.booking-success{height:auto;min-height:0;overflow:visible}}
+
+.booking-page .booking-intro{display:none}
+
+/* Never clip the complete scheduling form on short viewports. */
+.booking-page{height:auto;min-height:100dvh;overflow:visible;display:block}
+.booking-form-section{display:block;min-height:0}
+.booking-form-layout{height:auto}
+.wide-form,.booking-success{height:auto;min-height:0;overflow:visible}
