@@ -135,6 +135,114 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 @media(max-width:760px){.wa-float{left:auto;right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));width:54px;height:54px}.wa-float img{width:54px;height:54px}.hero-home{right:20px!important;bottom:calc(82px + env(safe-area-inset-bottom, 0px))!important}}
 @media(prefers-reduced-motion:reduce){.wa-float{transition:none}.wa-float:hover{transform:none}}
 
+/* Appointment status badges (shared by portal, mechanic and admin panels). */
+.status-badge{display:inline-block;padding:5px 12px;border-radius:999px;font:600 10px 'DM Mono',monospace;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.status-solicitada{background:#fef3c7;color:#92400e}
+.status-confirmada{background:#dbeafe;color:#1e40af}
+.status-en_proceso{background:rgba(2,152,52,.14);color:var(--green-dark)}
+.status-finalizada{background:var(--green-dark);color:#fff}
+.status-cancelada{background:#e5e5e5;color:#555}
+
+/* Client portal (/portal). */
+.portal-page .portal-intro{padding-bottom:36px}
+.portal-contact{font:11px 'DM Mono',monospace;color:var(--green-dark);margin:18px 0 0}
+.portal-section{padding-bottom:120px}
+.portal-stack{display:grid;gap:56px;padding-bottom:120px}
+.next-hero{display:grid;grid-template-columns:112px 1fr;gap:30px;align-items:center;background:var(--ink);color:#fff;border-radius:20px;padding:36px 40px;box-shadow:0 18px 40px rgba(0,0,0,.14)}
+.next-hero.next-empty{grid-template-columns:1fr auto}
+.next-date{background:var(--green);border-radius:14px;text-align:center;padding:14px 6px}
+.next-date strong{display:block;font:500 46px/1 'Space Grotesk';letter-spacing:-.04em}
+.next-date span{display:block;margin-top:6px;font:10px 'DM Mono',monospace;text-transform:uppercase;letter-spacing:.08em}
+.next-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.next-countdown{font:11px 'DM Mono',monospace;color:var(--pink)}
+.next-info h2{font:500 clamp(24px,3vw,34px) 'Space Grotesk';letter-spacing:-.03em;margin:12px 0 8px}
+.next-info p{margin:0;color:#b9b9b9;font-size:14px;line-height:1.6}
+.portal-row-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:18px}
+.portal-row-head h2{font:500 30px 'Space Grotesk';letter-spacing:-.03em;margin:0}
+.portal-row-head a{font-size:12px;font-weight:700;border-bottom:1px solid var(--ink);padding-bottom:4px;white-space:nowrap}
+.portal-row-head a:hover{color:var(--green-dark);border-color:var(--green-dark)}
+.portal-row-head a span{margin-left:6px}
+.vehicle-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.vehicle-mini{background:#fff;border:1px solid #e2e2e2;border-radius:14px;padding:20px 22px;display:grid;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.05);transition:border-color .2s,transform .2s}
+.vehicle-mini:hover{border-color:var(--green);transform:translateY(-2px)}
+.vehicle-mini-plate{justify-self:start;background:var(--ink);color:#fff;font:600 12px 'DM Mono',monospace;letter-spacing:.08em;padding:6px 10px;border-radius:6px}
+.vehicle-mini strong{font:500 18px 'Space Grotesk'}
+.vehicle-mini small{font:10px 'DM Mono',monospace;color:#777}
+.compact-list{display:grid;gap:10px}
+.compact-row{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;background:#fff;border:1px solid #e2e2e2;border-radius:12px;padding:15px 20px;transition:border-color .2s}
+.compact-row:hover{border-color:var(--green)}
+.compact-row strong{font:500 16px 'Space Grotesk'}
+.compact-row>span{font:10px 'DM Mono',monospace;color:#777;white-space:nowrap}
+.quick-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.quick-row .button{border:0;cursor:pointer;padding:18px;font-size:13px}
+.quick-row .quick-call{background:var(--ink)}
+.quick-row .quick-call:hover{background:#222}
+.portal-head{margin-bottom:30px}
+.portal-head h2{font-size:44px}
+.portal-appointments{display:grid;gap:14px}
+.portal-card{background:#fff;border:1px solid #e2e2e2;border-radius:14px;padding:24px 26px;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.portal-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.portal-slot{font:10px 'DM Mono',monospace;color:#777}
+.portal-card h3{font:500 22px 'Space Grotesk';letter-spacing:-.02em;margin:0 0 8px}
+.portal-card p{margin:0;color:#666;font-size:13px;line-height:1.6}
+.portal-meta{margin-top:6px!important;color:#999!important;font:10px 'DM Mono',monospace!important}
+.portal-empty{color:#777;font-size:14px;line-height:1.6}
+.portal-empty a{font-weight:700;border-bottom:1px solid var(--ink)}
+.portal-empty a:hover{color:var(--green-dark);border-color:var(--green-dark)}
+@media(max-width:760px){.portal-page .portal-intro{padding-bottom:30px}.portal-section{padding-bottom:80px}.portal-stack{gap:44px;padding-bottom:80px}.next-hero{grid-template-columns:76px 1fr;gap:18px;padding:26px 22px;border-radius:16px}.next-date strong{font-size:34px}.next-hero.next-empty{grid-template-columns:1fr}.portal-row-head h2{font-size:25px}.vehicle-strip{grid-template-columns:1fr}.compact-row{grid-template-columns:auto 1fr;row-gap:8px}.compact-row>span{grid-column:2}.quick-row{grid-template-columns:1fr}.portal-head h2{font-size:38px}}
+
+/* Appointment history and mechanic report (T2.6). */
+.history-list{margin-bottom:20px}
+.history-head{margin-top:60px}
+.history-card h3{font-size:20px}
+.history-report{margin-top:16px}
+.history-report button:disabled{opacity:.55;cursor:not-allowed}
+.history-report button:disabled:hover{border-color:#bbb;color:inherit}
+.report h3{font:500 24px 'Space Grotesk';margin:0 0 6px}
+.report>p{color:#666;font-size:13px;margin:0 0 18px}
+.report dl{display:grid;gap:14px;margin:0;border-top:1px solid #e5e5e5;padding-top:18px}
+.report dt{font:10px 'DM Mono',monospace;color:#999;text-transform:uppercase;margin-bottom:4px}
+.report dd{margin:0;font-size:14px;line-height:1.6;color:#333}
+
+/* Occupied time slots (T2.7). */
+.time-slot:disabled{opacity:.45;cursor:not-allowed}
+.time-slot:disabled:hover{border-color:#d2d2d2;transform:none}
+
+/* Portal toolbar, vehicle cards and modal (T2.5). */
+.portal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:30px}
+.portal-back{font-size:12px;font-weight:700;border-bottom:1px solid var(--ink);padding-bottom:5px}
+.portal-back:hover{color:var(--green-dark);border-color:var(--green-dark)}
+.portal-add{border:0;background:var(--green);color:#fff;padding:12px 20px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;transition:background .2s,transform .2s}
+.portal-add:hover{background:var(--green-dark);transform:translateY(-1px)}
+.vehicle-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.vehicle-card{background:#fff;border:1px solid #e2e2e2;border-radius:14px;padding:26px 28px;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.vehicle-plate{display:inline-block;background:var(--ink);color:#fff;font:600 15px 'DM Mono',monospace;letter-spacing:.08em;padding:8px 14px;border-radius:8px;margin-bottom:16px}
+.vehicle-card h3{font:500 24px 'Space Grotesk';letter-spacing:-.02em;margin:0 0 6px}
+.vehicle-card p{margin:0 0 18px;color:#666;font-size:13px}
+.vehicle-actions{display:flex;gap:10px}
+.vehicle-actions button{border:1px solid #bbb;background:none;padding:9px 16px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;transition:border-color .2s,color .2s}
+.vehicle-actions button:hover{border-color:var(--green);color:var(--green-dark)}
+.vehicle-actions .danger{color:#b42318;border-color:#e5b4ae}
+.vehicle-actions .danger:hover{border-color:#b42318;color:#b42318}
+.vehicle-actions .danger.confirm{background:#b42318;border-color:#b42318;color:#fff}
+.modal-overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(0,0,0,.55);padding:20px}
+.modal{background:#fff;border-radius:20px;padding:36px;width:min(560px,100%);max-height:calc(100dvh - 40px);overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-head h2{font:500 30px 'Space Grotesk';letter-spacing:-.03em;margin:0}
+.modal-close{border:0;background:none;font-size:30px;line-height:1;color:#777;cursor:pointer;padding:0 4px}
+.modal-close:hover{color:var(--ink)}
+.modal form{display:grid;gap:18px}
+.modal label{display:grid;gap:8px;font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
+.modal input{background:transparent;border:0;border-bottom:1px solid #c2c2c2;color:var(--ink);padding:9px 0;outline:0;border-radius:0;text-transform:none}
+.modal input:focus{border-bottom-color:var(--green)}
+.modal .form-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.modal .field-error{margin:0;color:#b42318;font:10px 'DM Mono',monospace;text-transform:none}
+.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:6px}
+.modal-cancel{border:1px solid #bbb;background:none;padding:13px 20px;border-radius:0;font-size:12px;font-weight:700;cursor:pointer}
+.modal-cancel:hover{border-color:var(--ink)}
+.modal-actions .button{border:0;cursor:pointer}
+@media(max-width:760px){.portal-toolbar{margin-bottom:24px}.vehicle-grid{grid-template-columns:1fr;gap:12px}.vehicle-card{padding:22px}.modal{padding:28px 22px}.modal .form-row{grid-template-columns:1fr;gap:18px}.modal-actions{flex-direction:column-reverse}.modal-actions .button,.modal-cancel{text-align:center}}
+
 /* Social brand icons keep the footer boxes and turn green on hover. */
 .socials a{color:var(--muted);transition:color .2s,border-color .2s,transform .2s}
 .socials a:hover{color:var(--green);border-color:var(--green);transform:translateY(-2px)}
