@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import { config } from "./config/env.js";
 import healthRouter from "./routes/health.routes.js";
 import authRouter from "./routes/auth.routes.js";
+import emailRouter from "./routes/email.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -44,6 +45,7 @@ export function createApp(): Express {
   app.use("/", healthRouter);
   app.use("/api", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/email", emailRouter);
 
   // Manejador de rutas no encontradas (404)
   app.use((_req: Request, res: Response) => {

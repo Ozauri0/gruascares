@@ -5,6 +5,7 @@ import { db } from "../db/connection.js";
 import { users } from "../db/schema.js";
 import { generateToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
+import { sendWelcomeEmail } from "../services/email/email.service.js";
 
 const COOKIE_NAME = "gc_token";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
@@ -73,7 +74,10 @@ export async function register(req: Request, res: Response) {
         createdAt: users.createdAt,
       });
 
-    // 5. Generar JWT y establecer cookie HTTP-only
+    // 5. Enviar correo de bienvenida (asíncrono, fire-and-forget)
+    sendWelcomeEmail(newUser.email, newUser.name);
+
+    // 6. Generar JWT y establecer cookie HTTP-only
     const token = generateToken({
       userId: newUser.id,
       email: newUser.email,
