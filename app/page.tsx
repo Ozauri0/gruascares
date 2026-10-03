@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import SocialLinks from "./components/SocialLinks";
 
 const imageBase = "/images/";
 const logo = "/images/logo.png";
@@ -85,7 +86,23 @@ export default function Home() {
 
       <section className="booking" id="agenda"><div className="wrap booking-layout"><div><p className="eyebrow light">Agenda tu servicio</p><h2>Cuéntanos qué<br /><em>necesitas mover.</em></h2><p className="booking-copy">Déjanos tus datos y te contactaremos para coordinar la mejor solución.</p><div className="contact-line"><span>¿Es urgente?</span><a href="tel:+56991627809">Llámanos ahora ↗</a></div></div><form onSubmit={submit}>{sent ? <div className="success"><span>✓</span><h3>Solicitud recibida</h3><p>Te contactaremos a la brevedad para coordinar tu servicio.</p><button type="button" className="button yellow" onClick={() => setSent(false)}>Enviar otra solicitud</button></div> : <><div className="form-row"><label>Nombre completo<input required placeholder="Tu nombre" /></label><label>Teléfono<input required type="tel" placeholder="+56 9 ..." /></label></div><label>¿Qué necesitas?<select value={service} onChange={(e) => setService(e.target.value)}><option>Grúa de plataforma hidráulica</option><option>Transporte de cargas pesadas</option><option>Camiones grúa</option></select></label><label>Cuéntanos brevemente<textarea placeholder="Lugar, fecha y detalles del servicio" rows={3} /></label><button className="button yellow" type="submit">Solicitar contacto <span>↗</span></button></>}</form></div></section>
 
-      <footer id="contacto"><div className="wrap footer-main"><a className="brand footer-brand" href="#inicio"><img src={logo} alt="Grúas Cares" /></a><div><p className="footer-title">Contacto emergencia</p><a href="tel:+56991627809">+56 9 9162 7809</a><a href="tel:+56968327329">+56 9 6832 7329</a><a href="tel:+56968574677">+56 9 6857 4677</a></div><div><p className="footer-title">Síguenos</p><div className="socials"><a href="https://www.instagram.com/gruas_cares/">IG</a><a href="https://www.facebook.com/share/19v62HEKqL/">FB</a><a href="https://www.tiktok.com/@gruas_cares">TK</a></div></div></div><div className="wrap footer-bottom"><span>Grúas Cares Villarrica</span><span>IX Región de la Araucanía y alrededores</span></div></footer>
+      <section className="map-section" id="ubicacion" aria-label="Ubicación de Grúas Cares">
+        <div className="wrap map-head">
+          <div><p className="eyebrow">Dónde estamos</p><h2>Encuéntranos en <em>Villarrica.</em></h2></div>
+          <p className="section-note">Atención de emergencias 24/7 en Villarrica y la IX Región de la Araucanía.</p>
+        </div>
+        <div className="wrap map-frame">
+          <iframe
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3086.9554504773114!2d-72.23451242329556!3d-39.311933321139655!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x96146f3b6b2b7983%3A0x9128f8389533021!2sGr%C3%BAas%20Cares%20Villarrica!5e0!3m2!1ses-419!2scl!4v1747685714817!5m2!1ses-419!2scl"
+            title="Ubicación Grúas Cares en Villarrica"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
+        </div>
+      </section>
+
+      <footer id="contacto"><div className="wrap footer-main"><a className="brand footer-brand" href="#inicio"><img src={logo} alt="Grúas Cares" /></a><div><p className="footer-title">Contacto emergencia</p><a href="tel:+56991627809">+56 9 9162 7809</a><a href="tel:+56968327329">+56 9 6832 7329</a><a href="tel:+56968574677">+56 9 6857 4677</a></div><div><p className="footer-title">Síguenos</p><SocialLinks /></div></div><div className="wrap footer-bottom"><span>Grúas Cares Villarrica</span><span>IX Región de la Araucanía y alrededores</span></div></footer>
     </main>
   );
 }
