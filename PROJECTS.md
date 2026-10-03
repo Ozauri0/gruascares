@@ -20,10 +20,10 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 
 ## 👥 Asignación de Roles por Desarrollador
 
-| Desarrollador | Enfoque Principal | Responsabilidades |
-| :--- | :--- | :--- |
-| **Dev 1** | **Backend, Base de Datos & APIs** | Estructura de servidor Express, modelos PostgreSQL, autenticación JWT/RBAC, lógica de slots/disponibilidad de taller, servicio de envío de correos y endpoints de gestión. |
-| **Dev 2** | **Frontend, UI/UX & Paneles** | Botón flotante de WhatsApp, vistas del portal de usuario, panel de mecánicos, panel de administración, autenticación en Next.js (cookies/tokens) y conexión con la API. |
+| Desarrollador | Usuario GitHub | Enfoque Principal | Responsabilidades |
+| :--- | :--- | :--- | :--- |
+| **Dev 1** | **[@Ozauri0](https://github.com/Ozauri0)** | **Backend, Base de Datos & APIs** | Estructura de servidor Express, modelos PostgreSQL, autenticación JWT/RBAC, lógica de slots/disponibilidad de taller, servicio de envío de correos y endpoints de gestión. |
+| **Dev 2** | **[@eduardoscrs](https://github.com/eduardoscrs)** | **Frontend, UI/UX & Paneles** | Botón flotante de WhatsApp, vistas del portal de usuario, panel de mecánicos, panel de administración, autenticación en Next.js (cookies/tokens) y conexión con la API. |
 
 ---
 
