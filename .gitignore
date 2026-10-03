@@ -1,9 +1,10 @@
 # Dependencies
 node_modules/
 
-# Next.js build output
+# Next.js and backend build output
 .next/
 out/
+dist/
 
 # Local environment files
 .env
