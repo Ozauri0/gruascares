@@ -33,6 +33,26 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   return next();
 }
 
+export function optionalAuthenticate(req: Request, _res: Response, next: NextFunction) {
+  let token = req.cookies?.gc_token;
+
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
+    }
+  }
+
+  if (token) {
+    const payload = verifyToken(token);
+    if (payload) {
+      req.user = payload;
+    }
+  }
+
+  return next();
+}
+
 export function authorizeRoles(...allowedRoles: UserRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
