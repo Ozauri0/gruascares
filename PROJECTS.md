@@ -124,9 +124,12 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 ---
 
 ## 🚦 Flujo de Git y Convenciones para 2 Desarrolladores
-- **Rama principal**: `main` (siempre compilable y probada).
+- **Rama `main` (Producción)**: Versiones finales estables y desplegables. Protegida.
+- **Rama `dev` (Desarrollo e Integración)**: Rama base activa donde convergen todos los Pull Requests diarios.
 - **Ramas de trabajo**:
-  - Dev 1: `feature/backend-*`
-  - Dev 2: `feature/frontend-*`
+  - Salen siempre a partir de `dev`: `christian` (o `feature/backend-*`), `eduardo` (o `feature/frontend-*`).
+  - **Todos los Pull Requests se abren hacia `dev`**.
+  - El jefe de proyecto revisa y aprueba los PRs en `dev`.
+- **Releases a Producción**: Al completar una fase o hito probado en `dev`, se abre un PR de `dev` hacia `main` como versión final.
 - **Commits**: Formato convencional (`feat:`, `fix:`, `refactor:`, `docs:`).
-- **Verificación**: Antes de mergear a `main`, ejecutar `bun run build` tanto en frontend como en backend.
+- **Verificación**: Antes de abrir o mergear un PR, ejecutar `bun run build` y `bun run backend:build`.
