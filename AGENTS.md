@@ -8,22 +8,23 @@ La web es un prototipo frontend. No hay backend, autenticación real, inventario
 
 ## Stack
 
-- Next.js 16 con App Router.
-- React y TypeScript.
+- Runtime: Bun (`bun run dev`, `bun run build`).
+- Frontend: Next.js 16 con App Router, React y TypeScript.
+- Backend (en desarrollo): Express + TypeScript con Bun (`/backend`).
+- Base de datos: PostgreSQL.
 - CSS global en `app/globals.css`.
 - Assets locales en `public/images`.
-- Persistencia del carro mediante `localStorage`.
+- Documentación y tareas: Ver `PROJECTS.md` y carpeta `docs/`.
 
 ## Commands
 
 ```bash
-npm install
-npm run dev
-npm run build
-npm start
+bun install
+bun run dev
+bun run build
 ```
 
-`npm run build` debe ejecutarse antes de considerar terminada una modificación.
+`bun run build` debe ejecutarse antes de considerar terminada una modificación.
 
 ## Routes
 
