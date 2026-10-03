@@ -1,8 +1,10 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import { config } from "./config/env.js";
 import healthRouter from "./routes/health.routes.js";
+import authRouter from "./routes/auth.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -27,7 +29,8 @@ export function createApp(): Express {
     })
   );
 
-  // Parseo de JSON y urlencoded
+  // Parseo de cookies, JSON y urlencoded
+  app.use(cookieParser());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
@@ -40,6 +43,7 @@ export function createApp(): Express {
   // Rutas
   app.use("/", healthRouter);
   app.use("/api", healthRouter);
+  app.use("/api/auth", authRouter);
 
   // Manejador de rutas no encontradas (404)
   app.use((_req: Request, res: Response) => {
