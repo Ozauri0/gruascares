@@ -2,9 +2,10 @@ import { Request, Response } from "express";
 import { eq, and, ne, sql, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db } from "../db/connection.js";
-import { appointments, services, vehicles, users, serviceRecords } from "../db/schema.js";
+import { appointments, services, vehicles, users, serviceRecords, blockedDates } from "../db/schema.js";
 import { DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
+import { logAudit } from "../services/audit/audit.service.js";
 
 /**
  * 1. Obtener catálogo de servicios activos para agendamiento
@@ -81,14 +82,41 @@ export async function getAvailableSlots(req: Request, res: Response) {
 
     const bookedMap = new Map(activeBookings.map((b) => [b.timeSlot, b.count]));
 
+    // Consultar bloqueos de fechas y horarios establecidos por administración
+    const activeBlocks = await db
+      .select()
+      .from(blockedDates)
+      .where(eq(blockedDates.date, date));
+
+    const isDayBlocked = activeBlocks.some((b) => !b.timeSlot);
+    const dayBlockReason = activeBlocks.find((b) => !b.timeSlot)?.reason;
+    const blockedSlotsMap = new Map(
+      activeBlocks.filter((b) => Boolean(b.timeSlot)).map((b) => [b.timeSlot!, b.reason])
+    );
+
     const slots = DEFAULT_TIME_SLOTS.map((slot) => {
+      if (isDayBlocked) {
+        return {
+          time: slot,
+          bookedCount: 0,
+          capacityRemaining: 0,
+          available: false,
+          reason: dayBlockReason || "Día completo bloqueado para atención",
+        };
+      }
+
+      const isSlotBlocked = blockedSlotsMap.has(slot);
       const bookedCount = bookedMap.get(slot) || 0;
-      const capacityRemaining = Math.max(0, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT - bookedCount);
+      const capacityRemaining = isSlotBlocked
+        ? 0
+        : Math.max(0, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT - bookedCount);
+
       return {
         time: slot,
         bookedCount,
         capacityRemaining,
-        available: capacityRemaining > 0,
+        available: !isSlotBlocked && capacityRemaining > 0,
+        reason: isSlotBlocked ? blockedSlotsMap.get(slot) : undefined,
       };
     });
 
@@ -203,7 +231,26 @@ export async function createAppointment(req: Request, res: Response) {
       }
     }
 
-    // 4. Validar disponibilidad del bloque horario
+    // 4.1 Verificar si la fecha o bloque está bloqueado por administración
+    const [blockedRecord] = await db
+      .select()
+      .from(blockedDates)
+      .where(
+        and(
+          eq(blockedDates.date, scheduledDate),
+          sql`(${blockedDates.timeSlot} is null or ${blockedDates.timeSlot} = ${timeSlot})`
+        )
+      )
+      .limit(1);
+
+    if (blockedRecord) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `El horario de las ${timeSlot} hrs del ${scheduledDate} no se encuentra disponible: ${blockedRecord.reason}`,
+      });
+    }
+
+    // 4.2 Validar disponibilidad del bloque horario
     const [slotUsage] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(appointments)
@@ -262,6 +309,23 @@ export async function createAppointment(req: Request, res: Response) {
         notes: notes ? String(notes).trim() : undefined,
       });
     }
+
+    // 8. Registrar evento de auditoría
+    logAudit({
+      userId: targetUserId,
+      userEmail: clientEmail,
+      action: "APPOINTMENT_CREATE",
+      entityType: "appointment",
+      entityId: newAppointment.id,
+      details: {
+        serviceId: service.id,
+        serviceName: service.name,
+        scheduledDate,
+        timeSlot,
+        vehicleId: vehicleId || null,
+      },
+      req,
+    });
 
     return res.status(201).json({
       message: "Cita agendada exitosamente",
@@ -433,6 +497,20 @@ export async function cancelAppointment(req: Request, res: Response) {
       .set({ status: "cancelada", updatedAt: new Date() })
       .where(eq(appointments.id, id))
       .returning();
+
+    // Registrar en auditoría
+    logAudit({
+      userId: req.user?.userId || item.userId,
+      userEmail: req.user?.email,
+      action: "APPOINTMENT_CANCEL",
+      entityType: "appointment",
+      entityId: id,
+      details: {
+        scheduledDate: item.scheduledDate,
+        timeSlot: item.timeSlot,
+      },
+      req,
+    });
 
     return res.status(200).json({
       message: "Cita cancelada exitosamente",

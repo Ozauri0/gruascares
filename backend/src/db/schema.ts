@@ -167,3 +167,55 @@ export const serviceRecordsRelations = relations(serviceRecords, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// 7. Tabla Bloqueo de Fechas y Horarios del Taller (T1.9)
+export const blockedDates = pgTable(
+  "blocked_dates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    date: date("date").notNull(),
+    timeSlot: varchar("time_slot", { length: 10 }), // null = día completo bloqueado
+    reason: text("reason").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("blocked_dates_date_idx").on(table.date),
+  ]
+);
+
+export const blockedDatesRelations = relations(blockedDates, ({ one }) => ({
+  creator: one(users, {
+    fields: [blockedDates.createdBy],
+    references: [users.id],
+  }),
+}));
+
+// 8. Tabla de Auditoría y Trazabilidad de Operaciones Críticas (T1.10)
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    userEmail: varchar("user_email", { length: 255 }),
+    action: varchar("action", { length: 100 }).notNull(),
+    entityType: varchar("entity_type", { length: 50 }).notNull(),
+    entityId: varchar("entity_id", { length: 100 }),
+    details: text("details"),
+    ipAddress: varchar("ip_address", { length: 50 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("audit_logs_action_idx").on(table.action),
+    index("audit_logs_created_at_idx").on(table.createdAt),
+    index("audit_logs_user_id_idx").on(table.userId),
+  ]
+);
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
