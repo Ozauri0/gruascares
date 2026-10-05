@@ -32,10 +32,10 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 ### 🚀 Fase 1: Cimientos, Base de Datos y Autenticación
 
 #### [Dev 1] Backend & Base de Datos
-- [ ] **T1.1: Inicialización de `/backend` con Bun y Express**
+- [x] **T1.1: Inicialización de `/backend` con Bun y Express**
   - **Descripción**: Crear estructura del servidor en TypeScript con Bun, Express, CORS, Helmet y variables de entorno.
   - **Criterios de Aceptación**: Servidor corre con `bun run dev`, responde en `GET /health` con status 200 y maneja `.env.example`.
-- [ ] **T1.2: Esquema de Base de Datos PostgreSQL & Migraciones**
+- [x] **T1.2: Esquema de Base de Datos PostgreSQL & Migraciones**
   - **Descripción**: Modelar tablas iniciales con ORM:
     - `users` (id, name, email, password_hash, role [admin, mecanico, usuario], phone, created_at).
     - `vehicles` (id, user_id, plate [patente], brand, model, year, mileage).
@@ -43,23 +43,23 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
     - `appointments` (id, user_id, vehicle_id, service_id, mechanic_id, scheduled_date, time_slot, status [solicitada, confirmada, en_proceso, finalizada, cancelada], notes).
     - `service_records` (id, appointment_id, mechanic_id, observations, parts_replaced, mileage_at_service, completed_at).
   - **Criterios de Aceptación**: Migraciones aplicables con `bun run db:migrate`, relaciones foráneas e índices en `plate`, `user_id` y `scheduled_date`.
-- [ ] **T1.3: Módulo de Autenticación y Autorización (RBAC)**
+- [x] **T1.3: Módulo de Autenticación y Autorización (RBAC)**
   - **Descripción**: Implementar registro de usuarios, login con bcrypt y generación de JWT o sesiones con cookies HTTP-only.
   - **Criterios de Aceptación**: Endpoints `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`. Middlewares `authenticate` y `authorizeRoles(['admin', 'mecanico', ...])`.
-- [ ] **T1.4: Servicio de Notificaciones por Correo Electrónico**
+- [x] **T1.4: Servicio de Notificaciones por Correo Electrónico**
   - **Descripción**: Configurar servicio transaccional de correo (Nodemailer / Resend) con plantillas base HTML:
     - Bienvenida al registrarse.
     - Confirmación de solicitud de cita.
     - Notificación cuando la atención cambia a *Finalizada* con el resumen de trabajo.
 
 #### [Dev 2] Frontend, Navegación & Autenticación
-- [ ] **T2.1: Botón Flotante CTA de WhatsApp Global**
+- [x] **T2.1: Botón Flotante CTA de WhatsApp Global**
   - **Descripción**: Diseñar e integrar un botón flotante accesible en todas las páginas públicas con estilo corporativo Grúas Cares.
   - **Criterios de Aceptación**: Fijo en la esquina inferior, visible en móvil y desktop sin tapar elementos clave; redirige a WhatsApp (`+56991627809`) con mensaje prellenado según la sección.
-- [ ] **T2.2: Sistema de Autenticación en Frontend & Manejo de Sesión**
+- [x] **T2.2: Sistema de Autenticación en Frontend & Manejo de Sesión**
   - **Descripción**: Crear `AuthContext` en React para manejar estado de sesión, token/cookie y usuario autenticado.
   - **Criterios de Aceptación**: Conectar formularios de `/login` y nuevo `/registro` a la API. Redirección automática según rol (`/portal` para usuarios, `/mecanico` para mecánicos, `/admin` para administradores).
-- [ ] **T2.3: Middleware de Protección de Rutas en Next.js**
+- [x] **T2.3: Middleware de Protección de Rutas en Next.js**
   - **Descripción**: Proteger rutas con el middleware nativo de Next.js según el rol contenido en la sesión.
   - **Criterios de Aceptación**: Rutas `/admin/*` solo accesibles por rol `admin`. Rutas `/mecanico/*` solo accesibles por `mecanico` o `admin`. Rutas `/portal/*` accesibles por usuarios autenticados.
 
@@ -68,7 +68,7 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 ### 🔧 Fase 2: Core de Serviteca, Agendamiento & Panel de Usuario
 
 #### [Dev 1] APIs de Citas y Mecánicos
-- [ ] **T1.5: API de Disponibilidad y Agendamiento de Citas**
+- [x] **T1.5: API de Disponibilidad y Agendamiento de Citas**
   - **Descripción**: Endpoints para calcular bloques horarios disponibles por día según capacidad de mecánicos/bahías de taller.
   - **Criterios de Aceptación**: `GET /api/appointments/availability?date=YYYY-MM-DD` retorna solo slots libres. `POST /api/appointments` valida no solapamiento y dispara correo de confirmación.
 - [ ] **T1.6: API de Vehículos del Usuario**
@@ -81,16 +81,16 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
     - `POST /api/appointments/:id/report`: Guardar bitácora técnica en `service_records`. Dispara correo al cliente con el reporte.
 
 #### [Dev 2] Panel de Usuario (`/portal`)
-- [ ] **T2.4: Vista Principal del Portal de Usuario**
+- [x] **T2.4: Vista Principal del Portal de Usuario**
   - **Descripción**: Dashboard personal del cliente con bienvenida, accesos directos y resumen de citas activas.
   - **Criterios de Aceptación**: Diseño limpio, adaptado a la estética de la marca (paleta negro/verde/gris claro).
-- [ ] **T2.5: Módulo "Mis Vehículos"**
+- [x] **T2.5: Módulo "Mis Vehículos"**
   - **Descripción**: Formulario para registrar vehículos (patente, marca, modelo, año, kilometraje) y listado en formato tarjeta.
   - **Criterios de Aceptación**: Interacción en tiempo real contra la API de vehículos, validación visual de campos.
-- [ ] **T2.6: Módulo "Mis Citas e Historial de Atenciones"**
+- [x] **T2.6: Módulo "Mis Citas e Historial de Atenciones"**
   - **Descripción**: Tabla / tarjetas con el historial de servicios realizados, estado en vivo de la cita y botón para ver el informe del mecánico (observaciones técnicas y repuestos).
   - **Criterios de Aceptación**: Muestra estados claros con etiquetas de color (`Solicitada` [amarillo], `Confirmada` [azul], `En Taller` [verde], `Finalizada` [verde oscuro]).
-- [ ] **T2.7: Integración de `/agendar` con el Portal**
+- [x] **T2.7: Integración de `/agendar` con el Portal**
   - **Descripción**: Permitir que el usuario agende directamente seleccionando uno de sus vehículos registrados y recibiendo feedback con confirmación por correo.
 
 ---
@@ -98,19 +98,19 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 ### 🛠️ Fase 3: Paneles Operativos (Mecánico & Administrador)
 
 #### [Dev 2] Panel de Mecánicos (`/mecanico`)
-- [ ] **T2.8: Agenda Diaria del Mecánico**
+- [x] **T2.8: Agenda Diaria del Mecánico**
   - **Descripción**: Vista calendario o lista cronológica con las horas agendadas para el día, visualizando cliente, vehículo, servicio y notas.
   - **Criterios de Aceptación**: Selector de fecha rápido, filtro por estado de cita, diseño optimizado para tablets/móvil de taller.
-- [ ] **T2.9: Modal / Ficha de Atención en Taller**
+- [x] **T2.9: Modal / Ficha de Atención en Taller**
   - **Descripción**: Interfaz para que el mecánico inicie la atención (`En Proceso`), ingrese kilometraje actual, observaciones técnicas, recomendaciones a futuro y marque como `Finalizada`.
   - **Criterios de Aceptación**: Guardado validado con retroalimentación inmediata; el cliente recibe su correo al finalizar.
 
 #### [Dev 2] Panel de Administración (`/admin`)
-- [ ] **T2.10: Dashboard General y Métricas**
+- [x] **T2.10: Dashboard General y Métricas**
   - **Descripción**: Resumen de negocio: citas agendadas hoy, servicios más solicitados, ingresos estimados y total de clientes registrados.
-- [ ] **T2.11: Gestión de Usuarios y Personal**
+- [x] **T2.11: Gestión de Usuarios y Personal**
   - **Descripción**: Tabla de usuarios con buscador, asignación de roles y creación de cuentas de mecánicos y administradores.
-- [ ] **T2.12: Calendario Maestro & Bloqueo de Horarios**
+- [x] **T2.12: Calendario Maestro & Bloqueo de Horarios**
   - **Descripción**: Vista global de todas las citas del taller y opción para bloquear días feriados o turnos no disponibles.
 
 #### [Dev 1] APIs Administrativas & Seguridad
