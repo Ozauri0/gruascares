@@ -8,6 +8,7 @@ import authRouter from "./routes/auth.routes.js";
 import emailRouter from "./routes/email.routes.js";
 import appointmentRouter from "./routes/appointment.routes.js";
 import vehicleRouter from "./routes/vehicle.routes.js";
+import mechanicRouter from "./routes/mechanic.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -50,6 +51,7 @@ export function createApp(): Express {
   app.use("/api/email", emailRouter);
   app.use("/api/appointments", appointmentRouter);
   app.use("/api/vehicles", vehicleRouter);
+  app.use("/api/mechanic", mechanicRouter);
 
   // Manejador de rutas no encontradas (404)
   app.use((_req: Request, res: Response) => {

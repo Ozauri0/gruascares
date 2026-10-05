@@ -71,7 +71,7 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 - [x] **T1.5: API de Disponibilidad y Agendamiento de Citas**
   - **Descripción**: Endpoints para calcular bloques horarios disponibles por día según capacidad de mecánicos/bahías de taller.
   - **Criterios de Aceptación**: `GET /api/appointments/availability?date=YYYY-MM-DD` retorna solo slots libres. `POST /api/appointments` valida no solapamiento y dispara correo de confirmación.
-- [ ] **T1.6: API de Vehículos del Usuario**
+- [x] **T1.6: API de Vehículos del Usuario**
   - **Descripción**: CRUD de vehículos por usuario (`GET /api/vehicles`, `POST /api/vehicles`, `DELETE /api/vehicles/:id`).
   - **Criterios de Aceptación**: Validación de patente chilena (formato estándar), asociación estricta al `user_id` autenticado.
 - [ ] **T1.7: API para Mecánicos (Gestión de Taller)**
