@@ -114,11 +114,11 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
   - **Descripción**: Vista global de todas las citas del taller y opción para bloquear días feriados o turnos no disponibles.
 
 #### [Dev 1] APIs Administrativas & Seguridad
-- [ ] **T1.8: Endpoints de Métricas y Reportes**
+- [x] **T1.8: Endpoints de Métricas y Reportes**
   - **Descripción**: `GET /api/admin/metrics` con agregaciones SQL optimizadas.
-- [ ] **T1.9: Endpoints de Gestión de Taller y Horarios**
+- [x] **T1.9: Endpoints de Gestión de Taller y Horarios**
   - **Descripción**: Bloqueo de días/horas no laborales y asignación manual de mecánicos a citas.
-- [ ] **T1.10: Auditoría y Respaldo**
+- [x] **T1.10: Auditoría y Respaldo**
   - **Descripción**: Logs estructurados de operaciones críticas y endpoints seguros para exportar historial en CSV/JSON.
 
 ---
