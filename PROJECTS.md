@@ -74,7 +74,7 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 - [x] **T1.6: API de Vehículos del Usuario**
   - **Descripción**: CRUD de vehículos por usuario (`GET /api/vehicles`, `POST /api/vehicles`, `DELETE /api/vehicles/:id`).
   - **Criterios de Aceptación**: Validación de patente chilena (formato estándar), asociación estricta al `user_id` autenticado.
-- [ ] **T1.7: API para Mecánicos (Gestión de Taller)**
+- [x] **T1.7: API para Mecánicos (Gestión de Taller)**
   - **Descripción**: Endpoints específicos para el personal técnico:
     - `GET /api/mechanic/agenda`: Citas filtradas por fecha o estado.
     - `PATCH /api/appointments/:id/status`: Transición de estados (`en_proceso`, `finalizada`, `cancelada`).
