@@ -191,6 +191,134 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 .portal-empty a:hover{color:var(--green-dark);border-color:var(--green-dark)}
 @media(max-width:760px){.portal-page .portal-intro{padding-bottom:30px}.portal-section{padding-bottom:80px}.portal-stack{gap:44px;padding-bottom:80px}.next-hero{grid-template-columns:76px 1fr;gap:18px;padding:26px 22px;border-radius:16px}.next-date strong{font-size:34px}.next-hero.next-empty{grid-template-columns:1fr}.portal-row-head h2{font-size:25px}.vehicle-strip{grid-template-columns:1fr}.compact-row{grid-template-columns:auto 1fr;row-gap:8px}.compact-row>span{grid-column:2}.quick-row{grid-template-columns:1fr}.portal-head h2{font-size:38px}}
 
+/* Admin dashboard (T2.10). */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi-card{background:#fff;border:1px solid #e2e2e2;border-radius:14px;padding:26px 24px;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.kpi-card strong{display:block;font:500 44px/1 'Space Grotesk';letter-spacing:-.04em;color:var(--green-dark)}
+.kpi-card span{display:block;margin-top:8px;font:10px 'DM Mono',monospace;color:#777;text-transform:uppercase}
+.kpi-card.kpi-dark{background:var(--ink);border-color:var(--ink)}
+.kpi-card.kpi-dark strong{color:#fff}
+.kpi-card.kpi-dark span{color:#999}
+.demand-card{background:#fff;border:1px solid #e2e2e2;border-radius:14px;padding:28px;box-shadow:0 8px 24px rgba(0,0,0,.05);display:grid;gap:22px}
+.demand-label{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.demand-label strong{font:500 19px 'Space Grotesk'}
+.demand-label span{font:10px 'DM Mono',monospace;color:#777}
+.demand-track{height:10px;background:#eee;border-radius:999px;overflow:hidden}
+.demand-fill{height:100%;background:var(--green);border-radius:999px}
+.compact-time{font:600 13px 'DM Mono',monospace;color:var(--green-dark)}
+.compact-row strong small{font:12px 'Fira Sans',sans-serif;color:#777;font-weight:400}
+@media(max-width:760px){.kpi-grid{grid-template-columns:1fr 1fr;gap:12px}.kpi-card{padding:20px}.kpi-card strong{font-size:34px}.demand-card{padding:22px}}
+
+/* Admin sub-navigation (shared by /admin sections). */
+.admin-nav{display:flex;gap:16px;flex-wrap:wrap}
+.admin-nav a{font-size:12px;font-weight:700;border-bottom:1px solid var(--ink);padding-bottom:4px}
+.admin-nav a:hover{color:var(--green-dark);border-color:var(--green-dark)}
+.admin-nav a span{margin-left:6px}
+
+/* User management (T2.11). */
+.filter-bar{display:grid;gap:14px;margin-bottom:22px}
+.filter-search{border:1px solid #c2c2c2;border-radius:12px;background:#fff;padding:13px 16px;font-size:14px;color:var(--ink);outline:0;width:100%}
+.filter-search:focus{border-color:var(--green)}
+.filter-pills{display:flex;gap:8px;flex-wrap:wrap}
+.filter-pill{border:1px solid #c2c2c2;background:#fff;border-radius:999px;padding:9px 18px;font-size:12px;font-weight:700;color:#555;cursor:pointer;transition:border-color .2s,color .2s}
+.filter-pill:hover{border-color:var(--green);color:var(--green-dark)}
+.filter-pill.selected{background:var(--ink);border-color:var(--ink);color:#fff}
+.table-scroll{overflow-x:auto;background:#fff;border:1px solid #e2e2e2;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.data-table{width:100%;min-width:640px;border-collapse:collapse;font-size:14px}
+.data-table th{font:10px 'DM Mono',monospace;text-transform:uppercase;color:#999;text-align:left;padding:16px 20px;border-bottom:1px solid #e5e5e5}
+.data-table td{padding:16px 20px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.data-table tbody tr:last-child td{border-bottom:0}
+.data-table td strong{font-weight:600}
+.row-inactive td{opacity:.55}
+.cell-sub{font-size:12px;color:#777}
+.role-badge{display:inline-block;padding:5px 12px;border-radius:999px;font:600 10px 'DM Mono',monospace;text-transform:uppercase;white-space:nowrap}
+.role-usuario{background:#eef2f7;color:#444}
+.role-mecanico{background:rgba(2,152,52,.14);color:var(--green-dark)}
+.role-admin{background:var(--ink);color:#fff}
+.state-on{font:600 11px 'DM Mono',monospace;color:var(--green-dark)}
+.state-off{font:600 11px 'DM Mono',monospace;color:#b42318}
+.toggle-btn{border:1px solid #bbb;background:none;padding:8px 16px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.toggle-btn:hover{border-color:var(--green);color:var(--green-dark)}
+.table-note{margin:16px 0 0;font:10px 'DM Mono',monospace;color:#999}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.modal select{background:transparent;border:0;border-bottom:1px solid #c2c2c2;color:var(--ink);padding:9px 0;outline:0;border-radius:0}
+.modal select:focus{border-bottom-color:var(--green)}
+.check-row{display:flex!important;flex-direction:row!important;align-items:center;gap:10px;cursor:pointer}
+.check-row input{width:18px;height:18px;accent-color:var(--green)}
+
+/* Catalog management (admin). */
+.catalog-table .cell-sub{display:block;margin-top:4px}
+.cell-input{width:110px;border:1px solid #c2c2c2;border-radius:8px;padding:8px 10px;font-size:14px;color:var(--ink);outline:0;background:#fff}
+.cell-input:focus{border-color:var(--green)}
+.toggle-btn.danger{color:#b42318;border-color:#e5b4ae}
+.toggle-btn.danger:hover{border-color:#b42318;color:#b42318}
+.toggle-btn.danger.confirm{background:#b42318;border-color:#b42318;color:#fff}
+.featured-photo img,.mini-product-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.featured-photo,.mini-product-art{position:relative}
+.image-preview{margin-top:4px;border:1px solid #e2e2e2;border-radius:12px;overflow:hidden;max-height:180px;display:grid;place-items:center;background:#f4f4f4}
+.image-preview img{max-width:100%;max-height:180px;display:block}
+.image-row{display:flex;gap:10px;align-items:center}
+.image-row .modal-cancel{padding:10px 16px}
+.file-btn{border:1px solid #bbb;background:none;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.file-btn:hover{border-color:var(--green);color:var(--green-dark)}
+.data-table td .toggle-btn + .toggle-btn{margin-left:8px}
+
+/* Session and demo login (T2.2). */
+.logout-btn{margin-top:14px;border:1px solid #bbb;background:none;padding:9px 18px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;color:#555}
+.logout-btn:hover{border-color:#b42318;color:#b42318}
+.demo-accounts{margin-top:26px;border-top:1px solid #e2e2e2;padding-top:20px;display:grid;gap:8px}
+.demo-accounts p{font:10px 'DM Mono',monospace;color:#999;text-transform:uppercase;margin:0 0 4px}
+.demo-accounts button{border:1px solid #c2c2c2;background:#fff;border-radius:12px;padding:11px;font-size:12px;font-weight:700;cursor:pointer;transition:border-color .2s,color .2s}
+.demo-accounts button:hover{border-color:var(--green);color:var(--green-dark)}
+
+/* Mechanic agenda and report sheet (T2.8 / T2.9). */
+.workshop-bar{display:flex;align-items:end;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.workshop-bar label{display:grid;gap:8px;font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
+.workshop-bar input{border:1px solid #c2c2c2;border-radius:12px;background:#fff;padding:11px 14px;font-size:14px;color:var(--ink);outline:0}
+.workshop-bar input:focus{border-color:var(--green)}
+.workshop-bar .filter-pill{padding:11px 18px}
+.workshop-list{margin-top:22px}
+.modal textarea{background:transparent;border:0;border-bottom:1px solid #c2c2c2;color:var(--ink);padding:9px 0;outline:0;border-radius:0;resize:vertical;font-size:14px}
+.modal textarea:focus{border-bottom-color:var(--green)}
+.sheet-advance{justify-content:flex-start;margin:18px 0 22px}
+.sheet-advance .button{border:0;cursor:pointer}
+.modal-success{border:1px solid #c2c2c2;border-radius:14px;padding:34px;text-align:center}
+.modal-success>span{display:grid;place-items:center;margin:auto;width:44px;height:44px;background:var(--green);color:#fff;font-size:24px;border-radius:50%}
+.modal-success h3{font:500 24px 'Space Grotesk';margin:18px 0 8px}
+.modal-success p{color:#666;font-size:13px;line-height:1.6;margin:0 0 22px}
+.modal-success .button{border:0;cursor:pointer}
+
+/* Master calendar (T2.12). */
+.month-nav{display:flex;align-items:center;gap:14px}
+.month-nav strong{font:500 18px 'Space Grotesk';min-width:170px;text-align:center}
+.month-nav button{width:38px;height:38px;border-radius:50%;border:1px solid #bbb;background:#fff;font-size:16px;cursor:pointer;transition:border-color .2s,color .2s}
+.month-nav button:hover{border-color:var(--green);color:var(--green-dark)}
+.calendar-layout{display:grid;grid-template-columns:1.2fr .8fr;gap:22px;align-items:start}
+.calendar{background:#fff;border:1px solid #e2e2e2;border-radius:16px;padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.calendar-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px}
+.calendar-weekdays span{font:10px 'DM Mono',monospace;color:#999;text-transform:uppercase;text-align:center}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.calendar-empty{min-height:52px}
+.calendar-day{position:relative;min-height:52px;border:1px solid #eee;background:#fafafa;border-radius:10px;cursor:pointer;padding:6px;transition:border-color .2s}
+.calendar-day:hover{border-color:var(--green)}
+.calendar-day.selected{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+.calendar-day.has-items{background:#fff;border-color:#d8d8d8}
+.calendar-day.blocked{background:repeating-linear-gradient(45deg,#f3e2e0,#f3e2e0 6px,#f9efed 6px,#f9efed 12px);border-color:#e0aaa4}
+.calendar-number{font:600 13px 'Space Grotesk'}
+.calendar-count{position:absolute;right:6px;bottom:5px;min-width:20px;height:20px;border-radius:50%;background:var(--green);color:#fff;font:600 10px 'DM Mono',monospace;display:grid;place-items:center;padding:0 4px}
+.calendar-detail{background:#fff;border:1px solid #e2e2e2;border-radius:16px;padding:26px;box-shadow:0 8px 24px rgba(0,0,0,.05);display:grid;gap:16px;align-content:start}
+.calendar-selected{font:500 20px 'Space Grotesk'}
+.toggle-btn.active{background:var(--ink);border-color:var(--ink);color:#fff}
+.blocked-note{margin:0;font:10px 'DM Mono',monospace;color:#b42318;text-transform:uppercase}
+.calendar-items{display:grid;gap:12px}
+.calendar-item{border:1px solid #eee;border-radius:12px;padding:16px 18px;display:grid;gap:8px}
+.calendar-item strong{font:500 17px 'Space Grotesk'}
+.calendar-item p{margin:0;font-size:12px;color:#666}
+.calendar-item label{display:grid;gap:6px;font:10px 'DM Mono',monospace;color:#999;text-transform:uppercase}
+.calendar-item select{border:0;border-bottom:1px solid #c2c2c2;padding:8px 0;font-size:13px;color:var(--ink);outline:0;background:transparent}
+.calendar-item select:focus{border-bottom-color:var(--green)}
+@media(max-width:900px){.calendar-layout{grid-template-columns:1fr}.month-nav strong{min-width:0}}
+
 /* Appointment history and mechanic report (T2.6). */
 .history-list{margin-bottom:20px}
 .history-head{margin-top:60px}

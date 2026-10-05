@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import InnerFooter from "../components/InnerFooter";
 import InnerHeader from "../components/InnerHeader";
+import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { MOCK_APPOINTMENTS, MOCK_USER, MOCK_VEHICLES } from "../lib/portal-mocks";
 import { formatPlate } from "../lib/plate";
@@ -67,7 +68,7 @@ export default function PortalPage() {
             <p className="eyebrow">Portal de clientes</p>
             <h1>Hola, <em>{firstName}.</em></h1>
           </div>
-          <p className="portal-contact">{MOCK_USER.email}{MOCK_USER.phone ? ` · ${MOCK_USER.phone}` : ""}</p>
+          <div><p className="portal-contact">{MOCK_USER.email}{MOCK_USER.phone ? ` · ${MOCK_USER.phone}` : ""}</p><LogoutButton /></div>
         </section>
 
         <div className="portal-stack wrap">
