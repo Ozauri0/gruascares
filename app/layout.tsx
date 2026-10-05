@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "./components/CartProvider";
 import WhatsAppButton from "./components/WhatsAppButton";
+import { AuthProvider } from "./lib/auth";
 
 export const metadata: Metadata = {
   title: "Grúas Cares | Rescate y transporte 24/7",
@@ -10,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es"><body><CartProvider>{children}<WhatsAppButton /></CartProvider></body></html>;
+  return <html lang="es"><body><AuthProvider><CartProvider>{children}<WhatsAppButton /></CartProvider></AuthProvider></body></html>;
 }
