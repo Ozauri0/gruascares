@@ -7,6 +7,9 @@ import healthRouter from "./routes/health.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import emailRouter from "./routes/email.routes.js";
 import appointmentRouter from "./routes/appointment.routes.js";
+import vehicleRouter from "./routes/vehicle.routes.js";
+import mechanicRouter from "./routes/mechanic.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -48,6 +51,9 @@ export function createApp(): Express {
   app.use("/api/auth", authRouter);
   app.use("/api/email", emailRouter);
   app.use("/api/appointments", appointmentRouter);
+  app.use("/api/vehicles", vehicleRouter);
+  app.use("/api/mechanic", mechanicRouter);
+  app.use("/api/admin", adminRouter);
 
   // Manejador de rutas no encontradas (404)
   app.use((_req: Request, res: Response) => {

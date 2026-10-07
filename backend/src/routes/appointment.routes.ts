@@ -7,7 +7,12 @@ import {
   getAppointmentById,
   cancelAppointment,
 } from "../controllers/appointment.controller.js";
-import { authenticate, optionalAuthenticate } from "../middlewares/auth.middleware.js";
+import {
+  updateAppointmentStatus,
+  saveTechnicalReport,
+  getAppointmentReport,
+} from "../controllers/mechanic.controller.js";
+import { authenticate, optionalAuthenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -28,5 +33,14 @@ router.get("/:id", authenticate, getAppointmentById);
 
 // 6. Cancelar una cita
 router.patch("/:id/cancel", authenticate, cancelAppointment);
+
+// 7. Actualizar estado de cita (mecánicos y administradores)
+router.patch("/:id/status", authenticate, authorizeRoles("mecanico", "admin"), updateAppointmentStatus);
+
+// 8. Registrar/actualizar informe técnico (mecánicos y administradores)
+router.post("/:id/report", authenticate, authorizeRoles("mecanico", "admin"), saveTechnicalReport);
+
+// 9. Ver informe técnico de la cita
+router.get("/:id/report", authenticate, getAppointmentReport);
 
 export default router;
