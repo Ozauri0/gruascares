@@ -5,6 +5,8 @@ import StatusBadge from "../components/StatusBadge";
 import { MOCK_METRICS } from "../lib/admin-mocks";
 import { formatPlate } from "../lib/plate";
 
+import AdminNav from "./components/AdminNav";
+
 // Panel de administración (T2.10). Métricas demostrativas hasta
 // conectar GET /api/admin/metrics (T1.8) y el middleware por rol (T2.3).
 export default function AdminPage() {
@@ -15,18 +17,18 @@ export default function AdminPage() {
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
-            <p className="eyebrow">Administración</p>
-            <h1>Panel <em>general.</em></h1>
+            <p className="eyebrow">Panel de Control</p>
+            <h1>Administración <em>general.</em></h1>
           </div>
-          <div><p>Resumen del negocio: citas de hoy, demanda por servicio y base de clientes de Grúas Cares.</p><LogoutButton /></div>
+          <div>
+            <p className="portal-subtext">Métricas del taller, citas programadas para hoy y gestión global del negocio.</p>
+            <LogoutButton />
+          </div>
         </section>
 
         <div className="portal-stack wrap">
-          <nav className="admin-nav" aria-label="Secciones de administración">
-            <a href="/admin/usuarios">Usuarios y personal <span>→</span></a>
-            <a href="/admin/calendario">Calendario maestro <span>→</span></a>
-            <a href="/admin/catalogo">Catálogo y precios <span>→</span></a>
-          </nav>
+          <AdminNav current="resumen" />
+
           <section className="kpi-grid" aria-label="Indicadores clave">
             <div className="kpi-card kpi-dark"><strong>{MOCK_METRICS.appointmentsToday}</strong><span>Citas hoy</span></div>
             <div className="kpi-card"><strong>{MOCK_METRICS.appointmentsWeek}</strong><span>Citas esta semana</span></div>
@@ -34,6 +36,7 @@ export default function AdminPage() {
             <div className="kpi-card"><strong>{MOCK_METRICS.totalVehicles}</strong><span>Vehículos atendidos</span></div>
           </section>
 
+          <div className="admin-split">
           <section aria-label="Demanda por servicio">
             <div className="portal-row-head">
               <h2>Servicios más solicitados</h2>
@@ -64,6 +67,7 @@ export default function AdminPage() {
               ))}
             </div>
           </section>
+          </div>
         </div>
       </main>
       <InnerFooter />

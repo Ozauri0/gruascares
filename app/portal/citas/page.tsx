@@ -35,45 +35,77 @@ export default function AppointmentsPage() {
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
-            <p className="eyebrow">Portal de clientes</p>
+            <p className="eyebrow">Mi Cuenta</p>
             <h1>Mis <em>citas.</em></h1>
           </div>
-          <p>Sigue el estado de tus solicitudes y revisa el informe técnico de cada atención finalizada.</p>
+          <div>
+            <p className="portal-subtext">Historial completo de tus atenciones mecánicas y traslados de grúa con sus informes técnicos detallados.</p>
+          </div>
         </section>
 
-        <section className="portal-section wrap">
-          <div className="portal-toolbar">
-            <a className="portal-back" href="/portal">← Volver al portal</a>
-          </div>
+        <div className="portal-stack wrap">
+          {/* Navegación del portal */}
+          <nav className="portal-nav-tabs" aria-label="Secciones del portal">
+            <a href="/portal" className="portal-nav-tab">
+              <span className="tab-icon">🏠</span>
+              <span>Mi Resumen</span>
+            </a>
+            <a href="/portal/citas" className="portal-nav-tab active">
+              <span className="tab-icon">📋</span>
+              <span>Mis Citas</span>
+              {active.length > 0 && <span className="tab-pill">{active.length}</span>}
+            </a>
+            <a href="/portal/vehiculos" className="portal-nav-tab">
+              <span className="tab-icon">🚗</span>
+              <span>Mis Vehículos</span>
+            </a>
+            <a href="/agendar" className="portal-nav-tab portal-nav-cta">
+              <span className="tab-icon">➕</span>
+              <span>Agendar Nuevo</span>
+            </a>
+          </nav>
 
-          <div className="section-head portal-head">
-            <div><p className="eyebrow">En curso</p><h2>Activas</h2></div>
-            <span className="catalog-count">{active.length} citas</span>
-          </div>
-          {active.length === 0 ? (
-            <p className="portal-empty">No tienes citas activas.</p>
-          ) : (
-            <div className="portal-appointments history-list">
-              {active.map((item) => (
-                <AppointmentCard key={item.id} item={item} />
-              ))}
+          <section className="portal-section">
+            <div className="section-head portal-head">
+              <div>
+                <p className="eyebrow">En curso</p>
+                <h2>Atenciones Activas</h2>
+                <span className="section-subtitle">Servicios solicitados o actualmente en proceso en nuestro taller</span>
+              </div>
+              <span className="portal-badge-counter">{active.length} {active.length === 1 ? "cita activa" : "citas activas"}</span>
             </div>
-          )}
+            {active.length === 0 ? (
+              <div className="portal-empty-card">
+                <p>No tienes citas activas en este momento.</p>
+                <a className="button button-sm" href="/agendar">Agendar nuevo servicio ↗</a>
+              </div>
+            ) : (
+              <div className="portal-appointments history-list">
+                {active.map((item) => (
+                  <AppointmentCard key={item.id} item={item} />
+                ))}
+              </div>
+            )}
 
-          <div className="section-head portal-head history-head">
-            <div><p className="eyebrow">Anteriores</p><h2>Historial</h2></div>
-            <span className="catalog-count">{history.length} atenciones</span>
-          </div>
-          {history.length === 0 ? (
-            <p className="portal-empty">Aún no tienes atenciones finalizadas.</p>
-          ) : (
-            <div className="portal-appointments history-list">
-              {history.map((item) => (
-                <AppointmentCard key={item.id} item={item} onReport={() => setReportId(item.id)} hasReport={MOCK_REPORTS.some((r) => r.appointmentId === item.id)} />
-              ))}
+            <div className="section-head portal-head history-head">
+              <div>
+                <p className="eyebrow">Completadas</p>
+                <h2>Historial de Servicios</h2>
+                <span className="section-subtitle">Servicios finalizados con su informe técnico emitido por el mecánico</span>
+              </div>
+              <span className="portal-badge-counter">{history.length} {history.length === 1 ? "atención previa" : "atenciones previas"}</span>
             </div>
-          )}
-        </section>
+            {history.length === 0 ? (
+              <p className="portal-empty">Aún no registras atenciones finalizadas.</p>
+            ) : (
+              <div className="portal-appointments history-list">
+                {history.map((item) => (
+                  <AppointmentCard key={item.id} item={item} onReport={() => setReportId(item.id)} hasReport={MOCK_REPORTS.some((r) => r.appointmentId === item.id)} />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </main>
       <InnerFooter />
 

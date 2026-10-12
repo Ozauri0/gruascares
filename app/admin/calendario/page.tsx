@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
 import StatusBadge from "../../components/StatusBadge";
+import AdminNav from "../components/AdminNav";
 import { MOCK_AGENDA, MOCK_MECHANICS } from "../../lib/workshop-mocks";
 import type { AgendaItem } from "../../lib/workshop-mocks";
 
@@ -115,17 +116,24 @@ export default function CalendarPage() {
             <p className="eyebrow">Administración</p>
             <h1>Calendario <em>maestro.</em></h1>
           </div>
-          <p>Vista global del taller: citas por día, bloqueo de fechas no laborales y asignación de mecánicos.</p>
+          <div>
+            <p className="portal-subtext">Vista operativa de la carga del taller, asignación de mecánicos y bloqueo de feriados o días inhábiles.</p>
+          </div>
         </section>
 
         <div className="portal-stack wrap">
+          <AdminNav current="calendario" />
+
           <section aria-label="Calendario del taller">
-            <div className="portal-toolbar">
-              <a className="portal-back" href="/admin">← Volver al panel</a>
+            <div className="portal-toolbar calendar-toolbar">
               <div className="month-nav">
                 <button type="button" aria-label="Mes anterior" onClick={() => move(-1)}>←</button>
                 <strong>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</strong>
                 <button type="button" aria-label="Mes siguiente" onClick={() => move(1)}>→</button>
+              </div>
+              <div className="calendar-legend">
+                <span className="legend-item"><i className="legend-dot dot-active" /> Con atenciones</span>
+                <span className="legend-item"><i className="legend-dot dot-blocked" /> Día bloqueado</span>
               </div>
             </div>
 

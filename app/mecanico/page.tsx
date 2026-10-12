@@ -24,9 +24,18 @@ const NEXT_STATUS: Partial<Record<AppointmentStatus, { to: AppointmentStatus; la
 
 type ReportDraft = { mileage: string; observations: string; parts: string; recommendations: string };
 
+// Abre en hoy; si hoy no tiene atenciones, en el día con citas más cercano.
+function initialDate(): string {
+  const today = todayISO();
+  const dates = Array.from(new Set(MOCK_AGENDA.map((item) => item.date)));
+  if (dates.includes(today) || dates.length === 0) return today;
+  const diff = (iso: string) => Math.abs(new Date(iso).getTime() - new Date(today).getTime());
+  return dates.sort((a, b) => diff(a) - diff(b))[0];
+}
+
 export default function MechanicPage() {
   const [agenda, setAgenda] = useState<AgendaItem[]>(MOCK_AGENDA);
-  const [date, setDate] = useState(todayISO());
+  const [date, setDate] = useState(initialDate);
   const [filter, setFilter] = useState<AppointmentStatus | "todas">("todas");
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ReportDraft>({ mileage: "", observations: "", parts: "", recommendations: "" });
@@ -89,52 +98,79 @@ export default function MechanicPage() {
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
-            <p className="eyebrow">Taller</p>
-            <h1>Agenda del <em>taller.</em></h1>
+            <p className="eyebrow">Taller Mecánico</p>
+            <h1>Agenda del <em>mecánico.</em></h1>
           </div>
-          <div><p className="portal-contact">Atenciones agendadas por día y estado.</p><LogoutButton /></div>
+          <div>
+            <p className="portal-subtext">Panel operativo para gestionar citas del día, avanzar estados de trabajo y emitir informes técnicos.</p>
+            <LogoutButton />
+          </div>
         </section>
 
         <div className="portal-stack wrap">
-          <section aria-label="Agenda diaria">
-            <div className="workshop-bar">
-              <label>Fecha<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-              <button type="button" className="filter-pill" onClick={() => setDate(todayISO())}>Hoy</button>
-            </div>
-            <div className="filter-pills" role="tablist" aria-label="Filtrar por estado">
-              {FILTERS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={filter === option.value}
-                  className={filter === option.value ? "filter-pill selected" : "filter-pill"}
-                  onClick={() => setFilter(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+          <section aria-label="Agenda diaria" className="workshop-layout">
+            <aside className="workshop-side">
+              <div className="workshop-bar">
+                <label>
+                  Fecha de trabajo
+                  <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+                </label>
+                <button type="button" className="filter-pill" onClick={() => setDate(todayISO())}>📅 Hoy</button>
+              </div>
 
+              <div className="workshop-filters" role="tablist" aria-label="Filtrar por estado">
+                {FILTERS.map((option) => {
+                  const count = agenda.filter((item) => item.date === date && (option.value === "todas" || item.status === option.value)).length;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="tab"
+                      aria-selected={filter === option.value}
+                      className={filter === option.value ? "workshop-filter selected" : "workshop-filter"}
+                      onClick={() => setFilter(option.value)}
+                    >
+                      <span>{option.label}</span>
+                      <b>{count}</b>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <div className="workshop-main">
             {visible.length === 0 ? (
-              <p className="portal-empty">Sin atenciones para ese día y filtro.</p>
+              <div className="portal-empty-card">
+                <p>No hay servicios programados para la fecha y filtro seleccionados.</p>
+                <button type="button" className="button button-sm" onClick={() => { setDate(todayISO()); setFilter("todas"); }}>
+                  Restablecer a hoy
+                </button>
+              </div>
             ) : (
               <div className="portal-appointments workshop-list">
                 {visible.map((item) => (
-                  <article className="portal-card" key={item.id}>
-                    <div className="portal-card-top"><StatusBadge status={item.status} /><span className="portal-slot">{item.timeSlot}</span></div>
+                  <article className="portal-card workshop-card" key={item.id}>
+                    <div className="portal-card-top">
+                      <StatusBadge status={item.status} />
+                      <span className="portal-slot">🕒 {item.timeSlot} hrs</span>
+                    </div>
                     <h3>{item.serviceName}</h3>
-                    <p>{item.clientName} · {item.clientPhone}</p>
-                    <p>{item.vehicleLabel} · Patente {item.vehiclePlate}</p>
-                    {item.notes && <p className="portal-meta">Nota: {item.notes}</p>}
-                    <p className="portal-meta">{item.mechanicId ? MOCK_MECHANICS.find((m) => m.id === item.mechanicId)?.name : "Sin mecánico asignado"}</p>
-                    <div className="vehicle-actions history-report">
-                      <button type="button" onClick={() => openSheet(item)}>Abrir ficha</button>
+                    <div className="mechanic-card-details">
+                      <p>👤 <b>Cliente:</b> {item.clientName} · 📞 <a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a></p>
+                      <p>🚗 <b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
+                      {item.notes && <p className="portal-note-box">📝 <b>Nota del cliente:</b> {item.notes}</p>}
+                      <p className="portal-meta">🔧 <b>Asignado a:</b> {item.mechanicId ? MOCK_MECHANICS.find((m) => m.id === item.mechanicId)?.name : "Sin mecánico asignado"}</p>
+                    </div>
+                    <div className="vehicle-actions mechanic-actions">
+                      <button type="button" className="button-accent" onClick={() => openSheet(item)}>
+                        📋 Abrir ficha técnica & opciones <span>→</span>
+                      </button>
                     </div>
                   </article>
                 ))}
               </div>
             )}
+            </div>
           </section>
         </div>
       </main>
@@ -143,44 +179,113 @@ export default function MechanicPage() {
       {current && (
         <div className="modal-overlay" onClick={() => setOpenId(null)}>
           <div
-            className="modal"
+            className="modal modal-wide"
             role="dialog"
             aria-modal="true"
-            aria-label="Ficha de atención en taller"
+            aria-label="Ficha técnica de atención en taller"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="modal-head">
-              <h2>Ficha de atención</h2>
+              <div>
+                <h2>Ficha de Atención</h2>
+                <span className="modal-subtitle">Patente {current.vehiclePlate} · {current.serviceName}</span>
+              </div>
               <button type="button" className="modal-close" aria-label="Cerrar" onClick={() => setOpenId(null)}>×</button>
             </div>
             {finishedId === current.id ? (
-              <div className="success modal-success"><span>✓</span><h3>Atención finalizada</h3><p>El informe quedó registrado. El cliente será notificado por correo al conectar el servicio de notificaciones.</p><button type="button" className="button" onClick={() => setOpenId(null)}>Volver a la agenda</button></div>
+              <div className="success modal-success">
+                <span>✓</span>
+                <h3>Atención finalizada con éxito</h3>
+                <p>El informe técnico quedó registrado. El cliente podrá revisarlo desde su portal de cliente.</p>
+                <button type="button" className="button" onClick={() => setOpenId(null)}>Volver a la agenda</button>
+              </div>
             ) : (
               <>
-                <div className="report">
-                  <div className="portal-card-top"><StatusBadge status={current.status} /><span className="portal-slot">{current.date} · {current.timeSlot}</span></div>
-                  <h3>{current.serviceName}</h3>
-                  <p>{current.clientName} · {current.vehicleLabel} ({current.vehiclePlate})</p>
-                  {current.notes && <p className="portal-meta">Nota: {current.notes}</p>}
+                {/* Flujo de trabajo visual */}
+                <div className="stepper-progress">
+                  <div className={`step-node ${current.status === "solicitada" ? "current" : "completed"}`}>
+                    <span className="node-icon">1</span>
+                    <span className="node-label">Solicitada</span>
+                  </div>
+                  <div className={`step-line ${current.status !== "solicitada" ? "active" : ""}`} />
+                  <div className={`step-node ${current.status === "confirmada" ? "current" : current.status === "en_proceso" || current.status === "finalizada" ? "completed" : ""}`}>
+                    <span className="node-icon">2</span>
+                    <span className="node-label">Confirmada</span>
+                  </div>
+                  <div className={`step-line ${current.status === "en_proceso" || current.status === "finalizada" ? "active" : ""}`} />
+                  <div className={`step-node ${current.status === "en_proceso" ? "current" : current.status === "finalizada" ? "completed" : ""}`}>
+                    <span className="node-icon">3</span>
+                    <span className="node-label">En Taller</span>
+                  </div>
+                  <div className={`step-line ${current.status === "finalizada" ? "active" : ""}`} />
+                  <div className={`step-node ${current.status === "finalizada" ? "current completed" : ""}`}>
+                    <span className="node-icon">4</span>
+                    <span className="node-label">Finalizada</span>
+                  </div>
                 </div>
+
+                <div className="report-summary-box">
+                  <div className="portal-card-top">
+                    <StatusBadge status={current.status} />
+                    <span className="portal-slot">📅 {current.date} · 🕒 {current.timeSlot} hrs</span>
+                  </div>
+                  <h3>{current.serviceName}</h3>
+                  <p>👤 <b>Cliente:</b> {current.clientName} · 📞 <a href={`tel:${current.clientPhone}`}>{current.clientPhone}</a></p>
+                  <p>🚗 <b>Vehículo:</b> {current.vehicleLabel} · Patente <span className="badge-plate">{current.vehiclePlate}</span></p>
+                  {current.notes && <p className="portal-note-box">📝 <b>Nota previa:</b> {current.notes}</p>}
+                </div>
+
                 {NEXT_STATUS[current.status] && (
-                  <div className="modal-actions sheet-advance">
-                    <button type="button" className="button" onClick={() => advance(current)}>{NEXT_STATUS[current.status]?.label} <span>↗</span></button>
+                  <div className="sheet-advance-banner">
+                    <div>
+                      <strong>Siguiente paso en el taller:</strong>
+                      <p>
+                        {current.status === "solicitada" && "Confirma la cita para asignarle box y repuestos."}
+                        {current.status === "confirmada" && "Indica que el vehículo ya ingresó y se comenzó el trabajo."}
+                      </p>
+                    </div>
+                    <button type="button" className="button" onClick={() => advance(current)}>
+                      {NEXT_STATUS[current.status]?.label} <span>↗</span>
+                    </button>
                   </div>
                 )}
+
                 {current.status === "en_proceso" && (
-                  <form onSubmit={(event) => { event.preventDefault(); finish(current); }} noValidate>
-                    <label>Kilometraje actual<input value={draft.mileage} onChange={(e) => set("mileage", e.target.value)} placeholder="85000" inputMode="numeric" autoComplete="off" /></label>
-                    <label>Observaciones técnicas *<textarea rows={3} value={draft.observations} onChange={(e) => set("observations", e.target.value)} placeholder="Diagnóstico y trabajos realizados" />{draftError && <small className="field-error">{draftError}</small>}</label>
-                    <label>Repuestos cambiados<textarea rows={2} value={draft.parts} onChange={(e) => set("parts", e.target.value)} placeholder="Detalle de insumos y repuestos" /></label>
-                    <label>Recomendaciones a futuro<textarea rows={2} value={draft.recommendations} onChange={(e) => set("recommendations", e.target.value)} placeholder="Próximas mantenciones sugeridas" /></label>
+                  <form className="report-form" onSubmit={(event) => { event.preventDefault(); finish(current); }} noValidate>
+                    <div className="form-info-banner">
+                      <span>ℹ️</span>
+                      <p>Al completar este informe y marcar finalizada, el cliente recibirá la ficha técnica en su portal.</p>
+                    </div>
+                    <label>
+                      Kilometraje del vehículo al recibirlo
+                      <input value={draft.mileage} onChange={(e) => set("mileage", e.target.value)} placeholder="Ej: 85000" inputMode="numeric" autoComplete="off" />
+                    </label>
+                    <label>
+                      Observaciones técnicas del trabajo realizado *
+                      <textarea rows={3} value={draft.observations} onChange={(e) => set("observations", e.target.value)} placeholder="Describe diagnóstico, reparaciones hechas, estado general, etc." />
+                      {draftError && <small className="field-error">{draftError}</small>}
+                    </label>
+                    <label>
+                      Repuestos e insumos utilizados (opcional)
+                      <textarea rows={2} value={draft.parts} onChange={(e) => set("parts", e.target.value)} placeholder="Ej: Filtro de aceite Bosch, Aceite 10W40 4L, etc." />
+                    </label>
+                    <label>
+                      Recomendaciones para el cliente (opcional)
+                      <textarea rows={2} value={draft.recommendations} onChange={(e) => set("recommendations", e.target.value)} placeholder="Ej: Revisar pastillas en 5.000 km, próxima mantención a los 95.000 km." />
+                    </label>
                     <div className="modal-actions">
-                      <button type="button" className="modal-cancel" onClick={() => setOpenId(null)}>Cerrar</button>
-                      <button type="submit" className="button">Marcar finalizada <span>↗</span></button>
+                      <button type="button" className="modal-cancel" onClick={() => setOpenId(null)}>Cancelar</button>
+                      <button type="submit" className="button">Completar e Informar Cliente <span>✓</span></button>
                     </div>
                   </form>
                 )}
-                {current.status === "finalizada" && <p className="portal-empty">Esta atención ya fue finalizada y su informe quedó registrado.</p>}
+
+                {current.status === "finalizada" && (
+                  <div className="portal-empty-card">
+                    <p>✅ Esta atención ya fue finalizada y su informe técnico fue emitido para el cliente.</p>
+                    <button type="button" className="button button-sm" onClick={() => setOpenId(null)}>Cerrar ficha</button>
+                  </div>
+                )}
               </>
             )}
           </div>

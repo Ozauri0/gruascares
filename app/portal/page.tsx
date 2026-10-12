@@ -65,74 +65,132 @@ export default function PortalPage() {
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
-            <p className="eyebrow">Portal de clientes</p>
+            <p className="eyebrow">Mi Cuenta</p>
             <h1>Hola, <em>{firstName}.</em></h1>
           </div>
-          <div><p className="portal-contact">{MOCK_USER.email}{MOCK_USER.phone ? ` · ${MOCK_USER.phone}` : ""}</p><LogoutButton /></div>
+          <div>
+            <p className="portal-contact">{MOCK_USER.email}{MOCK_USER.phone ? ` · ${MOCK_USER.phone}` : ""}</p>
+            <LogoutButton />
+          </div>
         </section>
 
         <div className="portal-stack wrap">
+          {/* Accesos rápidos de navegación para el cliente */}
+          <nav className="portal-nav-tabs" aria-label="Secciones del portal">
+            <a href="/portal" className="portal-nav-tab active">
+              <span className="tab-icon">🏠</span>
+              <span>Mi Resumen</span>
+            </a>
+            <a href="/portal/citas" className="portal-nav-tab">
+              <span className="tab-icon">📋</span>
+              <span>Mis Citas</span>
+              {active.length > 0 && <span className="tab-pill">{active.length}</span>}
+            </a>
+            <a href="/portal/vehiculos" className="portal-nav-tab">
+              <span className="tab-icon">🚗</span>
+              <span>Mis Vehículos</span>
+              <span className="tab-pill">{vehicles.length}</span>
+            </a>
+            <a href="/agendar" className="portal-nav-tab portal-nav-cta">
+              <span className="tab-icon">➕</span>
+              <span>Agendar Nuevo</span>
+            </a>
+          </nav>
+
+          <div className="portal-layout">
+            <div className="portal-main">
           {next ? (
             <section className="next-hero" aria-label="Próxima cita">
-              <div className="next-date"><strong>{next.scheduledDate.slice(8, 10)}</strong><span>{longDate(next.scheduledDate).split(" ").pop()}</span></div>
+              <div className="next-date">
+                <strong>{next.scheduledDate.slice(8, 10)}</strong>
+                <span>{longDate(next.scheduledDate).split(" ").pop()}</span>
+              </div>
               <div className="next-info">
-                <div className="next-top"><StatusBadge status={next.status} /><span className="next-countdown">{countdownLabel(next.scheduledDate)} · {next.timeSlot} hrs</span></div>
+                <div className="next-top">
+                  <StatusBadge status={next.status} />
+                  <span className="next-countdown">{countdownLabel(next.scheduledDate)} · {next.timeSlot} hrs</span>
+                </div>
                 <h2>{next.serviceName}</h2>
-                <p>{longDate(next.scheduledDate)} · {next.vehicleLabel} ({formatPlate(next.vehiclePlate)}){next.location ? ` · ${next.location}` : ""}</p>
+                <p>
+                  📅 {longDate(next.scheduledDate)} a las {next.timeSlot} hrs<br />
+                  🚗 {next.vehicleLabel} · Patente <b>{formatPlate(next.vehiclePlate)}</b>
+                  {next.location ? ` · 📍 ${next.location}` : ""}
+                </p>
+                <div className="next-actions">
+                  <a className="button next-btn-details" href="/portal/citas">Ver detalle en Mis Citas <span>→</span></a>
+                </div>
               </div>
             </section>
           ) : (
             <section className="next-hero next-empty" aria-label="Sin citas pendientes">
               <div className="next-info">
-                <h2>Sin citas pendientes</h2>
-                <p>Agenda tu próximo servicio de grúa o serviteca cuando lo necesites.</p>
+                <div className="next-empty-icon">📅</div>
+                <h2>No tienes atenciones pendientes</h2>
+                <p>Cuando solicites una grúa o mantención en taller, podrás seguir cada paso aquí en tiempo real.</p>
               </div>
-              <a className="button" href="/agendar">Agendar servicio <span>↗</span></a>
+              <a className="button" href="/agendar">Agendar un servicio <span>↗</span></a>
             </section>
           )}
-
-          <section aria-label="Mis vehículos">
-            <div className="portal-row-head">
-              <h2>Mis vehículos</h2>
-              <a href="/portal/vehiculos">Gestionar <span>→</span></a>
-            </div>
-            {vehicles.length === 0 ? (
-              <p className="portal-empty">Aún no registras vehículos. <a href="/portal/vehiculos">Agrega el primero →</a></p>
-            ) : (
-              <div className="vehicle-strip">
-                {vehicles.map((vehicle) => (
-                  <a className="vehicle-mini" href="/portal/vehiculos" key={vehicle.id}>
-                    <span className="vehicle-mini-plate">{formatPlate(vehicle.plate)}</span>
-                    <strong>{vehicle.brand} {vehicle.model}</strong>
-                    <small>{vehicle.year ?? "—"} · {vehicle.mileage.toLocaleString("es-CL")} km</small>
-                  </a>
-                ))}
-              </div>
-            )}
-          </section>
 
           {rest.length > 0 && (
             <section aria-label="Otras citas activas">
               <div className="portal-row-head">
-                <h2>También pendiente</h2>
-                <a href="/portal/citas">Ver todas <span>→</span></a>
+                <div>
+                  <h2>Otras atenciones en curso</h2>
+                  <span className="section-subtitle">Servicios adicionales programados</span>
+                </div>
+                <a href="/portal/citas">Ver historial completo <span>→</span></a>
               </div>
               <div className="compact-list">
                 {rest.map((item) => (
                   <a className="compact-row" href="/portal/citas" key={item.id}>
                     <StatusBadge status={item.status} />
                     <strong>{item.serviceName}</strong>
-                    <span>{item.scheduledDate.slice(8, 10)}/{item.scheduledDate.slice(5, 7)} · {item.timeSlot}</span>
+                    <span>{item.scheduledDate.slice(8, 10)}/{item.scheduledDate.slice(5, 7)} · {item.timeSlot} hrs</span>
                   </a>
                 ))}
               </div>
             </section>
           )}
 
-          <section className="quick-row" aria-label="Acciones">
-            <a className="button quick-primary" href="/agendar">Agendar servicio <span>↗</span></a>
-            <a className="button quick-call" href="tel:+56991627809">Emergencia 24/7 · +56 9 9162 7809</a>
+            </div>
+            <aside className="portal-side">
+          <section aria-label="Mis vehículos">
+            <div className="portal-row-head">
+              <div>
+                <h2>Mis vehículos</h2>
+                <span className="section-subtitle">Autos y maquinarias guardadas para agendar rápidamente</span>
+              </div>
+              <a href="/portal/vehiculos">Administrar vehículos <span>→</span></a>
+            </div>
+            {vehicles.length === 0 ? (
+              <div className="portal-empty-card">
+                <p>Aún no has registrado vehículos en tu perfil.</p>
+                <a className="button button-sm" href="/portal/vehiculos">+ Agregar tu primer vehículo</a>
+              </div>
+            ) : (
+              <div className="vehicle-strip">
+                {vehicles.map((vehicle) => (
+                  <a className="vehicle-mini" href="/portal/vehiculos" key={vehicle.id}>
+                    <span className="vehicle-mini-plate">{formatPlate(vehicle.plate)}</span>
+                    <strong>{vehicle.brand} {vehicle.model}</strong>
+                    <small>{vehicle.year ? `Año ${vehicle.year}` : "Año no informado"} · {vehicle.mileage.toLocaleString("es-CL")} km</small>
+                  </a>
+                ))}
+              </div>
+            )}
           </section>
+
+          <section className="quick-row" aria-label="Acciones rápidas">
+            <a className="button quick-primary" href="/agendar">
+              <span>📅 Agendar nueva atención</span> <span>↗</span>
+            </a>
+            <a className="button quick-call" href="tel:+56991627809">
+              <span>🚨 Grúa de Emergencia 24/7 · Llamar</span>
+            </a>
+          </section>
+            </aside>
+          </div>
         </div>
       </main>
       <InnerFooter />

@@ -130,45 +130,77 @@ export default function VehiclesPage() {
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
-            <p className="eyebrow">Portal de clientes</p>
+            <p className="eyebrow">Mi Cuenta</p>
             <h1>Mis <em>vehículos.</em></h1>
           </div>
-          <p>Registra tus autos, camionetas o camiones para agendar más rápido y llevar su historial de atenciones.</p>
-        </section>
-
-        <section className="portal-section wrap">
-          <div className="portal-toolbar">
-            <a className="portal-back" href="/portal">← Volver al portal</a>
-            <button type="button" className="portal-add" onClick={openCreate}>+ Agregar vehículo</button>
+          <div>
+            <p className="portal-subtext">Registra tus autos, camionetas o camiones para agendar más rápido y llevar su historial de atenciones.</p>
           </div>
-
-          {vehicles.length === 0 ? (
-            <p className="portal-empty">Aún no registras vehículos. Agrega el primero para empezar.</p>
-          ) : (
-            <div className="vehicle-grid">
-              {vehicles.map((vehicle) => (
-                <article className="vehicle-card" key={vehicle.id}>
-                  <div className="vehicle-plate">{formatPlate(vehicle.plate)}</div>
-                  <h3>{vehicle.brand} {vehicle.model}</h3>
-                  <p>
-                    {vehicle.year ?? "Año s/i"} · {vehicle.mileage.toLocaleString("es-CL")} km
-                  </p>
-                  <div className="vehicle-actions">
-                    <button type="button" onClick={() => openEdit(vehicle)}>Editar</button>
-                    <button
-                      type="button"
-                      className={confirmDelete === vehicle.id ? "danger confirm" : "danger"}
-                      onClick={() => remove(vehicle.id)}
-                      onBlur={() => setConfirmDelete(null)}
-                    >
-                      {confirmDelete === vehicle.id ? "Confirmar baja" : "Dar de baja"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
         </section>
+
+        <div className="portal-stack wrap">
+          {/* Navegación del portal */}
+          <nav className="portal-nav-tabs" aria-label="Secciones del portal">
+            <a href="/portal" className="portal-nav-tab">
+              <span className="tab-icon">🏠</span>
+              <span>Mi Resumen</span>
+            </a>
+            <a href="/portal/citas" className="portal-nav-tab">
+              <span className="tab-icon">📋</span>
+              <span>Mis Citas</span>
+            </a>
+            <a href="/portal/vehiculos" className="portal-nav-tab active">
+              <span className="tab-icon">🚗</span>
+              <span>Mis Vehículos</span>
+              <span className="tab-pill">{vehicles.length}</span>
+            </a>
+            <a href="/agendar" className="portal-nav-tab portal-nav-cta">
+              <span className="tab-icon">➕</span>
+              <span>Agendar Nuevo</span>
+            </a>
+          </nav>
+
+          <section className="portal-section">
+            <div className="portal-toolbar">
+              <div className="portal-toolbar-left">
+                <span className="portal-badge-counter">{vehicles.length} {vehicles.length === 1 ? "vehículo registrado" : "vehículos registrados"}</span>
+              </div>
+              <button type="button" className="portal-add" onClick={openCreate}>
+                + Registrar nuevo vehículo
+              </button>
+            </div>
+
+            {vehicles.length === 0 ? (
+              <div className="portal-empty-card">
+                <p>Aún no tienes vehículos guardados en tu perfil.</p>
+                <button type="button" className="button button-sm" onClick={openCreate}>+ Registrar mi primer vehículo</button>
+              </div>
+            ) : (
+              <div className="vehicle-grid">
+                {vehicles.map((vehicle) => (
+                  <article className="vehicle-card" key={vehicle.id}>
+                    <div className="vehicle-plate">{formatPlate(vehicle.plate)}</div>
+                    <h3>{vehicle.brand} {vehicle.model}</h3>
+                    <p className="vehicle-specs">
+                      {vehicle.year ? `Año ${vehicle.year}` : "Año no informado"} · {vehicle.mileage.toLocaleString("es-CL")} km
+                    </p>
+                    <div className="vehicle-actions">
+                      <button type="button" onClick={() => openEdit(vehicle)}>✏️ Editar datos</button>
+                      <button
+                        type="button"
+                        className={confirmDelete === vehicle.id ? "danger confirm" : "danger"}
+                        onClick={() => remove(vehicle.id)}
+                        onBlur={() => setConfirmDelete(null)}
+                      >
+                        {confirmDelete === vehicle.id ? "Confirmar eliminación" : "Eliminar"}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </main>
       <InnerFooter />
 

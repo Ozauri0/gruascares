@@ -3,20 +3,21 @@
 import { useEffect, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
+import AdminNav from "../components/AdminNav";
 import { MOCK_USERS } from "../../lib/admin-mocks";
 import type { SessionUser, UserRole } from "../../lib/portal-types";
 
 const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
-  { value: "todos", label: "Todos" },
+  { value: "todos", label: "Todos los roles" },
   { value: "usuario", label: "Clientes" },
   { value: "mecanico", label: "Mecánicos" },
-  { value: "admin", label: "Admins" },
+  { value: "admin", label: "Administradores" },
 ];
 
 const ROLE_LABELS: Record<UserRole, string> = {
   usuario: "Cliente",
   mecanico: "Mecánico",
-  admin: "Admin",
+  admin: "Administrador",
 };
 
 type StaffForm = { name: string; email: string; phone: string; role: "mecanico" | "admin"; password: string };
@@ -93,14 +94,22 @@ export default function UsersPage() {
             <p className="eyebrow">Administración</p>
             <h1>Usuarios y <em>personal.</em></h1>
           </div>
-          <p>Busca clientes, gestiona mecánicos y administradores, y controla quién puede entrar a cada panel.</p>
+          <div>
+            <p className="portal-subtext">Directorio de clientes registrados y gestión de roles y accesos para el equipo.</p>
+          </div>
         </section>
 
         <div className="portal-stack wrap">
+          <AdminNav current="usuarios" />
+
           <section aria-label="Gestión de usuarios">
             <div className="portal-toolbar">
-              <a className="portal-back" href="/admin">← Volver al panel</a>
-              <button type="button" className="portal-add" onClick={() => { setErrors({}); setModal(true); }}>+ Nuevo miembro</button>
+              <div className="portal-toolbar-left">
+                <span className="portal-badge-counter">{filtered.length} {filtered.length === 1 ? "usuario" : "usuarios"}</span>
+              </div>
+              <button type="button" className="portal-add" onClick={() => { setErrors({}); setModal(true); }}>
+                + Agregar miembro al equipo
+              </button>
             </div>
 
             <div className="filter-bar">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
+import AdminNav from "../components/AdminNav";
 import { DEFAULT_PRODUCTS, formatPrice, loadCatalog, saveCatalog } from "../../lib/catalog";
 import type { Product, ProductArt } from "../../lib/catalog";
 
@@ -113,14 +114,23 @@ export default function CatalogAdminPage() {
             <p className="eyebrow">Administración</p>
             <h1>Catálogo y <em>precios.</em></h1>
           </div>
-          <p>Edita precios, stock y visibilidad de la tienda. Los cambios se reflejan de inmediato en /catalogo.</p>
+          <div>
+            <p className="portal-subtext">Edición de precios referenciales, disponibilidad de inventario y visibilidad directa en la tienda online.</p>
+          </div>
         </section>
 
         <div className="portal-stack wrap">
+          <AdminNav current="catalogo" />
+
           <section aria-label="Gestión del catálogo">
             <div className="portal-toolbar">
-              <a className="portal-back" href="/admin">← Volver al panel</a>
-              <button type="button" className="portal-add" onClick={() => { setErrors({}); setForm(EMPTY_FORM); setModal(true); }}>+ Nuevo producto</button>
+              <div className="portal-toolbar-left">
+                <span className="portal-badge-counter">{products.length} productos registrados</span>
+                <span className="portal-badge-active">{products.filter((p) => p.active).length} activos en tienda</span>
+              </div>
+              <button type="button" className="portal-add" onClick={() => { setErrors({}); setForm(EMPTY_FORM); setModal(true); }}>
+                + Nuevo producto
+              </button>
             </div>
 
             <div className="table-scroll">
