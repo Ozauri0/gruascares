@@ -11,7 +11,7 @@ import {
   auditLogs,
 } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
-import { isValidIsoDate } from "../utils/dates.js";
+import { isValidIsoDate, todayInSantiago } from "../utils/dates.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -116,7 +116,7 @@ export async function getAdminMetrics(_req: Request, res: Response) {
     const newClientsLast30Days = recentClientsRaw?.count || 0;
 
     // 5. Citas agendadas para hoy
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayInSantiago();
     const todayAppointmentsRaw = await db
       .select({
         status: appointments.status,
@@ -678,7 +678,7 @@ export async function exportAppointments(req: Request, res: Response) {
       );
 
       const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
-      const filename = `atenciones_gruascares_${new Date().toISOString().slice(0, 10)}.csv`;
+      const filename = `atenciones_gruascares_${todayInSantiago()}.csv`;
 
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);

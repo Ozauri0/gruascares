@@ -7,6 +7,7 @@ import { sendAppointmentConfirmationEmail } from "../services/email/email.servic
 import { logAudit } from "../services/audit/audit.service.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { isCancellable } from "../domain/appointment-status.js";
+import { isSlotPast, isValidIsoDate, todayInSantiago } from "../utils/dates.js";
 
 /**
  * 1. Obtener catálogo de servicios activos para agendamiento
@@ -50,16 +51,15 @@ export async function getAvailableSlots(req: Request, res: Response) {
       });
     }
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (!isValidIsoDate(date)) {
       return res.status(400).json({
         error: "Bad Request",
-        message: "Formato de fecha inválido. Utilice el formato YYYY-MM-DD",
+        message: "Fecha inválida. Utilice una fecha real con el formato YYYY-MM-DD",
       });
     }
 
-    // Comprobar que no sea fecha en el pasado
-    const todayStr = new Date().toISOString().slice(0, 10);
-    if (date < todayStr) {
+    // Comprobar que no sea fecha en el pasado (según la fecha de Chile, no la de UTC)
+    if (date < todayInSantiago()) {
       return res.status(400).json({
         error: "Bad Request",
         message: "No se puede consultar disponibilidad para fechas pasadas",
@@ -96,6 +96,16 @@ export async function getAvailableSlots(req: Request, res: Response) {
     );
 
     const slots = DEFAULT_TIME_SLOTS.map((slot) => {
+      if (isSlotPast(date, slot)) {
+        return {
+          time: slot,
+          bookedCount: bookedMap.get(slot) || 0,
+          capacityRemaining: 0,
+          available: false,
+          reason: "Horario ya transcurrido",
+        };
+      }
+
       if (isDayBlocked) {
         return {
           time: slot,
@@ -194,11 +204,24 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
-    if (scheduledDate < todayStr) {
+    if (!isValidIsoDate(scheduledDate)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "scheduledDate debe ser una fecha real con el formato YYYY-MM-DD",
+      });
+    }
+
+    if (scheduledDate < todayInSantiago()) {
       return res.status(400).json({
         error: "Bad Request",
         message: "No se puede agendar para una fecha en el pasado",
+      });
+    }
+
+    if (isSlotPast(scheduledDate, timeSlot)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `El horario de las ${timeSlot} hrs de hoy ya transcurrió. Elige un horario posterior u otro día.`,
       });
     }
 
