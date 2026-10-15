@@ -1,5 +1,5 @@
 import type { Server } from "node:http";
-import { createApp } from "../src/app.js";
+import { createApp, type AppOptions } from "../src/app.js";
 import { generateToken } from "../src/utils/jwt.js";
 import type { UserRole } from "../src/types/auth.js";
 
@@ -8,8 +8,8 @@ export interface TestServer {
   close: () => Promise<void>;
 }
 
-export async function startServer(): Promise<TestServer> {
-  const app = createApp();
+export async function startServer(options: AppOptions = {}): Promise<TestServer> {
+  const app = createApp(options);
   const server: Server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });

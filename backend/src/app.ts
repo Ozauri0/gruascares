@@ -10,6 +10,7 @@ import appointmentRouter from "./routes/appointment.routes.js";
 import vehicleRouter from "./routes/vehicle.routes.js";
 import mechanicRouter from "./routes/mechanic.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import { createRateLimiters, RATE_LIMITS } from "./middlewares/rate-limit.js";
 
 const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
@@ -18,8 +19,13 @@ export function isAllowedOrigin(origin: string): boolean {
   return !config.isProduction && LOCALHOST_ORIGIN.test(origin);
 }
 
-export function createApp(): Express {
+export interface AppOptions {
+  rateLimits?: Partial<typeof RATE_LIMITS>;
+}
+
+export function createApp(options: AppOptions = {}): Express {
   const app = express();
+  const limiters = createRateLimiters(options.rateLimits);
 
   // Middleware de Seguridad HTTP
   app.use(helmet());
@@ -56,6 +62,12 @@ export function createApp(): Express {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
   });
+
+  // Límites de tasa (antes de los routers para cortar abusos tempranamente)
+  app.post("/api/auth/login", limiters.loginPerIp, limiters.loginPerAccount);
+  app.post("/api/auth/register", limiters.register);
+  app.post("/api/appointments", limiters.publicAppointment);
+  app.get("/api/appointments/availability", limiters.availability);
 
   // Rutas
   app.use("/", healthRouter);
