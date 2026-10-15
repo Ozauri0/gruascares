@@ -789,14 +789,72 @@ body>footer{flex-shrink:0}
 .export-fields label{display:grid;gap:6px;font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
 .export-fields input{border:1px solid #c2c2c2;border-radius:10px;background:#fff;padding:10px 12px;font:14px 'Fira Sans',sans-serif;color:var(--ink)}
 .export-actions{display:flex;gap:10px;flex-wrap:wrap}
-.slot-manager{display:grid;gap:12px;border-top:1px solid #eee;padding-top:16px}
-.slot-manager h3{margin:0;font:500 15px 'Space Grotesk'}
-.slot-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.slot-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border:1px solid #eee;border-radius:12px;padding:10px 14px}
-.slot-row.blocked{border-color:#f1b5ae;background:#fff6f5}
-.slot-row strong{font:500 15px 'Space Grotesk'}
-.slot-meta{font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
-.slot-actions{display:flex;gap:6px}
-.slot-add{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-.slot-add .calendar-reason{flex:1;min-width:140px}
-@media(max-width:560px){.slot-row{grid-template-columns:1fr auto}.slot-meta{grid-column:1/-1;order:3}}
+/* Calendario maestro: panel del día compacto, bloqueo masivo y cambio de hora. */
+.calendar-layout{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
+.calendar{padding:18px}
+.calendar-day{min-height:46px}
+.calendar-day.today .calendar-number{color:var(--green-dark);text-decoration:underline;text-underline-offset:3px}
+.calendar-detail{padding:18px;gap:12px;position:sticky;top:96px;max-height:calc(100vh - 116px);overflow-y:auto;overscroll-behavior:contain}
+.day-panel{display:grid;gap:12px}
+.day-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.day-head .calendar-selected{display:block;font-size:18px}
+.day-sub{display:block;margin-top:2px;font:10px 'DM Mono',monospace;color:#777;text-transform:uppercase}
+.day-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f1f1f1;border-radius:999px;padding:4px}
+.day-tabs button{border:0;background:transparent;border-radius:999px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer;color:#555}
+.day-tabs button.on{background:var(--ink);color:#fff}
+.day-appts{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.day-appt{border:1px solid #eee;border-radius:12px;padding:10px 12px;display:grid;gap:6px}
+.day-appt-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.day-appt-time{font:500 16px 'Space Grotesk'}
+.day-appt p{margin:0;font-size:12px;color:#555;line-height:1.4}
+.day-appt-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.day-appt-actions select{flex:1;min-width:130px;border:1px solid #d6d6d6;border-radius:999px;padding:7px 10px;font-size:12px;background:#fff;color:var(--ink)}
+.reschedule-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px dashed #ddd;padding-top:10px}
+.reschedule-form label{display:grid;gap:4px;font:10px 'DM Mono',monospace;color:#777;text-transform:uppercase}
+.reschedule-form input,.reschedule-form select{border:1px solid #c9c9c9;border-radius:10px;padding:8px 10px;font:13px 'Fira Sans',sans-serif;background:#fff;color:var(--ink);min-width:0}
+.reschedule-actions,.reschedule-form small{grid-column:1/-1}
+.reschedule-actions{display:flex;gap:8px;flex-wrap:wrap}
+.reschedule-note{color:#777;font-size:11px}
+.slot-manager{display:grid;gap:10px}
+.slot-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
+.slot-chip{position:relative;display:flex}
+.slot-main{flex:1;display:grid;gap:2px;text-align:left;border:1px solid #d6d6d6;background:#fff;border-radius:12px;padding:9px 11px;cursor:pointer;min-width:0}
+.slot-main:hover:not(:disabled){border-color:var(--green)}
+.slot-main:disabled{opacity:.55;cursor:not-allowed}
+.slot-main strong{font:500 15px 'Space Grotesk'}
+.slot-main span{font:9px 'DM Mono',monospace;color:#777;text-transform:uppercase}
+.slot-chip.blocked .slot-main{border-color:#e0aaa4;background:#fbeeec}
+.slot-chip.blocked .slot-main span{color:#b42318}
+.slot-chip.custom .slot-main{border-style:dashed}
+.slot-x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:1px solid #e5b4ae;background:#fff;color:#b42318;font-size:13px;line-height:1;cursor:pointer;padding:0}
+.slot-hint{color:#777;font-size:11px}
+.slot-add{display:flex;gap:10px;align-items:end}
+.slot-add .calendar-reason{flex:1;min-width:0}
+.bulk-panel{background:#fff;border:1px solid #e2e2e2;border-radius:16px;padding:0 18px}
+.bulk-panel summary{cursor:pointer;padding:14px 0;font:600 14px 'Space Grotesk';list-style:none;display:flex;justify-content:space-between;align-items:center}
+.bulk-panel summary::after{content:"+";font-size:20px;line-height:1}
+.bulk-panel[open] summary::after{content:"−"}
+.bulk-body{display:grid;gap:12px;padding-bottom:18px}
+.bulk-dates{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bulk-body label{display:grid;gap:4px;font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
+.bulk-body input{border:1px solid #c2c2c2;border-radius:10px;padding:9px 11px;font:14px 'Fira Sans',sans-serif;background:#fff;color:var(--ink);min-width:0}
+.bulk-days{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid #c9c9c9;background:#fff;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.bulk-presets{display:flex;gap:14px;flex-wrap:wrap}
+.link-btn{border:0;background:none;padding:0;font-size:12px;font-weight:700;color:var(--green-dark);cursor:pointer;text-decoration:underline}
+.bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
+.bulk-note{color:#777;font-size:11px;line-height:1.4}
+.bulk-msg.ok{margin:0;font-size:13px;color:var(--green-dark)}
+@media(max-width:900px){
+  .calendar-layout{grid-template-columns:1fr}
+  .calendar-detail{position:static;max-height:none;overflow:visible}
+  .calendar{padding:12px}
+  .calendar-grid,.calendar-weekdays{gap:4px}
+  .calendar-day{min-height:42px;padding:4px}
+}
+@media(max-width:480px){
+  .reschedule-form,.bulk-dates{grid-template-columns:1fr}
+  .slot-grid{grid-template-columns:repeat(2,1fr)}
+  .day-head .toggle-btn{width:100%}
+}

@@ -192,6 +192,53 @@ export function getAppointmentConfirmationTemplate(data: AppointmentEmailData): 
   };
 }
 
+// 2b. Plantilla de cambio de fecha u hora de una cita (la hace el taller)
+export interface AppointmentRescheduledEmailData {
+  name: string;
+  serviceName: string;
+  previousDate: string;
+  previousTimeSlot: string;
+  scheduledDate: string;
+  timeSlot: string;
+}
+
+export function getAppointmentRescheduledTemplate(data: AppointmentRescheduledEmailData): { html: string; text: string; subject: string } {
+  const subject = sanitizeHeader(`Cambio de horario de tu cita: ${data.serviceName}`);
+  const e = {
+    name: escapeHtml(data.name),
+    serviceName: escapeHtml(data.serviceName),
+    previousDate: escapeHtml(data.previousDate),
+    previousTimeSlot: escapeHtml(data.previousTimeSlot),
+    scheduledDate: escapeHtml(data.scheduledDate),
+    timeSlot: escapeHtml(data.timeSlot),
+  };
+  const previewText = `Tu cita de ${e.serviceName} ahora es el ${e.scheduledDate} a las ${e.timeSlot}.`;
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:#111111;margin:0 0 14px 0;letter-spacing:-0.5px;">Cambiamos el horario de tu cita</h1>
+    <p style="font-size:15px;line-height:1.6;color:#444444;margin:0 0 24px 0;">
+      Hola <strong>${e.name}</strong>, el taller modificó la fecha u hora de tu cita de <strong>${e.serviceName}</strong>.
+    </p>
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#fafafa;border:1px solid #e0e0e0;border-radius:8px;padding:20px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:6px 0;font-size:13px;color:#777777;width:140px;">Antes:</td>
+        <td style="padding:6px 0;font-size:14px;color:#777777;text-decoration:line-through;">${e.previousDate} · ${e.previousTimeSlot} hrs</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;font-size:13px;color:#777777;">Ahora:</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#017827;">${e.scheduledDate} · ${e.timeSlot} hrs</td>
+      </tr>
+    </table>
+    <p style="font-size:14px;color:#555555;line-height:1.5;">
+      Si este horario no te acomoda, llámanos al <strong>+56 9 9162 7809</strong> y lo coordinamos.
+    </p>
+  `;
+  return {
+    subject,
+    html: baseEmailLayout(content, previewText),
+    text: `Hola ${e.name},\n\nEl taller cambió el horario de tu cita de ${e.serviceName}:\n- Antes: ${e.previousDate} a las ${e.previousTimeSlot}\n- Ahora: ${e.scheduledDate} a las ${e.timeSlot}\n\nSi no te acomoda, llámanos al +56 9 9162 7809.`,
+  };
+}
+
 // 3. Plantilla de Resumen de Atención Técnica Finalizada
 export interface ServiceCompletedEmailData {
   name: string;

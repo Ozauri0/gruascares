@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { toAdminMetrics } from "./api-adapters";
 import { ApiError } from "./api";
-import { assignMechanic, blockDay, fetchAgendaRange, fetchMetrics, listBlockedDays, listStaff, unblockDay } from "./admin-api";
+import { assignMechanic, blockDay, blockSlot, bulkBlockDays, bulkUnblockDays, createSlot, deleteSlot, fetchDaySchedule, rescheduleAppointment, fetchAgendaRange, fetchMetrics, listBlockedDays, listStaff, unblockDay } from "./admin-api";
 import type { ApiAgendaItem, ApiMetrics } from "./api-types";
 
 type Call = { url: string; init: RequestInit };
@@ -118,5 +118,46 @@ describe("INT-9: calendario maestro", () => {
     expect(calls[1].url).toBe("/api/admin/appointments/a%201/assign");
     expect(calls[1].init.method).toBe("PATCH");
     expect(JSON.parse(String(calls[1].init.body))).toEqual({ mechanicId: "m1" });
+  });
+});
+
+describe("calendario maestro: horarios, bloqueo masivo y cambio de hora", () => {
+  const range = { startDate: "2026-10-20", endDate: "2026-12-31", weekdays: [6, 0] };
+
+  test("bloqueo y desbloqueo masivo envían el rango y los días de la semana", async () => {
+    respond(201, { created: 12, skipped: 1, affectedAppointments: 2 });
+    expect(await bulkBlockDays(range, "Fin de semana")).toEqual({ created: 12, skipped: 1, affectedAppointments: 2 });
+    expect(calls[0].url).toBe("/api/admin/blocked-dates/bulk");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ ...range, reason: "Fin de semana" });
+
+    respond(200, { removed: 12 });
+    expect(await bulkUnblockDays(range)).toEqual({ removed: 12 });
+    expect(calls[1].url).toBe("/api/admin/blocked-dates/bulk-remove");
+  });
+
+  test("horarios del día, bloqueo de un bloque y horarios propios", async () => {
+    respond(200, { date: "2026-10-20", capacityPerSlot: 2, slots: [{ time: "08:30", custom: false, customId: null, booked: 0, block: null }] });
+    expect((await fetchDaySchedule("2026-10-20")).slots).toHaveLength(1);
+    expect(calls[0].url).toBe("/api/admin/schedule?date=2026-10-20");
+
+    respond(201, {});
+    await blockSlot("2026-10-20", "09:30", "Mantención");
+    expect(JSON.parse(String(calls[1].init.body))).toEqual({ date: "2026-10-20", timeSlot: "09:30", reason: "Mantención" });
+    await createSlot("2026-10-20", "13:00");
+    expect(calls[2].url).toBe("/api/admin/time-slots");
+    respond(200, {});
+    await deleteSlot("s 1");
+    expect(calls[3].url).toBe("/api/admin/time-slots/s%201");
+    expect(calls[3].init.method).toBe("DELETE");
+  });
+
+  test("rescheduleAppointment hace PATCH y propaga el 409 de un horario lleno", async () => {
+    respond(200, { notified: true });
+    expect(await rescheduleAppointment("a1", "2026-10-21", "15:00")).toEqual({ notified: true });
+    expect(calls[0].url).toBe("/api/admin/appointments/a1/reschedule");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ scheduledDate: "2026-10-21", timeSlot: "15:00" });
+
+    respond(409, { error: "Conflict", message: "ya no tiene cupos" });
+    expect(((await rescheduleAppointment("a1", "2026-10-21", "15:00").catch((e) => e)) as ApiError).status).toBe(409);
   });
 });

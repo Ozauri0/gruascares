@@ -90,3 +90,73 @@ describe.skipIf(!dbReady)("horarios por día", () => {
     expect(list.body.blockedDates.filter((b: any) => b.timeSlot === "13:00")).toHaveLength(0);
   });
 });
+
+describe.skipIf(!dbReady)("bloqueo masivo y cambio de hora", () => {
+  const book = (user: U, date: string, timeSlot: string) =>
+    call(user, "POST", "/api/appointments", { serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot });
+
+  test("bloquea todos los sábados y domingos de un rango, omite los ya bloqueados y se puede revertir", async () => {
+    const start = futureDate(1);
+    const end = futureDate(60);
+    const weekdays = [0, 6];
+    const expected = Array.from({ length: 60 }, (_, i) => futureDate(i + 1)).filter((d) => weekdays.includes(new Date(`${d}T00:00:00Z`).getUTCDay()));
+
+    const first = expected[0];
+    await call(seed.admin, "POST", "/api/admin/blocked-dates", { date: first, reason: "ya bloqueado" });
+    const res = await call(seed.admin, "POST", "/api/admin/blocked-dates/bulk", { startDate: start, endDate: end, weekdays, reason: "Fin de semana" });
+    expect(res.status).toBe(201);
+    expect(res.body.created).toBe(expected.length - 1);
+    expect(res.body.skipped).toBe(1);
+
+    const list = await call(seed.admin, "GET", "/api/admin/blocked-dates");
+    expect(list.body.blockedDates.map((b: any) => b.date).sort()).toEqual(expected);
+    expect((await book(seed.clientA, expected[1], "10:30")).status).toBe(409);
+
+    const undo = await call(seed.admin, "POST", "/api/admin/blocked-dates/bulk-remove", { startDate: start, endDate: end, weekdays });
+    expect(undo.body.removed).toBe(expected.length);
+    expect((await book(seed.clientA, expected[1], "10:30")).status).toBe(201);
+  });
+
+  test("valida el bloqueo masivo", async () => {
+    const ok = { startDate: futureDate(1), endDate: futureDate(5), weekdays: [6], reason: "x y z" };
+    const post = (b: object) => call(seed.admin, "POST", "/api/admin/blocked-dates/bulk", b);
+    expect((await post({ ...ok, weekdays: [] })).status).toBe(400);
+    expect((await post({ ...ok, weekdays: [7] })).status).toBe(400);
+    expect((await post({ ...ok, endDate: futureDate(0) })).status).toBe(400);
+    expect((await post({ ...ok, endDate: futureDate(500) })).status).toBe(400);
+    expect((await post({ ...ok, reason: "" })).status).toBe(400);
+    expect((await call(seed.mechanic, "POST", "/api/admin/blocked-dates/bulk", ok)).status).toBe(403);
+  });
+
+  test("el admin reprograma una cita, se avisa al cliente y se respetan cupos y bloqueos", async () => {
+    const date = futureDate(10);
+    const other = futureDate(11);
+    const id = (await book(seed.clientA, date, "10:30")).body.appointment.id as string;
+    const patch = (b: object, user: U = seed.admin) => call(user, "PATCH", `/api/admin/appointments/${id}/reschedule`, b);
+
+    expect((await patch({ scheduledDate: other, timeSlot: "11:30" }, seed.clientA)).status).toBe(403);
+    expect((await patch({ scheduledDate: date, timeSlot: "10:30" })).status).toBe(400); // sin cambios
+    expect((await patch({ scheduledDate: "2020-01-01", timeSlot: "11:30" })).status).toBe(400);
+    expect((await patch({ scheduledDate: other, timeSlot: "04:00" })).status).toBe(400);
+
+    await call(seed.admin, "POST", "/api/admin/blocked-dates", { date: other, timeSlot: "11:30", reason: "bahía en mantención" });
+    const blocked = await patch({ scheduledDate: other, timeSlot: "11:30" });
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.message).toContain("bahía en mantención");
+
+    await book(seed.clientA, other, "14:00");
+    await book(seed.clientA, other, "14:00");
+    expect((await patch({ scheduledDate: other, timeSlot: "14:00" })).status).toBe(409); // lleno
+
+    const done = await patch({ scheduledDate: other, timeSlot: "15:00" });
+    expect(done.status).toBe(200);
+    expect(done.body.appointment.scheduledDate).toBe(other);
+    expect(done.body.appointment.timeSlot).toBe("15:00");
+    expect(done.body.notified).toBe(true);
+
+    // Liberó su cupo anterior y una cita finalizada o cancelada ya no se mueve.
+    expect((await book(seed.clientA, date, "10:30")).status).toBe(201);
+    await call(seed.clientA, "PATCH", `/api/appointments/${id}/cancel`);
+    expect((await patch({ scheduledDate: other, timeSlot: "16:00" })).status).toBe(409);
+  });
+});

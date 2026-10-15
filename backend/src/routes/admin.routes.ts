@@ -5,6 +5,9 @@ import {
   createBlockedDate,
   deleteBlockedDate,
   getDaySchedule,
+  bulkBlockDates,
+  bulkUnblockDates,
+  rescheduleAppointment,
   createTimeSlot,
   deleteTimeSlot,
   reassignAppointmentMechanic,
@@ -27,10 +30,13 @@ router.get("/metrics", getAdminMetrics);
 // 2. [T1.9] Gestión de Taller y Horarios
 router.get("/blocked-dates", getBlockedDates);
 router.post("/blocked-dates", createBlockedDate);
+router.post("/blocked-dates/bulk", bulkBlockDates);
+router.post("/blocked-dates/bulk-remove", bulkUnblockDates);
 router.delete("/blocked-dates/:id", deleteBlockedDate);
 router.get("/schedule", getDaySchedule);
 router.post("/time-slots", createTimeSlot);
 router.delete("/time-slots/:id", deleteTimeSlot);
+router.patch("/appointments/:id/reschedule", rescheduleAppointment);
 router.patch("/appointments/:id/assign", reassignAppointmentMechanic);
 
 // Gestión de usuarios y personal

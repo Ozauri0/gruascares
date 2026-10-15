@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { assignMechanic, blockDay, fetchAgendaRange, listBlockedDays, listStaff, unblockDay } from "./admin-api";
+import { assignMechanic, blockDay, rescheduleAppointment, fetchAgendaRange, listBlockedDays, listStaff, unblockDay } from "./admin-api";
 import type { BlockedDay, StaffMember } from "./admin-types";
 import type { AgendaItem } from "./workshop-types";
 
@@ -68,6 +68,13 @@ export function useCalendar(year: number, month: number) {
     [staff]
   );
 
+  /** Cambia fecha/hora de una cita y recarga el mes (puede salir del mes visible). */
+  const reschedule = useCallback(async (appointmentId: string, date: string, timeSlot: string) => {
+    const result = await rescheduleAppointment(appointmentId, date, timeSlot);
+    setNonce((n) => n + 1);
+    return result;
+  }, []);
+
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  return { byDay, blocked, staff, loading, error, reload, block, unblock, assign };
+  return { byDay, blocked, staff, loading, error, reload, block, unblock, assign, reschedule };
 }

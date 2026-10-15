@@ -57,6 +57,22 @@ export async function deleteSlot(id: string): Promise<void> {
   await apiDelete(`/api/admin/time-slots/${encodeURIComponent(id)}`);
 }
 
+export type BulkRange = { startDate: string; endDate: string; weekdays: number[] };
+
+/** Bloquea días completos de un rango según el día de la semana (0 = domingo … 6 = sábado). */
+export async function bulkBlockDays(range: BulkRange, reason: string) {
+  return apiPost<{ created: number; skipped: number; affectedAppointments: number }>("/api/admin/blocked-dates/bulk", { ...range, reason });
+}
+
+export async function bulkUnblockDays(range: BulkRange) {
+  return apiPost<{ removed: number }>("/api/admin/blocked-dates/bulk-remove", range);
+}
+
+/** El taller cambia la fecha u hora de una cita (avisa al cliente por correo). */
+export async function rescheduleAppointment(id: string, scheduledDate: string, timeSlot: string): Promise<{ notified: boolean }> {
+  return apiPatch<{ notified: boolean }>(`/api/admin/appointments/${encodeURIComponent(id)}/reschedule`, { scheduledDate, timeSlot });
+}
+
 export async function unblockDay(id: string): Promise<void> {
   await apiDelete(`/api/admin/blocked-dates/${encodeURIComponent(id)}`);
 }
