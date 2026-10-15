@@ -46,3 +46,13 @@ export function isSlotPast(date: string, slot: string, now: Date = clock.now()):
   if (date > current.date) return false;
   return slot <= current.time;
 }
+
+/** Semana calendario (lunes a domingo) que contiene la fecha YYYY-MM-DD. */
+export function weekRange(isoDate: string): { start: string; end: string } {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  const sinceMonday = (day.getUTCDay() + 6) % 7; // lunes = 0 ... domingo = 6
+  const monday = new Date(Date.UTC(y, m - 1, d - sinceMonday));
+  const sunday = new Date(Date.UTC(y, m - 1, d - sinceMonday + 6));
+  return { start: monday.toISOString().slice(0, 10), end: sunday.toISOString().slice(0, 10) };
+}
