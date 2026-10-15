@@ -9,3 +9,40 @@ export function isValidIsoDate(value: unknown): value is string {
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
+
+/** Zona horaria del taller (Villarrica, Chile). */
+export const WORKSHOP_TIME_ZONE = "America/Santiago";
+
+/** Reloj inyectable: las pruebas pueden fijar la hora sin tocar el sistema. */
+export const clock = {
+  now: (): Date => new Date(),
+};
+
+const partsFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: WORKSHOP_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Fecha (YYYY-MM-DD) y hora (HH:mm) actuales en la zona horaria del taller. */
+export function workshopNow(now: Date = clock.now()): { date: string; time: string } {
+  const parts = Object.fromEntries(partsFormatter.formatToParts(now).map((p) => [p.type, p.value]));
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+/** "Hoy" en Chile (no en UTC). */
+export function todayInSantiago(now: Date = clock.now()): string {
+  return workshopNow(now).date;
+}
+
+/** Un bloque horario "HH:mm" de una fecha ya pasó (o está en curso) según la hora del taller. */
+export function isSlotPast(date: string, slot: string, now: Date = clock.now()): boolean {
+  const current = workshopNow(now);
+  if (date < current.date) return true;
+  if (date > current.date) return false;
+  return slot <= current.time;
+}

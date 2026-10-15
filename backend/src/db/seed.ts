@@ -1,3 +1,4 @@
+import { todayInSantiago } from "../utils/dates.js";
 import bcrypt from "bcryptjs";
 import { db, sql } from "./connection.js";
 import { users, services, vehicles, appointments, serviceRecords } from "./schema.js";
@@ -143,7 +144,7 @@ async function seed() {
             vehicleId: demoVehicle.id,
             serviceId: serviceList[0].id,
             mechanicId: mechanicUser.id,
-            scheduledDate: new Date().toISOString().slice(0, 10),
+            scheduledDate: todayInSantiago(),
             timeSlot: "10:30",
             status: "finalizada",
             notes: "Cambio de aceite periódico",
