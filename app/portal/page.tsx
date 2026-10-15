@@ -5,7 +5,8 @@ import InnerFooter from "../components/InnerFooter";
 import InnerHeader from "../components/InnerHeader";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
-import { MOCK_APPOINTMENTS, MOCK_USER, MOCK_VEHICLES } from "../lib/portal-mocks";
+import { useAuth } from "../lib/auth";
+import { MOCK_APPOINTMENTS, MOCK_VEHICLES } from "../lib/portal-mocks";
 import { formatPlate } from "../lib/plate";
 import type { PortalVehicle } from "../lib/portal-types";
 
@@ -52,7 +53,8 @@ export default function PortalPage() {
     }
   }, []);
 
-  const firstName = MOCK_USER.name.split(" ")[0];
+  const { user } = useAuth();
+  const firstName = user ? user.name.split(" ")[0] : "";
   const active = [...MOCK_APPOINTMENTS]
     .filter((item) => ACTIVE_STATUSES.includes(item.status))
     .sort((a, b) => `${a.scheduledDate} ${a.timeSlot}`.localeCompare(`${b.scheduledDate} ${b.timeSlot}`));
@@ -66,10 +68,10 @@ export default function PortalPage() {
         <section className="page-intro wrap portal-intro">
           <div>
             <p className="eyebrow">Mi Cuenta</p>
-            <h1>Hola, <em>{firstName}.</em></h1>
+            <h1>Hola{firstName ? ", " : ""}<em>{firstName ? `${firstName}.` : "."}</em></h1>
           </div>
           <div>
-            <p className="portal-contact">{MOCK_USER.email}{MOCK_USER.phone ? ` · ${MOCK_USER.phone}` : ""}</p>
+            <p className="portal-contact">{user ? `${user.email}${user.phone ? ` · ${user.phone}` : ""}` : "\u00a0"}</p>
             <LogoutButton />
           </div>
         </section>
