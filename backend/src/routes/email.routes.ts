@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 import {
   getWelcomeEmailTemplate,
   getAppointmentConfirmationTemplate,
@@ -11,6 +12,9 @@ import {
 } from "../services/email/email.service.js";
 
 const router = Router();
+
+// Herramientas internas de correo: solo administradores (nunca públicas).
+router.use(authenticate, authorizeRoles("admin"));
 
 // Endpoint para previsualizar HTML de las plantillas directamente en el navegador
 router.get("/preview/:type", (req: Request, res: Response) => {
@@ -60,9 +64,17 @@ router.get("/preview/:type", (req: Request, res: Response) => {
 
 // Endpoint para disparar un correo de prueba
 router.post("/test", async (req: Request, res: Response) => {
-  const { to, type = "welcome" } = req.body;
+  const { type = "welcome" } = req.body ?? {};
 
-  const targetEmail = to || "test@gruascares.cl";
+  if (!["welcome", "appointment", "completed"].includes(type)) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: "Tipo inválido. Opciones: welcome, appointment, completed",
+    });
+  }
+
+  // El destinatario siempre es el correo del administrador autenticado: evita usar el SMTP como relay.
+  const targetEmail = req.user!.email;
 
   if (type === "welcome") {
     await sendWelcomeEmail(targetEmail, "Usuario de Prueba");
