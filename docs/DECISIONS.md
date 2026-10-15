@@ -102,3 +102,12 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 - **Contexto**: El frontend generaba 21 bloques ficticios (08:00–18:00 cada 30 min) y el backend ofrece 8 (`DEFAULT_TIME_SLOTS`: 08:30, 09:30, 10:30, 11:30, 14:00, 15:00, 16:00, 17:00) con capacidad por bloque, bloqueos del administrador y hora de Chile.
 - **Decisión**: `GET /api/appointments/availability` es la única fuente de verdad. `/agendar` pinta los bloques que devuelve (disponible, ocupado, ya transcurrido o bloqueado con motivo) y se eliminó el generador de bloques del frontend. Cambiar los horarios del taller es un cambio en `backend/src/config/constants.ts`.
 - **Consecuencias**: la web nunca ofrece un horario que el backend rechazaría; si el taller quiere otros bloques se cambia en un solo lugar (a futuro, desde el panel de administración).
+
+---
+
+### ADR 010: Recuperación de contraseña por enlace de un solo uso
+- **Fecha**: 2026-10-15
+- **Estado**: Aceptado
+- **Contexto**: No existía forma de recuperar una cuenta, y al no verificarse el correo al registrarse, alguien podía "ocupar" el correo de otra persona (ver ADR 006). Con recuperación, el dueño real del buzón puede recuperar el control.
+- **Decisión**: `POST /api/auth/forgot-password` responde siempre igual (no revela qué correos existen) y, si la cuenta existe y está activa, envía un enlace `APP_URL/restablecer?token=…` válido 60 minutos. `POST /api/auth/reset-password` consume el token de forma atómica, aplica la política de contraseñas, cierra todas las sesiones de la cuenta (`token_version`) e invalida los enlaces pendientes. El token solo se guarda como hash SHA-256; hay límites de tasa por IP+correo. `PATCH /api/auth/me` edita nombre y teléfono (no correo ni rol).
+- **Consecuencias**: la pantalla de recuperación y la de perfil del frontend se conectan en un issue aparte. Sigue pendiente verificar el correo al registrarse (mitigado, no eliminado).

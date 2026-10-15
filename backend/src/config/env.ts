@@ -24,6 +24,8 @@ export interface AppConfig {
   trustProxy: boolean | number;
   /** Login demo sin credenciales (POST /api/auth/demo-login). Solo fuera de producción. */
   demoMode: boolean;
+  /** URL pública del frontend (enlaces de los correos). */
+  appUrl: string;
   jwt: { secret: string; expiresIn: string };
   email: { host: string; port: number; user: string; pass: string; from: string };
 }
@@ -78,6 +80,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl,
     trustProxy: parseTrustProxy(env.TRUST_PROXY),
     demoMode,
+    appUrl: (env.APP_URL || (isProduction ? "https://gruascares.cl" : "http://localhost:3000")).replace(/\/$/, ""),
     jwt: { secret, expiresIn: env.JWT_EXPIRES_IN || "7d" },
     email: {
       host: env.SMTP_HOST || "",

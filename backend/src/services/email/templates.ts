@@ -286,3 +286,38 @@ export function getServiceCompletedTemplate(data: ServiceCompletedEmailData): { 
     text: `Estimado(a) ${data.name},\n\nLa atención técnica para tu vehículo ${data.vehiclePlate} (${data.serviceName}) ha finalizado.\n\nObservaciones: ${data.observations}\n${data.recommendations ? `Recomendaciones: ${data.recommendations}\n` : ""}\nFecha: ${data.completedAt}\n\nGracias por confiar en Grúas Cares.`,
   };
 }
+
+// 4. Plantilla de recuperación de contraseña
+export function getPasswordResetTemplate(
+  name: string,
+  resetUrl: string,
+  validMinutes: number
+): { html: string; text: string; subject: string } {
+  const subject = "Restablece tu contraseña · Grúas Cares";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(resetUrl);
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:#111111;margin:0 0 14px 0;letter-spacing:-0.5px;">Restablecer contraseña</h1>
+    <p style="font-size:15px;line-height:1.6;color:#444444;margin:0 0 20px 0;">
+      Hola <strong>${safeName}</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta de Grúas Cares.
+      El enlace es válido por <strong>${validMinutes} minutos</strong> y solo puede usarse una vez.
+    </p>
+    <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:26px 0;">
+      <tr>
+        <td align="center" style="border-radius:6px;background-color:#029834;">
+          <a href="${safeUrl}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:14px;color:#ffffff;font-weight:700;text-decoration:none;border-radius:6px;">Crear nueva contraseña ↗</a>
+        </td>
+      </tr>
+    </table>
+    <p style="font-size:13px;line-height:1.6;color:#666666;margin:0 0 8px 0;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+    <p style="font-size:12px;line-height:1.5;color:#029834;word-break:break-all;margin:0 0 20px 0;">${safeUrl}</p>
+    <p style="font-size:13px;line-height:1.6;color:#666666;margin:0;">
+      Si tú no lo solicitaste, ignora este correo: tu contraseña actual no cambiará.
+    </p>
+  `;
+  return {
+    subject,
+    html: baseEmailLayout(content, "Enlace para restablecer tu contraseña de Grúas Cares."),
+    text: `Hola ${name},\n\nRecibimos una solicitud para restablecer la contraseña de tu cuenta de Grúas Cares. Usa este enlace (válido por ${validMinutes} minutos, un solo uso):\n${resetUrl}\n\nSi no lo solicitaste, ignora este correo.`,
+  };
+}

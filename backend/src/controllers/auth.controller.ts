@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { createHash, randomBytes } from "crypto";
+import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { appointments, users } from "../db/schema.js";
+import { appointments, passwordResetTokens, users } from "../db/schema.js";
 import { generateToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
-import { sendWelcomeEmail } from "../services/email/email.service.js";
-import { MAX_LEN, findTooLong } from "../utils/validate.js";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "../services/email/email.service.js";
+import { EMAIL_REGEX, MAX_LEN, findTooLong } from "../utils/validate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { hashPassword, validatePassword, verifyPassword } from "../utils/password.js";
 import { logAudit } from "../services/audit/audit.service.js";
@@ -349,5 +350,147 @@ export async function demoLogin(req: Request, res: Response) {
   } catch (error) {
     console.error("Error en demoLogin:", error);
     return res.status(500).json({ error: "Internal Server Error", message: "Error al iniciar la sesión demo" });
+  }
+}
+
+/**
+ * PATCH /api/auth/me { name?, phone? }
+ * Edita el perfil propio. El correo y el rol no se cambian desde aquí.
+ */
+export async function updateProfile(req: Request, res: Response) {
+  try {
+    const { name, phone } = req.body ?? {};
+    if (name === undefined && phone === undefined) {
+      return res.status(400).json({ error: "Bad Request", message: "Indica al menos un campo a modificar (name, phone)" });
+    }
+    if (name !== undefined && (typeof name !== "string" || name.trim().length < 2)) {
+      return res.status(400).json({ error: "Bad Request", message: "El nombre debe tener al menos 2 caracteres" });
+    }
+    if (phone !== undefined && phone !== null && typeof phone !== "string") {
+      return res.status(400).json({ error: "Bad Request", message: "El teléfono debe ser texto" });
+    }
+    const tooLong = findTooLong([
+      ["El nombre", name, MAX_LEN.name],
+      ["El teléfono", phone, MAX_LEN.phone],
+    ]);
+    if (tooLong) {
+      return res.status(400).json({ error: "Bad Request", message: tooLong });
+    }
+
+    const updates: Partial<typeof users.$inferInsert> = { updatedAt: new Date() };
+    if (typeof name === "string") updates.name = name.trim();
+    if (phone !== undefined) updates.phone = typeof phone === "string" && phone.trim() ? phone.trim() : null;
+
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, req.user!.userId))
+      .returning({ id: users.id, name: users.name, email: users.email, role: users.role, phone: users.phone, isActive: users.isActive, createdAt: users.createdAt });
+
+    logAudit({ action: "PROFILE_UPDATED", entityType: "user", entityId: req.user!.userId, details: { fields: Object.keys(updates).filter((k) => k !== "updatedAt") }, req });
+    return res.status(200).json({ message: "Perfil actualizado exitosamente", user });
+  } catch (error) {
+    console.error("Error en updateProfile:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al actualizar el perfil" });
+  }
+}
+
+const RESET_TOKEN_MINUTES = 60;
+const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+/**
+ * POST /api/auth/forgot-password { email }
+ * Siempre responde igual (exista o no la cuenta) para no revelar qué correos están registrados.
+ * Si la cuenta existe y está activa, envía un enlace de un solo uso válido por 60 minutos.
+ */
+export async function forgotPassword(req: Request, res: Response) {
+  const generic = {
+    message: "Si el correo está registrado, te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.",
+  };
+  try {
+    const email = req.body?.email;
+    if (typeof email !== "string" || !EMAIL_REGEX.test(email.trim()) || email.length > MAX_LEN.email) {
+      return res.status(400).json({ error: "Bad Request", message: "Debe ingresar un correo electrónico válido" });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+
+    if (user && user.isActive) {
+      const token = randomBytes(32).toString("base64url");
+      await db.transaction(async (tx) => {
+        // un solo enlace vigente por cuenta: los anteriores dejan de servir
+        await tx.update(passwordResetTokens).set({ usedAt: new Date() }).where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt)));
+        await tx.insert(passwordResetTokens).values({
+          userId: user.id,
+          tokenHash: hashToken(token),
+          expiresAt: new Date(Date.now() + RESET_TOKEN_MINUTES * 60 * 1000),
+        });
+      });
+      const resetUrl = `${config.appUrl}/restablecer?token=${encodeURIComponent(token)}`;
+      sendPasswordResetEmail(user.email, user.name, resetUrl, RESET_TOKEN_MINUTES);
+      logAudit({ userId: user.id, userEmail: user.email, action: "PASSWORD_RESET_REQUESTED", entityType: "user", entityId: user.id, req });
+    } else {
+      logAudit({ userEmail: normalizedEmail, action: "PASSWORD_RESET_REQUESTED", entityType: "user", details: { known: Boolean(user), reason: user ? "inactive" : "unknown_user" }, req });
+    }
+
+    return res.status(200).json(generic);
+  } catch (error) {
+    console.error("Error en forgotPassword:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "No se pudo procesar la solicitud" });
+  }
+}
+
+/**
+ * POST /api/auth/reset-password { token, password }
+ * Cambia la contraseña con un enlace vigente de un solo uso y cierra todas las sesiones de la cuenta.
+ */
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    const { token, password } = req.body ?? {};
+    if (typeof token !== "string" || token.length < 20 || token.length > 200) {
+      return res.status(400).json({ error: "Bad Request", message: "El enlace no es válido o ya venció. Solicita uno nuevo." });
+    }
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({ error: "Bad Request", message: passwordError });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const tokenHash = hashToken(token);
+
+    const result = await db.transaction(async (tx) => {
+      // "Consumir" el token de forma atómica: solo una solicitud puede usarlo.
+      const [consumed] = await tx
+        .update(passwordResetTokens)
+        .set({ usedAt: new Date() })
+        .where(and(eq(passwordResetTokens.tokenHash, tokenHash), isNull(passwordResetTokens.usedAt), gt(passwordResetTokens.expiresAt, new Date())))
+        .returning({ userId: passwordResetTokens.userId });
+      if (!consumed) return null;
+
+      const [user] = await tx
+        .update(users)
+        .set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` as unknown as number, updatedAt: new Date() })
+        .where(and(eq(users.id, consumed.userId), eq(users.isActive, true)))
+        .returning({ id: users.id, email: users.email });
+      if (!user) return null;
+
+      // cualquier otro enlace pendiente de la cuenta deja de servir
+      await tx
+        .update(passwordResetTokens)
+        .set({ usedAt: new Date() })
+        .where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt), ne(passwordResetTokens.tokenHash, tokenHash)));
+      return user;
+    });
+
+    if (!result) {
+      return res.status(400).json({ error: "Bad Request", message: "El enlace no es válido o ya venció. Solicita uno nuevo." });
+    }
+
+    logAudit({ userId: result.id, userEmail: result.email, action: "PASSWORD_RESET_COMPLETED", entityType: "user", entityId: result.id, req });
+    return res.status(200).json({ message: "Contraseña actualizada. Ya puedes iniciar sesión con tu nueva contraseña." });
+  } catch (error) {
+    console.error("Error en resetPassword:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "No se pudo restablecer la contraseña" });
   }
 }

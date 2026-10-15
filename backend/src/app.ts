@@ -70,6 +70,8 @@ export function createApp(options: AppOptions = {}): Express {
   // Límites de tasa (antes de los routers para cortar abusos tempranamente)
   app.post("/api/auth/login", limiters.loginPerIp, limiters.loginPerAccount);
   app.post("/api/auth/register", limiters.register);
+  app.post("/api/auth/forgot-password", limiters.forgotPassword);
+  app.post("/api/auth/reset-password", limiters.resetPassword);
   app.post("/api/appointments", limiters.publicAppointment);
   app.get("/api/appointments/availability", limiters.availability);
 

@@ -4,6 +4,7 @@ import {
   getWelcomeEmailTemplate,
   getAppointmentConfirmationTemplate,
   getServiceCompletedTemplate,
+  getPasswordResetTemplate,
   AppointmentEmailData,
   ServiceCompletedEmailData,
 } from "./templates.js";
@@ -38,6 +39,9 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
+/** Solo en pruebas: correos "enviados" (el transporte real nunca se usa). */
+export const testOutbox: { to: string; subject: string; html: string; text?: string }[] = [];
+
 export interface SendMailOptions {
   to: string;
   subject: string;
@@ -57,6 +61,7 @@ export async function sendEmail(options: SendMailOptions): Promise<boolean> {
     const transport = getTransporter();
 
     console.log(`📧 [EmailService] Preparando envío para: ${to} | Asunto: "${subject}"`);
+    if (config.nodeEnv === "test") testOutbox.push({ to, subject, html, text });
 
     const info = await transport.sendMail({
       from: config.email.from,
@@ -124,4 +129,17 @@ export async function sendServiceCompletedEmail(
     html: template.html,
     text: template.text,
   }).catch((err) => console.error("Error en sendServiceCompletedEmail:", err));
+}
+
+/**
+ * Enlace para restablecer la contraseña (token de un solo uso).
+ */
+export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string, validMinutes: number): Promise<void> {
+  const template = getPasswordResetTemplate(name, resetUrl, validMinutes);
+  sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  }).catch((err) => console.error("Error en sendPasswordResetEmail:", err));
 }
