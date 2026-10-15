@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { PortalVehicle } from "./portal-types";
 import { createVehicle, deleteVehicle, listVehicles, updateVehicle, type VehicleInput } from "./vehicles-api";
 
-/** Vehículos del usuario autenticado, cargados desde la API (sin respaldo local). */
-export function useVehicles() {
+/** Vehículos del usuario autenticado, cargados desde la API (sin respaldo local). `enabled=false` no consulta (p. ej. invitados). */
+export function useVehicles({ enabled = true }: { enabled?: boolean } = {}) {
   const [vehicles, setVehicles] = useState<PortalVehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState("");
 
   const reload = useCallback(async () => {
@@ -23,8 +23,12 @@ export function useVehicles() {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    if (enabled) void reload();
+    else {
+      setVehicles([]);
+      setLoading(false);
+    }
+  }, [enabled, reload]);
 
   const add = useCallback(async (input: VehicleInput) => {
     const created = await createVehicle(input);
