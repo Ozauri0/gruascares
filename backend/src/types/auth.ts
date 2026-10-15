@@ -7,6 +7,8 @@ export interface JWTPayload {
   email: string;
   role: UserRole;
   name: string;
+  /** Versión de sesión: si no coincide con la de la BD, el token queda invalidado. */
+  tokenVersion?: number;
 }
 
 declare global {

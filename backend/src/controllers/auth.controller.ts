@@ -99,11 +99,12 @@ export async function register(req: Request, res: Response) {
       email: newUser.email,
       role: newUser.role,
       name: newUser.name,
+      tokenVersion: 0,
     });
 
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: config.nodeEnv === "production",
+      secure: config.isProduction,
       sameSite: "lax",
       maxAge: COOKIE_MAX_AGE,
     });
@@ -111,7 +112,6 @@ export async function register(req: Request, res: Response) {
     return res.status(201).json({
       message: "Usuario registrado exitosamente",
       user: newUser,
-      token,
     });
   } catch (error) {
     console.error("Error en register:", error);
@@ -172,11 +172,12 @@ export async function login(req: Request, res: Response) {
       email: user.email,
       role: user.role,
       name: user.name,
+      tokenVersion: user.tokenVersion,
     });
 
     res.cookie(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: config.nodeEnv === "production",
+      secure: config.isProduction,
       sameSite: "lax",
       maxAge: COOKIE_MAX_AGE,
     });
@@ -190,7 +191,6 @@ export async function login(req: Request, res: Response) {
         role: user.role,
         phone: user.phone,
       },
-      token,
     });
   } catch (error) {
     console.error("Error en login:", error);
@@ -244,11 +244,37 @@ export async function getMe(req: Request, res: Response) {
 export function logout(_req: Request, res: Response) {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
-    secure: config.nodeEnv === "production",
+    secure: config.isProduction,
     sameSite: "lax",
   });
 
   return res.status(200).json({
     message: "Sesión cerrada exitosamente",
   });
+}
+
+/**
+ * POST /api/auth/logout-all
+ * Cierra todas las sesiones activas del usuario (en todos los dispositivos).
+ */
+export async function logoutAll(req: Request, res: Response) {
+  try {
+    await db
+      .update(users)
+      .set({ tokenVersion: sql`${users.tokenVersion} + 1`, updatedAt: new Date() })
+      .where(eq(users.id, req.user!.userId));
+
+    res.clearCookie(COOKIE_NAME, {
+      httpOnly: true,
+      secure: config.isProduction,
+      sameSite: "lax",
+    });
+    return res.status(200).json({ message: "Se cerraron todas tus sesiones" });
+  } catch (error) {
+    console.error("Error en logoutAll:", error);
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: "Error al cerrar las sesiones",
+    });
+  }
 }

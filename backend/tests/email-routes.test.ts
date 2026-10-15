@@ -1,15 +1,22 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { authHeaders, startServer, tokenFor, type TestServer } from "./helpers.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { cookieFor, dbReady, resetDb, seedBasics, type Seed } from "./db.js";
+import { startServer, type TestServer } from "./helpers.js";
 
 let server: TestServer;
+let seed: Seed;
 beforeAll(async () => {
-  server = await startServer();
+  if (dbReady) server = await startServer();
 });
 afterAll(async () => {
-  await server.close();
+  if (server) await server.close();
+});
+beforeEach(async () => {
+  if (!dbReady) return;
+  await resetDb();
+  seed = await seedBasics();
 });
 
-describe("SEC-1: /api/email protegido", () => {
+describe.skipIf(!dbReady)("SEC-1: /api/email protegido", () => {
   test("test sin sesión devuelve 401", async () => {
     const res = await fetch(`${server.url}/api/email/test`, {
       method: "POST",
@@ -25,10 +32,10 @@ describe("SEC-1: /api/email protegido", () => {
   });
 
   test("cliente y mecánico reciben 403", async () => {
-    for (const role of ["usuario", "mecanico"] as const) {
+    for (const user of [seed.clientA, seed.mechanic]) {
       const res = await fetch(`${server.url}/api/email/test`, {
         method: "POST",
-        headers: authHeaders(role),
+        headers: cookieFor(user),
         body: "{}",
       });
       expect(res.status).toBe(403);
@@ -38,27 +45,25 @@ describe("SEC-1: /api/email protegido", () => {
   test("admin solo puede enviarse a sí mismo (ignora 'to')", async () => {
     const res = await fetch(`${server.url}/api/email/test`, {
       method: "POST",
-      headers: authHeaders("admin"),
+      headers: cookieFor(seed.admin),
       body: JSON.stringify({ to: "victima@example.com", type: "welcome" }),
     });
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.recipient).toBe("admin@test.local");
+    expect(data.recipient).toBe(seed.admin.email);
   });
 
   test("tipo inválido devuelve 400", async () => {
     const res = await fetch(`${server.url}/api/email/test`, {
       method: "POST",
-      headers: authHeaders("admin"),
+      headers: cookieFor(seed.admin),
       body: JSON.stringify({ type: "otro" }),
     });
     expect(res.status).toBe(400);
   });
 
   test("admin puede ver la previsualización", async () => {
-    const res = await fetch(`${server.url}/api/email/preview/welcome`, {
-      headers: { Cookie: `gc_token=${tokenFor("admin")}` },
-    });
+    const res = await fetch(`${server.url}/api/email/preview/welcome`, { headers: cookieFor(seed.admin) });
     expect(res.status).toBe(200);
   });
 });

@@ -51,8 +51,8 @@ export async function seedBasics(): Promise<Seed> {
   return { admin, mechanic, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
 }
 
-export function cookieFor(user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" }): Record<string, string> {
-  const token = generateToken({ userId: user.id, email: user.email, name: user.name, role: user.role });
+export function cookieFor(user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario"; tokenVersion?: number }): Record<string, string> {
+  const token = generateToken({ userId: user.id, email: user.email, name: user.name, role: user.role, tokenVersion: user.tokenVersion ?? 0 });
   return { Cookie: `gc_token=${token}`, "Content-Type": "application/json" };
 }
 
