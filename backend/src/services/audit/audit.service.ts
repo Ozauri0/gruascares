@@ -28,12 +28,12 @@ export async function logAudit(options: AuditLogOptions): Promise<void> {
         finalUserId = finalUserId || options.req.user.userId;
         finalUserEmail = finalUserEmail || options.req.user.email;
       }
-      finalIp =
-        finalIp ||
-        (options.req.headers["x-forwarded-for"] as string) ||
-        options.req.socket.remoteAddress ||
-        null;
+      // req.ip respeta "trust proxy"; no se lee x-forwarded-for directamente (es falsificable).
+      finalIp = finalIp || options.req.ip || options.req.socket.remoteAddress || null;
     }
+
+    if (finalIp) finalIp = finalIp.slice(0, 50);
+    if (finalUserEmail) finalUserEmail = finalUserEmail.slice(0, 255);
 
     const serializedDetails =
       options.details && typeof options.details === "object"

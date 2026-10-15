@@ -8,6 +8,7 @@ import { config } from "../config/env.js";
 import { sendWelcomeEmail } from "../services/email/email.service.js";
 import { MAX_LEN, findTooLong } from "../utils/validate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
+import { logAudit } from "../services/audit/audit.service.js";
 
 const COOKIE_NAME = "gc_token";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
@@ -91,6 +92,15 @@ export async function register(req: Request, res: Response) {
       .set({ userId: newUser.id, guestName: null, guestEmail: null, guestPhone: null })
       .where(and(isNull(appointments.userId), eq(sql`lower(${appointments.guestEmail})`, normalizedEmail)));
 
+    logAudit({
+      userId: newUser.id,
+      userEmail: newUser.email,
+      action: "USER_REGISTER",
+      entityType: "user",
+      entityId: newUser.id,
+      req,
+    });
+
     // 5. Enviar correo de bienvenida (asíncrono, fire-and-forget)
     sendWelcomeEmail(newUser.email, newUser.name);
 
@@ -150,6 +160,7 @@ export async function login(req: Request, res: Response) {
       .limit(1);
 
     if (!user) {
+      logAudit({ userEmail: normalizedEmail, action: "LOGIN_FAILED", entityType: "user", details: { reason: "unknown_user" }, req });
       return res.status(401).json({
         error: "Unauthorized",
         message: "Credenciales inválidas",
@@ -158,6 +169,7 @@ export async function login(req: Request, res: Response) {
 
     // 2. Verificar estado activo
     if (!user.isActive) {
+      logAudit({ userId: user.id, userEmail: user.email, action: "LOGIN_BLOCKED", entityType: "user", entityId: user.id, details: { reason: "inactive" }, req });
       return res.status(403).json({
         error: "Forbidden",
         message: "Tu cuenta ha sido desactivada. Comunícate con Grúas Cares.",
@@ -167,6 +179,7 @@ export async function login(req: Request, res: Response) {
     // 3. Comparar contraseñas
     const passwordMatch = await bcrypt.compare(String(password), user.passwordHash);
     if (!passwordMatch) {
+      logAudit({ userId: user.id, userEmail: user.email, action: "LOGIN_FAILED", entityType: "user", entityId: user.id, details: { reason: "bad_password" }, req });
       return res.status(401).json({
         error: "Unauthorized",
         message: "Credenciales inválidas",
@@ -188,6 +201,8 @@ export async function login(req: Request, res: Response) {
       sameSite: "lax",
       maxAge: COOKIE_MAX_AGE,
     });
+
+    logAudit({ userId: user.id, userEmail: user.email, action: "LOGIN", entityType: "user", entityId: user.id, req });
 
     return res.status(200).json({
       message: "Inicio de sesión exitoso",
@@ -270,6 +285,8 @@ export async function logoutAll(req: Request, res: Response) {
       .update(users)
       .set({ tokenVersion: sql`${users.tokenVersion} + 1`, updatedAt: new Date() })
       .where(eq(users.id, req.user!.userId));
+
+    logAudit({ action: "LOGOUT_ALL", entityType: "user", entityId: req.user!.userId, req });
 
     res.clearCookie(COOKIE_NAME, {
       httpOnly: true,
