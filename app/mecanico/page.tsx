@@ -8,7 +8,7 @@ import StatusBadge from "../components/StatusBadge";
 import { todayInSantiago } from "../lib/dates";
 import { useAgenda } from "../lib/use-agenda";
 import { changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
-import type { AgendaItem } from "../lib/workshop-mocks";
+import type { AgendaItem } from "../lib/workshop-types";
 import type { AppointmentStatus } from "../lib/portal-types";
 
 const FILTERS: { value: AppointmentStatus | "todas"; label: string }[] = [

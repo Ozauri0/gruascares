@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { assignMechanic, blockDay, fetchAgendaRange, listBlockedDays, listStaff, unblockDay } from "./admin-api";
 import type { BlockedDay, StaffMember } from "./admin-types";
-import type { AgendaItem } from "./workshop-mocks";
+import type { AgendaItem } from "./workshop-types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 export const isoDay = (year: number, month: number, day: number) => `${year}-${pad(month + 1)}-${pad(day)}`;

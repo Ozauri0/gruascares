@@ -2,10 +2,11 @@
 // Así las vistas no dependen de la forma exacta del backend (objetos anidados, campos nulos, etc.).
 
 import type { AdminMetrics } from "./admin-types";
-import type { ApiAgendaItem, ApiAvailability, ApiMetrics, ApiMyAppointment, ApiReport, ApiUser, ApiVehicle } from "./api-types";
+import type { ApiAdminUser, ApiAgendaItem, ApiAvailability, ApiMetrics, ApiMyAppointment, ApiProduct, ApiReport, ApiUser, ApiVehicle } from "./api-types";
 import type { SlotAvailability } from "./availability";
+import type { Product } from "./catalog";
 import type { PortalAppointment, PortalReport, PortalVehicle, SessionUser } from "./portal-types";
-import type { AgendaItem } from "./workshop-mocks";
+import type { AgendaItem } from "./workshop-types";
 
 const NO_VEHICLE_LABEL = "Sin vehículo registrado";
 const DEFAULT_MECHANIC_NAME = "Equipo Grúas Cares";
@@ -110,4 +111,24 @@ export function toAdminMetrics(api: ApiMetrics): AdminMetrics {
       status: item.status,
     })),
   };
+}
+
+export function toProduct(api: ApiProduct): Product {
+  return {
+    id: api.id,
+    name: api.name,
+    text: api.description,
+    price: api.price,
+    stock: api.stock,
+    category: api.category,
+    tag: api.tag ?? null,
+    art: api.art,
+    image: api.image ?? null,
+    featured: api.featured,
+    active: api.active ?? true,
+  };
+}
+
+export function toAdminUser(api: ApiAdminUser): SessionUser {
+  return toSessionUser(api);
 }

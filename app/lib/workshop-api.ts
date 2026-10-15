@@ -4,7 +4,7 @@ import { apiGet, apiPatch, apiPost } from "./api";
 import { toAgendaItem } from "./api-adapters";
 import type { ApiAgendaItem } from "./api-types";
 import type { AppointmentStatus } from "./portal-types";
-import type { AgendaItem } from "./workshop-mocks";
+import type { AgendaItem } from "./workshop-types";
 
 export async function fetchAgenda(date: string, signal?: AbortSignal): Promise<AgendaItem[]> {
   const { agenda } = await apiGet<{ agenda: ApiAgendaItem[] }>("/api/mechanic/agenda", { date }, { signal });
