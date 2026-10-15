@@ -11,23 +11,35 @@ import vehicleRouter from "./routes/vehicle.routes.js";
 import mechanicRouter from "./routes/mechanic.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 
+const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+export function isAllowedOrigin(origin: string): boolean {
+  if (config.corsOrigins.includes(origin)) return true;
+  return !config.isProduction && LOCALHOST_ORIGIN.test(origin);
+}
+
 export function createApp(): Express {
   const app = express();
 
   // Middleware de Seguridad HTTP
   app.use(helmet());
 
-  // Configuración de CORS segura
+  app.set("trust proxy", config.trustProxy);
+
+  // CORS: solo orígenes explícitos. En desarrollo/pruebas además se acepta localhost.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin;
+    if (origin && !isAllowedOrigin(origin)) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Origen no permitido por la política de CORS",
+      });
+    }
+    return next();
+  });
   app.use(
     cors({
-      origin: (origin, callback) => {
-        // Permitir peticiones sin origin (como herramientas internas, curl o móviles)
-        if (!origin) return callback(null, true);
-        if (config.corsOrigins.includes(origin) || config.nodeEnv === "development") {
-          return callback(null, true);
-        }
-        return callback(new Error("Origen no permitido por la política de CORS"));
-      },
+      origin: true,
       credentials: true,
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
@@ -50,7 +62,7 @@ export function createApp(): Express {
   app.use("/api", healthRouter);
   app.use("/api/auth", authRouter);
   // Utilidades de correo solo fuera de producción (y siempre solo para administradores).
-  if (config.nodeEnv !== "production") {
+  if (!config.isProduction) {
     app.use("/api/email", emailRouter);
   }
   app.use("/api/appointments", appointmentRouter);
@@ -71,7 +83,7 @@ export function createApp(): Express {
     console.error("Unhandled error:", err);
     res.status(500).json({
       error: "Internal Server Error",
-      message: config.nodeEnv === "development" ? err.message : "Ha ocurrido un error inesperado",
+      message: config.isProduction ? "Ha ocurrido un error inesperado" : err.message,
     });
   });
 
