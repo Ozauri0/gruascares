@@ -789,3 +789,14 @@ body>footer{flex-shrink:0}
 .export-fields label{display:grid;gap:6px;font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
 .export-fields input{border:1px solid #c2c2c2;border-radius:10px;background:#fff;padding:10px 12px;font:14px 'Fira Sans',sans-serif;color:var(--ink)}
 .export-actions{display:flex;gap:10px;flex-wrap:wrap}
+.slot-manager{display:grid;gap:12px;border-top:1px solid #eee;padding-top:16px}
+.slot-manager h3{margin:0;font:500 15px 'Space Grotesk'}
+.slot-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.slot-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border:1px solid #eee;border-radius:12px;padding:10px 14px}
+.slot-row.blocked{border-color:#f1b5ae;background:#fff6f5}
+.slot-row strong{font:500 15px 'Space Grotesk'}
+.slot-meta{font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
+.slot-actions{display:flex;gap:6px}
+.slot-add{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.slot-add .calendar-reason{flex:1;min-width:140px}
+@media(max-width:560px){.slot-row{grid-template-columns:1fr auto}.slot-meta{grid-column:1/-1;order:3}}

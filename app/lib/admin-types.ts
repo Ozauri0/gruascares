@@ -20,3 +20,13 @@ export type AdminMetrics = {
 
 export type BlockedDay = { id: string; date: string; reason: string };
 export type StaffMember = { id: string; name: string; role: "mecanico" | "admin" };
+
+/** Un horario del día en el calendario maestro (predefinido o propio), con su carga y bloqueo. */
+export type DaySlot = {
+  time: string;
+  custom: boolean;
+  customId: string | null;
+  booked: number;
+  block: { id: string; reason: string } | null;
+};
+export type DaySchedule = { date: string; capacityPerSlot: number; slots: DaySlot[] };

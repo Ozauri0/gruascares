@@ -4,6 +4,9 @@ import {
   getBlockedDates,
   createBlockedDate,
   deleteBlockedDate,
+  getDaySchedule,
+  createTimeSlot,
+  deleteTimeSlot,
   reassignAppointmentMechanic,
   getAuditLogs,
   exportAppointments,
@@ -25,6 +28,9 @@ router.get("/metrics", getAdminMetrics);
 router.get("/blocked-dates", getBlockedDates);
 router.post("/blocked-dates", createBlockedDate);
 router.delete("/blocked-dates/:id", deleteBlockedDate);
+router.get("/schedule", getDaySchedule);
+router.post("/time-slots", createTimeSlot);
+router.delete("/time-slots/:id", deleteTimeSlot);
 router.patch("/appointments/:id/assign", reassignAppointmentMechanic);
 
 // Gestión de usuarios y personal

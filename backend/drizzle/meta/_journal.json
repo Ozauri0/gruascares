@@ -43,6 +43,13 @@
       "when": 1792095758277,
       "tag": "0005_password_reset_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792104371112,
+      "tag": "0006_green_tag",
+      "breakpoints": true
     }
   ]
 }

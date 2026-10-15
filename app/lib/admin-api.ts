@@ -2,7 +2,7 @@
 
 import { apiDelete, apiGet, apiPatch, apiPost } from "./api";
 import { toAdminMetrics, toAgendaItem } from "./api-adapters";
-import type { AdminMetrics, BlockedDay, StaffMember } from "./admin-types";
+import type { AdminMetrics, BlockedDay, DaySchedule, StaffMember } from "./admin-types";
 import type { ApiAgendaItem, ApiBlockedDate, ApiMetrics } from "./api-types";
 import type { AgendaItem } from "./workshop-types";
 
@@ -36,6 +36,25 @@ export async function listBlockedDays(signal?: AbortSignal): Promise<BlockedDay[
 export async function blockDay(date: string, reason: string): Promise<BlockedDay> {
   const { blockedDate } = await apiPost<{ blockedDate: ApiBlockedDate }>("/api/admin/blocked-dates", { date, reason });
   return { id: blockedDate.id, date: blockedDate.date, reason: blockedDate.reason };
+}
+
+/** Horarios del día (predefinidos + propios) con carga y bloqueos. */
+export async function fetchDaySchedule(date: string, signal?: AbortSignal): Promise<DaySchedule> {
+  return apiGet<DaySchedule>("/api/admin/schedule", { date }, { signal });
+}
+
+/** Bloquea un bloque horario concreto del día. */
+export async function blockSlot(date: string, timeSlot: string, reason: string): Promise<void> {
+  await apiPost("/api/admin/blocked-dates", { date, timeSlot, reason });
+}
+
+/** Crea un horario propio dentro de un día. */
+export async function createSlot(date: string, timeSlot: string): Promise<void> {
+  await apiPost("/api/admin/time-slots", { date, timeSlot });
+}
+
+export async function deleteSlot(id: string): Promise<void> {
+  await apiDelete(`/api/admin/time-slots/${encodeURIComponent(id)}`);
 }
 
 export async function unblockDay(id: string): Promise<void> {
