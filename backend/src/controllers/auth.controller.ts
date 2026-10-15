@@ -9,6 +9,8 @@ import { MAX_LEN, findTooLong } from "../utils/validate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { hashPassword, validatePassword, verifyPassword } from "../utils/password.js";
 import { logAudit } from "../services/audit/audit.service.js";
+import { DEMO_ACCOUNTS, isDemoEmail } from "../config/demo.js";
+import type { UserRole } from "../types/auth.js";
 
 const COOKIE_NAME = "gc_token";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
@@ -294,5 +296,58 @@ export async function logoutAll(req: Request, res: Response) {
       error: "Internal Server Error",
       message: "Error al cerrar las sesiones",
     });
+  }
+}
+
+/**
+ * POST /api/auth/demo-login { role }
+ * SOLO DEMO (DEMO_MODE=true): abre sesión real como la cuenta demo del rol indicado, sin pedir credenciales.
+ * Se elimina antes de producción (issue #47).
+ */
+export async function demoLogin(req: Request, res: Response) {
+  try {
+    const role = req.body?.role as UserRole | undefined;
+    if (!role || !Object.prototype.hasOwnProperty.call(DEMO_ACCOUNTS, role)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "role debe ser uno de: usuario, mecanico, admin",
+      });
+    }
+
+    const email = DEMO_ACCOUNTS[role];
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    // Solo cuentas del dominio reservado de demo y con el rol esperado (nunca cuentas reales).
+    if (!user || !user.isActive || !isDemoEmail(user.email) || user.role !== role) {
+      return res.status(503).json({
+        error: "Service Unavailable",
+        message: "Los usuarios demo no están disponibles. Ejecuta `bun run db:seed` en el backend.",
+      });
+    }
+
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      tokenVersion: user.tokenVersion,
+    });
+    res.cookie(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: config.isProduction,
+      sameSite: "lax",
+      maxAge: COOKIE_MAX_AGE,
+    });
+
+    logAudit({ userId: user.id, userEmail: user.email, action: "DEMO_LOGIN", entityType: "user", entityId: user.id, req });
+
+    return res.status(200).json({
+      message: "Sesión demo iniciada",
+      demo: true,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, phone: user.phone },
+    });
+  } catch (error) {
+    console.error("Error en demoLogin:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al iniciar la sesión demo" });
   }
 }

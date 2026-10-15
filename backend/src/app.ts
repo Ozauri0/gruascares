@@ -11,6 +11,7 @@ import vehicleRouter from "./routes/vehicle.routes.js";
 import mechanicRouter from "./routes/mechanic.routes.js";
 import adminRouter from "./routes/admin.routes.js";
 import { createRateLimiters, RATE_LIMITS } from "./middlewares/rate-limit.js";
+import { demoLogin } from "./controllers/auth.controller.js";
 
 const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
@@ -21,6 +22,8 @@ export function isAllowedOrigin(origin: string): boolean {
 
 export interface AppOptions {
   rateLimits?: Partial<typeof RATE_LIMITS>;
+  /** Fuerza el login demo (por defecto sigue DEMO_MODE). Solo para pruebas. */
+  demoMode?: boolean;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -68,6 +71,11 @@ export function createApp(options: AppOptions = {}): Express {
   app.post("/api/auth/register", limiters.register);
   app.post("/api/appointments", limiters.publicAppointment);
   app.get("/api/appointments/availability", limiters.availability);
+
+  // Login demo sin credenciales: solo existe con DEMO_MODE=true (nunca en producción).
+  if (options.demoMode ?? config.demoMode) {
+    app.post("/api/auth/demo-login", limiters.loginPerIp, demoLogin);
+  }
 
   // Rutas
   app.use("/", healthRouter);
