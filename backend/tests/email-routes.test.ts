@@ -49,7 +49,7 @@ describe.skipIf(!dbReady)("SEC-1: /api/email protegido", () => {
       body: JSON.stringify({ to: "victima@example.com", type: "welcome" }),
     });
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = (await res.json() as any);
     expect(data.recipient).toBe(seed.admin.email);
   });
 

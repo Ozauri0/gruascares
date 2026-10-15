@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 import { config } from "../../config/env.js";
 import {
   getWelcomeEmailTemplate,
@@ -9,9 +9,9 @@ import {
 } from "./templates.js";
 
 // Inicialización del transporte SMTP
-let transporter: nodemailer.Transporter | null = null;
+let transporter: Transporter | null = null;
 
-function getTransporter(): nodemailer.Transporter {
+function getTransporter(): Transporter {
   if (transporter) return transporter;
 
   const isConfigured = Boolean(config.email.host && config.email.user && config.email.pass);

@@ -34,7 +34,7 @@ describe("SEC-4: rate limiting", () => {
     const res = await post("/api/auth/login", { email: "a@test.cl", password: "x" });
     expect(res.status).toBe(429);
     expect(res.headers.get("retry-after")).toBeTruthy();
-    const body = await res.json();
+    const body = (await res.json() as any);
     expect(body.error).toBe("Too Many Requests");
     expect(body.message).toContain("intentos");
   });

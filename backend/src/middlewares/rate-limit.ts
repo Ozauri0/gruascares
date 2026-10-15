@@ -3,16 +3,16 @@ import { rateLimit, ipKeyGenerator, type RateLimitRequestHandler } from "express
 
 const MINUTE = 60 * 1000;
 
+type Limit = { windowMs: number; max: number };
+
 /** Límites por defecto (ventana en ms, máximo de peticiones). Ajustables sin tocar los controladores. */
-export const RATE_LIMITS = {
+export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" | "publicAppointment" | "availability", Limit> = {
   loginPerAccount: { windowMs: 15 * MINUTE, max: 10 }, // IP + correo
   loginPerIp: { windowMs: 15 * MINUTE, max: 100 },
   register: { windowMs: 60 * MINUTE, max: 10 },
   publicAppointment: { windowMs: 60 * MINUTE, max: 10 },
   availability: { windowMs: MINUTE, max: 60 },
-} as const;
-
-type Limit = { windowMs: number; max: number };
+};
 
 function build(limit: Limit, message: string, keyGenerator?: (req: Request) => string): RateLimitRequestHandler {
   return rateLimit({

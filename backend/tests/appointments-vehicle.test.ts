@@ -29,7 +29,7 @@ describe.skipIf(!dbReady)("SEC-5: el vehículo de la cita debe ser del usuario",
       vehicleId: seed.vehicleA.id,
     });
     expect(res.status).toBe(201);
-    const data = await res.json();
+    const data = (await res.json() as any);
     expect(data.appointment.vehicleId).toBe(seed.vehicleA.id);
   });
 
