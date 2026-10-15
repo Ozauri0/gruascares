@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import {
   appointments,
@@ -11,7 +11,7 @@ import {
   auditLogs,
 } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
-import { isValidIsoDate, todayInSantiago } from "../utils/dates.js";
+import { isValidIsoDate, todayInSantiago, weekRange } from "../utils/dates.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { escapeCsvCell } from "../utils/csv.js";
 import { limits } from "../config/constants.js";
@@ -160,6 +160,46 @@ export async function getAdminMetrics(_req: Request, res: Response) {
       categoryDistribution[row.category] = row.appointmentsCount;
     }
 
+    // 7. Semana en curso (lunes a domingo, hora de Chile): total y por categoría, sin canceladas
+    const week = weekRange(todayStr);
+    const weekByCategoryRaw = await db
+      .select({
+        category: services.category,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(appointments)
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .where(and(gte(appointments.scheduledDate, week.start), lte(appointments.scheduledDate, week.end), ne(appointments.status, "cancelada")))
+      .groupBy(services.category);
+    const weekByCategory: Record<string, number> = { grua: 0, serviteca: 0 };
+    for (const row of weekByCategoryRaw) weekByCategory[row.category] = row.count;
+    const weekTotal = weekByCategory.grua + weekByCategory.serviteca;
+
+    // 8. Vehículos: registrados y atendidos (con al menos una atención finalizada)
+    const [vehicleStats] = await db
+      .select({
+        total: sql<number>`(select count(*) from ${vehicles})::int`,
+        served: sql<number>`(select count(distinct ${appointments.vehicleId}) from ${appointments} where ${appointments.status} = 'finalizada' and ${appointments.vehicleId} is not null)::int`,
+      })
+      .from(sql`(select 1) as one`);
+
+    // 9. Agenda de hoy (cuenta o invitado), en orden de hora
+    const todayAgenda = await db
+      .select({
+        id: appointments.id,
+        timeSlot: appointments.timeSlot,
+        status: appointments.status,
+        serviceName: services.name,
+        clientName: sql<string>`coalesce(${users.name}, ${appointments.guestName}, 'Cliente sin nombre')`,
+        vehiclePlate: vehicles.plate,
+      })
+      .from(appointments)
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .leftJoin(users, eq(appointments.userId, users.id))
+      .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
+      .where(eq(appointments.scheduledDate, todayStr))
+      .orderBy(asc(appointments.timeSlot), asc(appointments.id));
+
     return res.json({
       appointments: {
         total: totalAppointments,
@@ -169,7 +209,15 @@ export async function getAdminMetrics(_req: Request, res: Response) {
           total: totalToday,
           byStatus: todayByStatus,
         },
+        week: {
+          start: week.start,
+          end: week.end,
+          total: weekTotal,
+          byCategory: weekByCategory,
+        },
       },
+      vehicles: { total: vehicleStats?.total ?? 0, served: vehicleStats?.served ?? 0 },
+      todayAgenda,
       revenue: {
         realized: realizedRevenue,
         projected: projectedRevenue,
