@@ -6,6 +6,7 @@ import { appointments, services, vehicles, users, serviceRecords, blockedDates }
 import { DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
+import { MAX_LEN, findTooLong } from "../utils/validate.js";
 
 /**
  * 1. Obtener catálogo de servicios activos para agendamiento
@@ -157,6 +158,17 @@ export async function createAppointment(req: Request, res: Response) {
         error: "Bad Request",
         message: "serviceId, scheduledDate y timeSlot son obligatorios",
       });
+    }
+
+    const tooLong = findTooLong([
+      ["El nombre", name, MAX_LEN.name],
+      ["El correo", email, MAX_LEN.email],
+      ["El teléfono", phone, MAX_LEN.phone],
+      ["La ubicación", location, MAX_LEN.location],
+      ["Los detalles", notes, MAX_LEN.notes],
+    ]);
+    if (tooLong) {
+      return res.status(400).json({ error: "Bad Request", message: tooLong });
     }
 
     if (!DEFAULT_TIME_SLOTS.includes(timeSlot)) {

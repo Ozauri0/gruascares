@@ -6,6 +6,7 @@ import { users } from "../db/schema.js";
 import { generateToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
 import { sendWelcomeEmail } from "../services/email/email.service.js";
+import { MAX_LEN, findTooLong } from "../utils/validate.js";
 
 const COOKIE_NAME = "gc_token";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
@@ -34,6 +35,15 @@ export async function register(req: Request, res: Response) {
         error: "Bad Request",
         message: "La contraseña debe tener al menos 6 caracteres",
       });
+    }
+
+    const tooLong = findTooLong([
+      ["El nombre", name, MAX_LEN.name],
+      ["El correo", email, MAX_LEN.email],
+      ["El teléfono", phone, MAX_LEN.phone],
+    ]);
+    if (tooLong) {
+      return res.status(400).json({ error: "Bad Request", message: tooLong });
     }
 
     const normalizedEmail = email.toLowerCase().trim();

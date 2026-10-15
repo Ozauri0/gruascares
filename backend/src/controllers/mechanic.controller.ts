@@ -3,6 +3,7 @@ import { eq, and, desc, asc, gte, lte } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { appointments, users, vehicles, services, serviceRecords } from "../db/schema.js";
 import { sendServiceCompletedEmail } from "../services/email/email.service.js";
+import { MAX_LEN, findTooLong } from "../utils/validate.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const VALID_STATUSES = ["solicitada", "confirmada", "en_proceso", "finalizada", "cancelada"] as const;
@@ -254,6 +255,15 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       recommendations,
       finalize = true,
     } = req.body;
+
+    const tooLong = findTooLong([
+      ["Las observaciones", observations, MAX_LEN.report],
+      ["Los repuestos", partsReplaced, MAX_LEN.report],
+      ["Las recomendaciones", recommendations, MAX_LEN.report],
+    ]);
+    if (tooLong) {
+      return res.status(400).json({ error: "Bad Request", message: tooLong });
+    }
 
     // Validar observaciones técnicas obligatorias
     if (!observations || typeof observations !== "string" || observations.trim().length < 5) {

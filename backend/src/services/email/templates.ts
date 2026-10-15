@@ -1,3 +1,5 @@
+import { escapeHtml, escapeMultiline, sanitizeHeader } from "../../utils/html.js";
+
 export function baseEmailLayout(content: string, previewText: string = ""): string {
   return `<!DOCTYPE html>
 <html lang="es">
@@ -74,9 +76,10 @@ export function baseEmailLayout(content: string, previewText: string = ""): stri
 // 1. Plantilla de Bienvenida al Registrarse
 export function getWelcomeEmailTemplate(name: string): { html: string; text: string; subject: string } {
   const subject = "¡Bienvenido a Grúas Cares!";
-  const previewText = `Hola ${name}, tu cuenta ha sido creada exitosamente.`;
+  const safeName = escapeHtml(name);
+  const previewText = `Hola ${safeName}, tu cuenta ha sido creada exitosamente.`;
   const content = `
-    <h1 style="font-size:24px;font-weight:700;color:#111111;margin:0 0 16px 0;letter-spacing:-0.5px;">¡Bienvenido, ${name}!</h1>
+    <h1 style="font-size:24px;font-weight:700;color:#111111;margin:0 0 16px 0;letter-spacing:-0.5px;">¡Bienvenido, ${safeName}!</h1>
     <p style="font-size:15px;line-height:1.6;color:#444444;margin:0 0 20px 0;">
       Tu cuenta en la plataforma de <strong>Grúas Cares</strong> ha sido activada con éxito. Ya puedes acceder a tu portal de usuario para coordinar tus traslados y servicios de serviteca.
     </p>
@@ -121,49 +124,60 @@ export interface AppointmentEmailData {
 }
 
 export function getAppointmentConfirmationTemplate(data: AppointmentEmailData): { html: string; text: string; subject: string } {
-  const subject = `Confirmación de Solicitud de Cita: ${data.serviceName}`;
-  const previewText = `Tu cita para ${data.serviceName} el ${data.scheduledDate} a las ${data.timeSlot} ha sido registrada.`;
+  const subject = sanitizeHeader(`Confirmación de Solicitud de Cita: ${data.serviceName}`);
+  const e = {
+    name: escapeHtml(data.name),
+    serviceName: escapeHtml(data.serviceName),
+    scheduledDate: escapeHtml(data.scheduledDate),
+    timeSlot: escapeHtml(data.timeSlot),
+    vehiclePlate: escapeHtml(data.vehiclePlate),
+    vehicleBrandModel: escapeHtml(data.vehicleBrandModel),
+    status: escapeHtml(data.status),
+    location: escapeHtml(data.location),
+    notes: escapeMultiline(data.notes),
+  };
+  const previewText = `Tu cita para ${e.serviceName} el ${e.scheduledDate} a las ${e.timeSlot} ha sido registrada.`;
   const content = `
     <h1 style="font-size:22px;font-weight:700;color:#111111;margin:0 0 14px 0;letter-spacing:-0.5px;">Solicitud de Servicio Registrada</h1>
     <p style="font-size:15px;line-height:1.6;color:#444444;margin:0 0 24px 0;">
-      Hola <strong>${data.name}</strong>, hemos recibido tu solicitud de agendamiento. A continuación tienes el detalle de tu cita:
+      Hola <strong>${e.name}</strong>, hemos recibido tu solicitud de agendamiento. A continuación tienes el detalle de tu cita:
     </p>
 
     <!-- Ficha de la Cita -->
     <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#fafafa;border:1px solid #e0e0e0;border-radius:8px;padding:20px;margin-bottom:24px;">
       <tr>
         <td style="padding:6px 0;font-size:13px;color:#777777;width:140px;">Servicio:</td>
-        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${data.serviceName}</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${e.serviceName}</td>
       </tr>
       <tr>
         <td style="padding:6px 0;font-size:13px;color:#777777;">Fecha preferida:</td>
-        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#017827;">${data.scheduledDate}</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#017827;">${e.scheduledDate}</td>
       </tr>
       <tr>
         <td style="padding:6px 0;font-size:13px;color:#777777;">Bloque horario:</td>
-        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${data.timeSlot} hrs</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${e.timeSlot} hrs</td>
       </tr>
       ${data.vehiclePlate ? `
       <tr>
         <td style="padding:6px 0;font-size:13px;color:#777777;">Vehículo:</td>
-        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${data.vehicleBrandModel || "Vehículo"} (Patente: ${data.vehiclePlate})</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${e.vehicleBrandModel || "Vehículo"} (Patente: ${e.vehiclePlate})</td>
       </tr>` : ""}
       ${data.location ? `
       <tr>
         <td style="padding:6px 0;font-size:13px;color:#777777;">Lugar o referencia:</td>
-        <td style="padding:6px 0;font-size:14px;color:#111111;">${data.location}</td>
+        <td style="padding:6px 0;font-size:14px;color:#111111;">${e.location}</td>
       </tr>` : ""}
       <tr>
         <td style="padding:6px 0;font-size:13px;color:#777777;">Estado:</td>
         <td style="padding:6px 0;">
-          <span style="display:inline-block;padding:3px 10px;background-color:#e8f5e9;color:#029834;border-radius:12px;font-size:12px;font-weight:600;text-transform:capitalize;">${data.status}</span>
+          <span style="display:inline-block;padding:3px 10px;background-color:#e8f5e9;color:#029834;border-radius:12px;font-size:12px;font-weight:600;text-transform:capitalize;">${e.status}</span>
         </td>
       </tr>
     </table>
 
     ${data.notes ? `
     <p style="font-size:13px;color:#666666;font-style:italic;margin:0 0 20px 0;">
-      Notas adicionales del cliente: "${data.notes}"
+      Notas adicionales del cliente: "${e.notes}"
     </p>` : ""}
 
     <p style="font-size:14px;color:#555555;line-height:1.5;">
@@ -174,7 +188,7 @@ export function getAppointmentConfirmationTemplate(data: AppointmentEmailData): 
   return {
     subject,
     html: baseEmailLayout(content, previewText),
-    text: `Hola ${data.name},\n\nHemos registrado tu solicitud de servicio:\n- Servicio: ${data.serviceName}\n- Fecha: ${data.scheduledDate} a las ${data.timeSlot}\n- Estado: ${data.status}\n\nPara consultas o emergencias 24/7 llámanos al +56 9 9162 7809.`,
+    text: `Hola ${e.name},\n\nHemos registrado tu solicitud de servicio:\n- Servicio: ${e.serviceName}\n- Fecha: ${e.scheduledDate} a las ${e.timeSlot}\n- Estado: ${e.status}\n\nPara consultas o emergencias 24/7 llámanos al +56 9 9162 7809.`,
   };
 }
 
@@ -193,12 +207,23 @@ export interface ServiceCompletedEmailData {
 }
 
 export function getServiceCompletedTemplate(data: ServiceCompletedEmailData): { html: string; text: string; subject: string } {
-  const subject = `Hoja de Atención Finalizada · ${data.vehiclePlate} (${data.serviceName})`;
-  const previewText = `Tu atención para el vehículo ${data.vehiclePlate} ha finalizado. Revisa las observaciones técnicas.`;
+  const subject = sanitizeHeader(`Hoja de Atención Finalizada · ${data.vehiclePlate} (${data.serviceName})`);
+  const e = {
+    name: escapeHtml(data.name),
+    vehiclePlate: escapeHtml(data.vehiclePlate),
+    vehicleInfo: escapeHtml(data.vehicleInfo),
+    serviceName: escapeHtml(data.serviceName),
+    mechanicName: escapeHtml(data.mechanicName),
+    completedAt: escapeHtml(data.completedAt),
+    observations: escapeMultiline(data.observations),
+    partsReplaced: escapeMultiline(data.partsReplaced),
+    recommendations: escapeMultiline(data.recommendations),
+  };
+  const previewText = `Tu atención para el vehículo ${e.vehiclePlate} ha finalizado. Revisa las observaciones técnicas.`;
   const content = `
     <h1 style="font-size:22px;font-weight:700;color:#111111;margin:0 0 12px 0;letter-spacing:-0.5px;">Atención Técnica Finalizada</h1>
     <p style="font-size:15px;line-height:1.6;color:#444444;margin:0 0 24px 0;">
-      Estimado(a) <strong>${data.name}</strong>, el trabajo en tu vehículo <strong>${data.vehicleInfo}</strong> (Patente: <strong>${data.vehiclePlate}</strong>) ha sido completado por nuestro equipo técnico.
+      Estimado(a) <strong>${e.name}</strong>, el trabajo en tu vehículo <strong>${e.vehicleInfo}</strong> (Patente: <strong>${e.vehiclePlate}</strong>) ha sido completado por nuestro equipo técnico.
     </p>
 
     <!-- Resumen Técnico -->
@@ -208,11 +233,11 @@ export function getServiceCompletedTemplate(data: ServiceCompletedEmailData): { 
       <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
         <tr>
           <td style="padding:5px 0;font-size:13px;color:#777;width:150px;">Servicio Realizado:</td>
-          <td style="padding:5px 0;font-size:14px;font-weight:600;color:#111;">${data.serviceName}</td>
+          <td style="padding:5px 0;font-size:14px;font-weight:600;color:#111;">${e.serviceName}</td>
         </tr>
         <tr>
           <td style="padding:5px 0;font-size:13px;color:#777;">Mecánico a cargo:</td>
-          <td style="padding:5px 0;font-size:14px;color:#111;">${data.mechanicName}</td>
+          <td style="padding:5px 0;font-size:14px;color:#111;">${e.mechanicName}</td>
         </tr>
         ${data.mileageAtService ? `
         <tr>
@@ -221,7 +246,7 @@ export function getServiceCompletedTemplate(data: ServiceCompletedEmailData): { 
         </tr>` : ""}
         <tr>
           <td style="padding:5px 0;font-size:13px;color:#777;">Fecha de finalización:</td>
-          <td style="padding:5px 0;font-size:14px;color:#111;">${data.completedAt}</td>
+          <td style="padding:5px 0;font-size:14px;color:#111;">${e.completedAt}</td>
         </tr>
       </table>
 
@@ -229,7 +254,7 @@ export function getServiceCompletedTemplate(data: ServiceCompletedEmailData): { 
       <div style="margin-top:16px;padding-top:12px;border-top:1px dashed #e0e0e0;">
         <strong style="font-size:13px;color:#333;display:block;margin-bottom:6px;">Diagnóstico y Observaciones Técnicas:</strong>
         <p style="margin:0;font-size:14px;color:#444;line-height:1.5;background:#f9f9f9;padding:12px;border-radius:6px;">
-          ${data.observations}
+          ${e.observations}
         </p>
       </div>
 
@@ -238,7 +263,7 @@ export function getServiceCompletedTemplate(data: ServiceCompletedEmailData): { 
       <div style="margin-top:14px;">
         <strong style="font-size:13px;color:#333;display:block;margin-bottom:6px;">Insumos / Repuestos Utilizados:</strong>
         <p style="margin:0;font-size:14px;color:#444;line-height:1.5;background:#f9f9f9;padding:12px;border-radius:6px;">
-          ${data.partsReplaced}
+          ${e.partsReplaced}
         </p>
       </div>` : ""}
 
@@ -246,7 +271,7 @@ export function getServiceCompletedTemplate(data: ServiceCompletedEmailData): { 
       ${data.recommendations ? `
       <div style="margin-top:14px;background-color:#fffde7;border-left:4px solid #fbc02d;padding:12px 14px;border-radius:4px;">
         <strong style="font-size:13px;color:#f57f17;display:block;margin-bottom:4px;">Recomendación para tu próxima visita:</strong>
-        <div style="font-size:13px;color:#555;line-height:1.5;">${data.recommendations}</div>
+        <div style="font-size:13px;color:#555;line-height:1.5;">${e.recommendations}</div>
       </div>` : ""}
     </div>
 
