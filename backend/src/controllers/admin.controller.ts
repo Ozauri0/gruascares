@@ -17,6 +17,8 @@ import { isUniqueViolation } from "../utils/db-errors.js";
 import { escapeCsvCell } from "../utils/csv.js";
 import { isValidSlotFormat, limits, DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { slotsForDate } from "../utils/slots.js";
+import { sendAppointmentRescheduledEmail } from "../services/email/email.service.js";
+import { isSlotPast } from "../utils/dates.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const APPOINTMENT_STATUSES = ["solicitada", "confirmada", "en_proceso", "finalizada", "cancelada"] as const;
@@ -557,6 +559,231 @@ export async function deleteTimeSlot(req: Request, res: Response) {
   } catch (error) {
     console.error("Error al eliminar horario:", error);
     return res.status(500).json({ error: "Internal Server Error", message: "Error al eliminar el horario" });
+  }
+}
+
+const MAX_BULK_DAYS = 400;
+
+/** Fechas ISO entre dos días (inclusive) cuyo día de la semana (0 = domingo … 6 = sábado) esté en `weekdays`. */
+function datesInRange(startDate: string, endDate: string, weekdays: number[]): string[] {
+  const out: string[] = [];
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  for (let t = Date.parse(`${startDate}T00:00:00Z`); t <= end; t += 86_400_000) {
+    const d = new Date(t);
+    if (weekdays.includes(d.getUTCDay())) out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+/** Valida el cuerpo de los bloqueos masivos; devuelve las fechas afectadas o un mensaje de error. */
+function parseBulk(body: any): { dates: string[] } | { error: string } {
+  const { startDate, endDate, weekdays } = body ?? {};
+  if (!isValidIsoDate(startDate) || !isValidIsoDate(endDate)) return { error: "startDate y endDate deben ser fechas YYYY-MM-DD" };
+  if (endDate < startDate) return { error: "La fecha final no puede ser anterior a la inicial" };
+  const days = (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000 + 1;
+  if (days > MAX_BULK_DAYS) return { error: `El rango no puede superar ${MAX_BULK_DAYS} días` };
+  if (!Array.isArray(weekdays) || weekdays.length === 0 || !weekdays.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) {
+    return { error: "weekdays debe ser una lista de días de la semana (0 = domingo … 6 = sábado)" };
+  }
+  return { dates: datesInRange(startDate, endDate, weekdays) };
+}
+
+/**
+ * POST /api/admin/blocked-dates/bulk
+ * Bloquea días completos de un rango según el día de la semana (ej. todos los sábados y domingos del año).
+ * Los días ya bloqueados se omiten. Las citas existentes en esos días no se cancelan: se informan.
+ */
+export async function bulkBlockDates(req: Request, res: Response) {
+  try {
+    const parsed = parseBulk(req.body);
+    if ("error" in parsed) return res.status(400).json({ error: "Bad Request", message: parsed.error });
+    const reason = typeof req.body.reason === "string" ? req.body.reason.trim() : "";
+    if (reason.length < 3) {
+      return res.status(400).json({ error: "Bad Request", message: "El motivo del bloqueo ('reason') es obligatorio (mínimo 3 caracteres)" });
+    }
+    const today = todayInSantiago();
+    const dates = parsed.dates.filter((d) => d >= today);
+    if (dates.length === 0) {
+      return res.status(400).json({ error: "Bad Request", message: "No hay días futuros que coincidan con el rango y los días elegidos" });
+    }
+    const createdBy = req.user!.userId;
+    const created = await db
+      .insert(blockedDates)
+      .values(dates.map((date) => ({ date, timeSlot: null, reason, createdBy })))
+      .onConflictDoNothing()
+      .returning({ id: blockedDates.id });
+    const [{ count: affected }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(appointments)
+      .where(
+        and(
+          gte(appointments.scheduledDate, dates[0]),
+          lte(appointments.scheduledDate, dates[dates.length - 1]),
+          sql`${appointments.scheduledDate} in (${sql.join(dates.map((d) => sql`${d}`), sql`, `)})`,
+          ne(appointments.status, "cancelada"),
+          ne(appointments.status, "finalizada")
+        )
+      );
+    logAudit({
+      action: "DATES_BLOCKED_BULK",
+      entityType: "blocked_date",
+      details: { startDate: req.body.startDate, endDate: req.body.endDate, weekdays: req.body.weekdays, reason, created: created.length },
+      req,
+    });
+    return res.status(201).json({
+      message: `${created.length} día(s) bloqueado(s)`,
+      created: created.length,
+      skipped: dates.length - created.length,
+      affectedAppointments: affected,
+    });
+  } catch (error) {
+    console.error("Error en el bloqueo masivo:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al bloquear los días" });
+  }
+}
+
+/**
+ * POST /api/admin/blocked-dates/bulk-remove
+ * Desbloquea los días completos de un rango según el día de la semana (no toca bloqueos de un solo horario).
+ */
+export async function bulkUnblockDates(req: Request, res: Response) {
+  try {
+    const parsed = parseBulk(req.body);
+    if ("error" in parsed) return res.status(400).json({ error: "Bad Request", message: parsed.error });
+    if (parsed.dates.length === 0) return res.json({ message: "Sin días que desbloquear", removed: 0 });
+    const removed = await db
+      .delete(blockedDates)
+      .where(
+        and(
+          sql`${blockedDates.timeSlot} is null`,
+          sql`${blockedDates.date} in (${sql.join(parsed.dates.map((d) => sql`${d}`), sql`, `)})`
+        )
+      )
+      .returning({ id: blockedDates.id });
+    logAudit({
+      action: "DATES_UNBLOCKED_BULK",
+      entityType: "blocked_date",
+      details: { startDate: req.body.startDate, endDate: req.body.endDate, weekdays: req.body.weekdays, removed: removed.length },
+      req,
+    });
+    return res.json({ message: `${removed.length} día(s) desbloqueado(s)`, removed: removed.length });
+  } catch (error) {
+    console.error("Error en el desbloqueo masivo:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al desbloquear los días" });
+  }
+}
+
+/**
+ * PATCH /api/admin/appointments/:id/reschedule
+ * El taller cambia la fecha u hora de una cita (a pedido del cliente o del mecánico) y avisa al cliente por correo.
+ */
+export async function rescheduleAppointment(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { scheduledDate, timeSlot } = req.body ?? {};
+    if (!id || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ error: "Bad Request", message: "ID de cita inválido: debe ser un UUID" });
+    }
+    if (!isValidIsoDate(scheduledDate)) {
+      return res.status(400).json({ error: "Bad Request", message: "scheduledDate debe ser una fecha válida YYYY-MM-DD" });
+    }
+    if (!isValidSlotFormat(timeSlot)) {
+      return res.status(400).json({ error: "Bad Request", message: "timeSlot debe tener formato HH:MM" });
+    }
+    if (scheduledDate < todayInSantiago()) {
+      return res.status(400).json({ error: "Bad Request", message: "No se puede mover una cita a una fecha pasada" });
+    }
+    if (isSlotPast(scheduledDate, timeSlot)) {
+      return res.status(400).json({ error: "Bad Request", message: `El horario de las ${timeSlot} hrs de hoy ya transcurrió` });
+    }
+    const validSlots = await slotsForDate(scheduledDate);
+    if (!validSlots.includes(timeSlot)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `El horario '${timeSlot}' no existe el ${scheduledDate}. Opciones: ${validSlots.join(", ")}`,
+      });
+    }
+
+    const [current] = await db
+      .select({
+        appointment: appointments,
+        clientName: users.name,
+        clientEmail: users.email,
+        serviceName: services.name,
+      })
+      .from(appointments)
+      .leftJoin(users, eq(appointments.userId, users.id))
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .where(eq(appointments.id, id))
+      .limit(1);
+    if (!current) return res.status(404).json({ error: "Not Found", message: "La cita solicitada no existe" });
+    const before = current.appointment;
+    if (before.status !== "solicitada" && before.status !== "confirmada") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `Solo se puede cambiar el horario de citas solicitadas o confirmadas (esta está ${before.status})`,
+      });
+    }
+    if (before.scheduledDate === scheduledDate && before.timeSlot === timeSlot) {
+      return res.status(400).json({ error: "Bad Request", message: "La cita ya tiene esa fecha y hora" });
+    }
+
+    const outcome = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`appointment-slot:${scheduledDate}|${timeSlot}`}))`);
+      const [block] = await tx
+        .select()
+        .from(blockedDates)
+        .where(and(eq(blockedDates.date, scheduledDate), sql`(${blockedDates.timeSlot} is null or ${blockedDates.timeSlot} = ${timeSlot})`))
+        .limit(1);
+      if (block) return { kind: "blocked" as const, reason: block.reason };
+      const [usage] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.scheduledDate, scheduledDate),
+            eq(appointments.timeSlot, timeSlot),
+            ne(appointments.status, "cancelada")
+          )
+        );
+      if (usage && usage.count >= MAX_CONCURRENT_APPOINTMENTS_PER_SLOT) return { kind: "full" as const };
+      const [updated] = await tx
+        .update(appointments)
+        .set({ scheduledDate, timeSlot, updatedAt: new Date() })
+        .where(eq(appointments.id, id))
+        .returning();
+      return { kind: "ok" as const, appointment: updated };
+    });
+    if (outcome.kind === "blocked") {
+      return res.status(409).json({ error: "Conflict", message: `Ese horario está bloqueado: ${outcome.reason}` });
+    }
+    if (outcome.kind === "full") {
+      return res.status(409).json({ error: "Conflict", message: `El horario de las ${timeSlot} hrs del ${scheduledDate} ya no tiene cupos` });
+    }
+
+    logAudit({
+      action: "APPOINTMENT_RESCHEDULED",
+      entityType: "appointment",
+      entityId: id,
+      details: { from: `${before.scheduledDate} ${before.timeSlot}`, to: `${scheduledDate} ${timeSlot}` },
+      req,
+    });
+
+    const to = current.clientEmail ?? before.guestEmail;
+    if (to) {
+      sendAppointmentRescheduledEmail(to, {
+        name: current.clientName ?? before.guestName ?? "cliente",
+        serviceName: current.serviceName,
+        previousDate: before.scheduledDate,
+        previousTimeSlot: before.timeSlot,
+        scheduledDate,
+        timeSlot,
+      });
+    }
+    return res.json({ message: "Cita reprogramada", appointment: outcome.appointment, notified: Boolean(to) });
+  } catch (error) {
+    console.error("Error al reprogramar la cita:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al reprogramar la cita" });
   }
 }
 

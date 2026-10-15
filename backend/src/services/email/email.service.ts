@@ -3,9 +3,11 @@ import { config } from "../../config/env.js";
 import {
   getWelcomeEmailTemplate,
   getAppointmentConfirmationTemplate,
+  getAppointmentRescheduledTemplate,
   getServiceCompletedTemplate,
   getPasswordResetTemplate,
   AppointmentEmailData,
+  AppointmentRescheduledEmailData,
   ServiceCompletedEmailData,
 } from "./templates.js";
 
@@ -113,6 +115,19 @@ export async function sendAppointmentConfirmationEmail(
     html: template.html,
     text: template.text,
   }).catch((err) => console.error("Error en sendAppointmentConfirmationEmail:", err));
+}
+
+/**
+ * Aviso de que el taller cambió la fecha u hora de la cita
+ */
+export async function sendAppointmentRescheduledEmail(to: string, data: AppointmentRescheduledEmailData): Promise<void> {
+  const template = getAppointmentRescheduledTemplate(data);
+  sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  }).catch((err) => console.error("Error en sendAppointmentRescheduledEmail:", err));
 }
 
 /**
