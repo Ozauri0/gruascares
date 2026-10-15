@@ -1,16 +1,27 @@
+"use client";
+
+import { useState } from "react";
 import InnerFooter from "../components/InnerFooter";
 import InnerHeader from "../components/InnerHeader";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
-import { MOCK_METRICS } from "../lib/admin-mocks";
+import { useAdminMetrics } from "../lib/use-admin-metrics";
 import { formatPlate } from "../lib/plate";
 
 import AdminNav from "./components/AdminNav";
 
-// Panel de administración (T2.10). Métricas demostrativas hasta
-// conectar GET /api/admin/metrics (T1.8) y el middleware por rol (T2.3).
+// Panel de administración (T2.10): métricas reales de GET /api/admin/metrics.
 export default function AdminPage() {
-  const maxCategory = Math.max(...MOCK_METRICS.byCategory.map((item) => item.count));
+  const { metrics, loading, error, reload } = useAdminMetrics();
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
+  const exportUrl = (format: "csv" | "json") => {
+    const params = new URLSearchParams({ format });
+    if (exportFrom) params.set("startDate", exportFrom);
+    if (exportTo) params.set("endDate", exportTo);
+    return `/api/admin/export/appointments?${params.toString()}`;
+  };
+  const maxCategory = metrics ? Math.max(1, ...metrics.byCategory.map((item) => item.count)) : 1;
   return (
     <>
       <InnerHeader />
@@ -29,45 +40,75 @@ export default function AdminPage() {
         <div className="portal-stack wrap">
           <AdminNav current="resumen" />
 
-          <section className="kpi-grid" aria-label="Indicadores clave">
-            <div className="kpi-card kpi-dark"><strong>{MOCK_METRICS.appointmentsToday}</strong><span>Citas hoy</span></div>
-            <div className="kpi-card"><strong>{MOCK_METRICS.appointmentsWeek}</strong><span>Citas esta semana</span></div>
-            <div className="kpi-card"><strong>{MOCK_METRICS.totalClients}</strong><span>Clientes registrados</span></div>
-            <div className="kpi-card"><strong>{MOCK_METRICS.totalVehicles}</strong><span>Vehículos atendidos</span></div>
-          </section>
+          {loading ? (
+            <div className="portal-empty-card" aria-busy="true"><p>Cargando métricas del taller…</p></div>
+          ) : error || !metrics ? (
+            <div className="portal-empty-card" role="alert">
+              <p>{error || "No se pudieron cargar las métricas."}</p>
+              <button type="button" className="button button-sm" onClick={reload}>Reintentar</button>
+            </div>
+          ) : (
+            <>
+              <section className="kpi-grid" aria-label="Indicadores clave">
+                <div className="kpi-card kpi-dark"><strong>{metrics.appointmentsToday}</strong><span>Citas hoy</span></div>
+                <div className="kpi-card"><strong>{metrics.appointmentsWeek}</strong><span>Citas esta semana</span></div>
+                <div className="kpi-card"><strong>{metrics.totalClients}</strong><span>Clientes registrados</span></div>
+                <div className="kpi-card"><strong>{metrics.totalVehicles}</strong><span>Vehículos atendidos</span></div>
+              </section>
 
-          <div className="admin-split">
-          <section aria-label="Demanda por servicio">
-            <div className="portal-row-head">
-              <h2>Servicios más solicitados</h2>
-              <span className="catalog-count">Semana actual</span>
-            </div>
-            <div className="demand-card">
-              {MOCK_METRICS.byCategory.map((item) => (
-                <div className="demand-row" key={item.category}>
-                  <div className="demand-label"><strong>{item.label}</strong><span>{item.count} citas</span></div>
-                  <div className="demand-track"><div className="demand-fill" style={{ width: `${Math.round((item.count / maxCategory) * 100)}%` }} /></div>
-                </div>
-              ))}
-            </div>
-          </section>
+              <div className="admin-split">
+                <section aria-label="Demanda por servicio">
+                  <div className="portal-row-head">
+                    <h2>Servicios más solicitados</h2>
+                    <span className="catalog-count">Semana actual</span>
+                  </div>
+                  <div className="demand-card">
+                    {metrics.byCategory.map((item) => (
+                      <div className="demand-row" key={item.category}>
+                        <div className="demand-label"><strong>{item.label}</strong><span>{item.count} {item.count === 1 ? "cita" : "citas"}</span></div>
+                        <div className="demand-track"><div className="demand-fill" style={{ width: `${Math.round((item.count / maxCategory) * 100)}%` }} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
 
-          <section aria-label="Agenda de hoy">
-            <div className="portal-row-head">
-              <h2>Hoy en el taller</h2>
-              <span className="catalog-count">{MOCK_METRICS.todayAgenda.length} atenciones</span>
-            </div>
-            <div className="compact-list">
-              {MOCK_METRICS.todayAgenda.map((item) => (
-                <div className="compact-row" key={item.id}>
-                  <span className="compact-time">{item.timeSlot}</span>
-                  <strong>{item.serviceName} <small>· {item.clientName} · {formatPlate(item.vehiclePlate)}</small></strong>
-                  <StatusBadge status={item.status} />
+                <section aria-label="Agenda de hoy">
+                  <div className="portal-row-head">
+                    <h2>Hoy en el taller</h2>
+                    <span className="catalog-count">{metrics.todayAgenda.length} {metrics.todayAgenda.length === 1 ? "atención" : "atenciones"}</span>
+                  </div>
+                  {metrics.todayAgenda.length === 0 ? (
+                    <div className="portal-empty-card"><p>No hay atenciones programadas para hoy.</p></div>
+                  ) : (
+                    <div className="compact-list">
+                      {metrics.todayAgenda.map((item) => (
+                        <div className="compact-row" key={item.id}>
+                          <span className="compact-time">{item.timeSlot}</span>
+                          <strong>{item.serviceName} <small>· {item.clientName}{item.vehiclePlate ? ` · ${formatPlate(item.vehiclePlate)}` : ""}</small></strong>
+                          <StatusBadge status={item.status} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+
+              <section className="export-card" aria-label="Respaldo de datos">
+                <div>
+                  <h2>Respaldo de atenciones</h2>
+                  <p>Descarga el historial de citas con cliente, vehículo, servicio e informe técnico para contabilidad o respaldo. Sin fechas, se exporta todo.</p>
                 </div>
-              ))}
-            </div>
-          </section>
-          </div>
+                <div className="export-fields">
+                  <label>Desde<input type="date" value={exportFrom} max={exportTo || undefined} onChange={(e) => setExportFrom(e.target.value)} /></label>
+                  <label>Hasta<input type="date" value={exportTo} min={exportFrom || undefined} onChange={(e) => setExportTo(e.target.value)} /></label>
+                  <div className="export-actions">
+                    <a className="button button-sm" href={exportUrl("csv")} download>Descargar CSV</a>
+                    <a className="button button-sm button-secondary" href={exportUrl("json")} download>Descargar JSON</a>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
         </div>
       </main>
       <InnerFooter />

@@ -1,7 +1,8 @@
 // Adaptadores: convierten las respuestas de la API (api-types.ts) en los tipos que usan las pantallas.
 // Así las vistas no dependen de la forma exacta del backend (objetos anidados, campos nulos, etc.).
 
-import type { ApiAgendaItem, ApiAvailability, ApiMyAppointment, ApiReport, ApiUser, ApiVehicle } from "./api-types";
+import type { AdminMetrics } from "./admin-types";
+import type { ApiAgendaItem, ApiAvailability, ApiMetrics, ApiMyAppointment, ApiReport, ApiUser, ApiVehicle } from "./api-types";
 import type { SlotAvailability } from "./availability";
 import type { PortalAppointment, PortalReport, PortalVehicle, SessionUser } from "./portal-types";
 import type { AgendaItem } from "./workshop-mocks";
@@ -88,4 +89,25 @@ export function toAgendaItem(item: ApiAgendaItem): AgendaItem {
 
 export function toSlotAvailability(availability: ApiAvailability): SlotAvailability[] {
   return availability.slots.map((slot) => ({ time: slot.time, available: slot.available, reason: slot.reason }));
+}
+
+export function toAdminMetrics(api: ApiMetrics): AdminMetrics {
+  return {
+    appointmentsToday: api.appointments.today.total,
+    appointmentsWeek: api.appointments.week.total,
+    totalClients: api.users.byRole.usuario,
+    totalVehicles: api.vehicles.served,
+    byCategory: [
+      { category: "serviteca", label: "Serviteca", count: api.appointments.week.byCategory.serviteca },
+      { category: "grua", label: "Grúas", count: api.appointments.week.byCategory.grua },
+    ],
+    todayAgenda: api.todayAgenda.map((item) => ({
+      id: item.id,
+      timeSlot: item.timeSlot,
+      serviceName: item.serviceName,
+      clientName: item.clientName,
+      vehiclePlate: item.vehiclePlate ?? "",
+      status: item.status,
+    })),
+  };
 }

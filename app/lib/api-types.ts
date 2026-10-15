@@ -85,3 +85,26 @@ export type ApiAgendaItem = {
   service: { id: string; category: "grua" | "serviteca"; name: string } | null;
   report: ApiReport | null;
 };
+
+/** GET /api/admin/metrics */
+export type ApiMetrics = {
+  appointments: {
+    total: number;
+    byStatus: Record<string, number>;
+    today: { date: string; total: number; byStatus: Record<string, number> };
+    week: { start: string; end: string; total: number; byCategory: { grua: number; serviteca: number } };
+  };
+  vehicles: { total: number; served: number };
+  todayAgenda: {
+    id: string;
+    timeSlot: string;
+    status: AppointmentStatus;
+    serviceName: string;
+    clientName: string;
+    vehiclePlate: string | null;
+  }[];
+  users: { total: number; byRole: { admin: number; mecanico: number; usuario: number }; newClientsLast30Days: number };
+};
+
+/** GET /api/admin/blocked-dates */
+export type ApiBlockedDate = { id: string; date: string; timeSlot: string | null; reason: string };

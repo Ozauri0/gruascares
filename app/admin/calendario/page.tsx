@@ -1,91 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
 import StatusBadge from "../../components/StatusBadge";
 import AdminNav from "../components/AdminNav";
-import { MOCK_AGENDA, MOCK_MECHANICS } from "../../lib/workshop-mocks";
-import type { AgendaItem } from "../../lib/workshop-mocks";
+import { todayInSantiago } from "../../lib/dates";
+import { isoDay, useCalendar } from "../../lib/use-calendar";
 
-const BLOCKED_KEY = "gruas-cares-blocked-days";
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-const TEMPLATES = [
-  { serviceName: "Cambio de aceite", timeSlot: "09:00" },
-  { serviceName: "Mantención preventiva 10.000 km", timeSlot: "10:30" },
-  { serviceName: "Grúa de plataforma hidráulica", timeSlot: "15:00" },
-  { serviceName: "Revisión preventiva", timeSlot: "16:30" },
-];
-
-function isoDay(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-// Agenda demostrativa del mes: combina la agenda base con citas generadas de
-// forma estable por fecha. Reemplazar por GET /api/appointments?month= (T1.9).
-function buildMonth(year: number, month: number): Record<string, AgendaItem[]> {
-  const days = new Date(year, month + 1, 0).getDate();
-  const map: Record<string, AgendaItem[]> = {};
-  for (let day = 1; day <= days; day++) {
-    const iso = isoDay(year, month, day);
-    let hash = 0;
-    for (const char of iso) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-    const count = hash % 4;
-    const items: AgendaItem[] = [];
-    for (let i = 0; i < count; i++) {
-      const template = TEMPLATES[(hash + i) % TEMPLATES.length];
-      items.push({
-        id: `g-${iso}-${i}`,
-        date: iso,
-        timeSlot: template.timeSlot,
-        clientName: `Cliente ${((hash >> (i + 2)) % 40) + 1}`,
-        clientPhone: "+56 9 0000 0000",
-        vehiclePlate: "XXXX00",
-        vehicleLabel: "Vehículo demo",
-        serviceName: template.serviceName,
-        status: (hash + i) % 5 === 0 ? "solicitada" : "confirmada",
-        notes: null,
-        mechanicId: i % 2 === 0 ? "u-mec1" : null,
-      });
-    }
-    if (items.length > 0) map[iso] = items;
-  }
-  for (const item of MOCK_AGENDA) {
-    map[item.date] = [...(map[item.date] ?? []), item].sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
-  }
-  return map;
-}
-
-function loadBlocked(): string[] {
-  try {
-    const saved = window.localStorage.getItem(BLOCKED_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {
-    // Sin bloqueos guardados.
-  }
-  return [];
-}
+const DEFAULT_REASON = "Día no laboral";
 
 export default function CalendarPage() {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
+  const [year, setYear] = useState(() => Number(todayInSantiago().slice(0, 4)));
+  const [month, setMonth] = useState(() => Number(todayInSantiago().slice(5, 7)) - 1);
   const [selected, setSelected] = useState<string | null>(null);
-  const [blocked, setBlocked] = useState<string[]>([]);
-  const [hydrated, setHydrated] = useState(false);
-  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const { byDay, blocked, staff, loading, error, reload, block, unblock, assign } = useCalendar(year, month);
+  const [reason, setReason] = useState(DEFAULT_REASON);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
 
-  useEffect(() => {
-    setBlocked(loadBlocked());
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (hydrated) window.localStorage.setItem(BLOCKED_KEY, JSON.stringify(blocked));
-  }, [blocked, hydrated]);
-
-  const schedule = useMemo(() => buildMonth(year, month), [year, month]);
+  const blockedByDate = Object.fromEntries(blocked.map((b) => [b.date, b]));
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: (string | null)[] = [
@@ -94,17 +29,44 @@ export default function CalendarPage() {
   ];
 
   const monthLabel = new Intl.DateTimeFormat("es-CL", { month: "long", year: "numeric" }).format(new Date(year, month, 1));
-  const selectedItems = selected ? schedule[selected] ?? [] : [];
+  const selectedItems = selected ? byDay[selected] ?? [] : [];
+  const selectedBlock = selected ? blockedByDate[selected] : undefined;
 
   function move(delta: number) {
     const next = new Date(year, month + delta, 1);
     setYear(next.getFullYear());
     setMonth(next.getMonth());
     setSelected(null);
+    setActionError("");
   }
 
-  function toggleBlock(iso: string) {
-    setBlocked((current) => (current.includes(iso) ? current.filter((day) => day !== iso) : [...current, iso]));
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setActionError("");
+    try {
+      await action();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo completar la acción.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleBlock(iso: string) {
+    const existing = blockedByDate[iso];
+    if (existing) {
+      await run(() => unblock(existing.id));
+      return;
+    }
+    const text = reason.trim();
+    if (text.length < 3) {
+      setActionError("Indica el motivo del bloqueo (mínimo 3 caracteres).");
+      return;
+    }
+    await run(async () => {
+      await block(iso, text);
+      setReason(DEFAULT_REASON);
+    });
   }
 
   return (
@@ -124,7 +86,14 @@ export default function CalendarPage() {
         <div className="portal-stack wrap">
           <AdminNav current="calendario" />
 
-          <section aria-label="Calendario del taller">
+          {error && (
+            <div className="portal-empty-card" role="alert">
+              <p>{error}</p>
+              <button type="button" className="button button-sm" onClick={reload}>Reintentar</button>
+            </div>
+          )}
+
+          <section aria-label="Calendario del taller" aria-busy={loading}>
             <div className="portal-toolbar calendar-toolbar">
               <div className="month-nav">
                 <button type="button" aria-label="Mes anterior" onClick={() => move(-1)}>←</button>
@@ -134,6 +103,7 @@ export default function CalendarPage() {
               <div className="calendar-legend">
                 <span className="legend-item"><i className="legend-dot dot-active" /> Con atenciones</span>
                 <span className="legend-item"><i className="legend-dot dot-blocked" /> Día bloqueado</span>
+                {loading && <span className="legend-item">Cargando…</span>}
               </div>
             </div>
 
@@ -143,13 +113,13 @@ export default function CalendarPage() {
                 <div className="calendar-grid">
                   {cells.map((iso, index) => {
                     if (!iso) return <span className="calendar-empty" key={`e-${index}`} />;
-                    const count = (schedule[iso] ?? []).length;
-                    const isBlocked = blocked.includes(iso);
+                    const count = (byDay[iso] ?? []).length;
+                    const isBlocked = Boolean(blockedByDate[iso]);
                     return (
                       <button
                         key={iso}
                         type="button"
-                        onClick={() => setSelected(iso)}
+                        onClick={() => { setSelected(iso); setActionError(""); }}
                         className={[
                           "calendar-day",
                           selected === iso ? "selected" : "",
@@ -175,33 +145,42 @@ export default function CalendarPage() {
                       <strong className="calendar-selected">{selected}</strong>
                       <button
                         type="button"
-                        className={blocked.includes(selected) ? "toggle-btn active" : "toggle-btn"}
-                        onClick={() => toggleBlock(selected)}
+                        className={selectedBlock ? "toggle-btn active" : "toggle-btn"}
+                        disabled={busy}
+                        onClick={() => void toggleBlock(selected)}
                       >
-                        {blocked.includes(selected) ? "Desbloquear día" : "Bloquear día"}
+                        {selectedBlock ? "Desbloquear día" : "Bloquear día"}
                       </button>
                     </div>
-                    {blocked.includes(selected) && <p className="blocked-note">Día no laboral: no se agenda ni se confirma.</p>}
+                    {!selectedBlock && (
+                      <label className="calendar-reason">
+                        Motivo del bloqueo
+                        <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={200} placeholder="Ej: Feriado, capacitación…" />
+                      </label>
+                    )}
+                    {selectedBlock && <p className="blocked-note">Bloqueado: {selectedBlock.reason}. No se agenda ni se confirma.</p>}
+                    {actionError && <p className="field-error" role="alert">{actionError}</p>}
                     {selectedItems.length === 0 ? (
                       <p className="portal-empty">Sin citas ese día.</p>
                     ) : (
                       <div className="calendar-items">
-                        {selectedItems.map((item) => {
-                          const assigned = assignments[item.id] ?? item.mechanicId ?? "";
-                          return (
-                            <div className="calendar-item" key={item.id}>
-                              <div className="portal-card-top"><StatusBadge status={item.status} /><span className="portal-slot">{item.timeSlot}</span></div>
-                              <strong>{item.serviceName}</strong>
-                              <p>{item.clientName} · {item.vehiclePlate}</p>
-                              <label>Mecánico
-                                <select value={assigned} onChange={(event) => setAssignments((current) => ({ ...current, [item.id]: event.target.value }))}>
-                                  <option value="">Sin asignar</option>
-                                  {MOCK_MECHANICS.map((mechanic) => <option key={mechanic.id} value={mechanic.id}>{mechanic.name}</option>)}
-                                </select>
-                              </label>
-                            </div>
-                          );
-                        })}
+                        {selectedItems.map((item) => (
+                          <div className="calendar-item" key={item.id}>
+                            <div className="portal-card-top"><StatusBadge status={item.status} /><span className="portal-slot">{item.timeSlot}</span></div>
+                            <strong>{item.serviceName}</strong>
+                            <p>{item.clientName}{item.vehiclePlate ? ` · ${item.vehiclePlate}` : ""}</p>
+                            <label>Mecánico
+                              <select
+                                value={item.mechanicId ?? ""}
+                                disabled={busy || item.status === "finalizada" || item.status === "cancelada"}
+                                onChange={(event) => event.target.value && void run(() => assign(item.id, event.target.value))}
+                              >
+                                {!item.mechanicId && <option value="">Sin asignar</option>}
+                                {staff.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+                              </select>
+                            </label>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </>
