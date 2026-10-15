@@ -6,6 +6,7 @@ import { DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../con
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
+import { isCancellable } from "../domain/appointment-status.js";
 
 /**
  * 1. Obtener catálogo de servicios activos para agendamiento
@@ -428,6 +429,10 @@ export async function getAppointmentById(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
+    if (!isUuid(id)) {
+      return res.status(400).json({ error: "Bad Request", message: "ID de cita inválido: debe ser un UUID" });
+    }
+
     const [item] = await db
       .select({
         id: appointments.id,
@@ -490,6 +495,10 @@ export async function cancelAppointment(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
+    if (!isUuid(id)) {
+      return res.status(400).json({ error: "Bad Request", message: "ID de cita inválido: debe ser un UUID" });
+    }
+
     const [item] = await db
       .select()
       .from(appointments)
@@ -504,18 +513,31 @@ export async function cancelAppointment(req: Request, res: Response) {
       return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para cancelar esta cita" });
     }
 
-    if (item.status === "finalizada") {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "No se puede cancelar una atención que ya ha sido finalizada",
+    if (!isCancellable(item.status)) {
+      const reasons: Record<string, string> = {
+        en_proceso: "El vehículo ya está en taller: comunícate con Grúas Cares para cancelar",
+        finalizada: "No se puede cancelar una atención que ya ha sido finalizada",
+        cancelada: "La cita ya se encuentra cancelada",
+      };
+      return res.status(item.status === "finalizada" ? 400 : 409).json({
+        error: item.status === "finalizada" ? "Bad Request" : "Conflict",
+        message: reasons[item.status] ?? "La cita no se puede cancelar en su estado actual",
       });
     }
 
+    // Cancelación condicionada al estado leído (evita pisar un cambio simultáneo del taller).
     const [updated] = await db
       .update(appointments)
       .set({ status: "cancelada", updatedAt: new Date() })
-      .where(eq(appointments.id, id))
+      .where(and(eq(appointments.id, id), eq(appointments.status, item.status)))
       .returning();
+
+    if (!updated) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "La cita cambió de estado mientras la cancelabas. Recárgala e inténtalo de nuevo.",
+      });
+    }
 
     // Registrar en auditoría
     logAudit({
