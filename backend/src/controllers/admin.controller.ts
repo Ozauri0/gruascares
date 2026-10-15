@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { eq, and, desc, asc, sql, count, sum } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import {
   appointments,
@@ -11,9 +11,11 @@ import {
   auditLogs,
 } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
+import { isValidIsoDate } from "../utils/dates.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const APPOINTMENT_STATUSES = ["solicitada", "confirmada", "en_proceso", "finalizada", "cancelada"] as const;
+type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 
 // =========================================================================
 // [T1.8] Métricas y Reportes
@@ -236,10 +238,10 @@ export async function createBlockedDate(req: Request, res: Response) {
     const currentUser = req.user!;
     const { date, timeSlot, reason } = req.body;
 
-    if (!date || typeof date !== "string" || !DATE_REGEX.test(date)) {
+    if (!isValidIsoDate(date)) {
       return res.status(400).json({
         error: "Bad Request",
-        message: "El campo 'date' es obligatorio y debe tener formato YYYY-MM-DD",
+        message: "El campo 'date' es obligatorio y debe ser una fecha válida con formato YYYY-MM-DD",
       });
     }
 
@@ -494,11 +496,21 @@ export async function getAuditLogs(req: Request, res: Response) {
     if (userId && typeof userId === "string" && UUID_REGEX.test(userId)) {
       conditions.push(eq(auditLogs.userId, userId));
     }
-    if (startDate && typeof startDate === "string") {
-      conditions.push(gte(auditLogs.createdAt, new Date(startDate)));
+    if (startDate !== undefined) {
+      const from = typeof startDate === "string" ? new Date(startDate) : new Date(NaN);
+      if (Number.isNaN(from.getTime())) {
+        return res.status(400).json({ error: "Bad Request", message: "startDate inválida: usa YYYY-MM-DD o una fecha ISO" });
+      }
+      conditions.push(gte(auditLogs.createdAt, from));
     }
-    if (endDate && typeof endDate === "string") {
-      conditions.push(lte(auditLogs.createdAt, new Date(endDate)));
+    if (endDate !== undefined) {
+      const to = typeof endDate === "string" ? new Date(endDate) : new Date(NaN);
+      if (Number.isNaN(to.getTime())) {
+        return res.status(400).json({ error: "Bad Request", message: "endDate inválida: usa YYYY-MM-DD o una fecha ISO" });
+      }
+      // Una fecha sin hora (YYYY-MM-DD) incluye el día completo.
+      if (/^\d{4}-\d{2}-\d{2}$/.test(endDate as string)) to.setUTCHours(23, 59, 59, 999);
+      conditions.push(lte(auditLogs.createdAt, to));
     }
 
     const [totalCountRaw] = await db
@@ -537,16 +549,26 @@ export async function exportAppointments(req: Request, res: Response) {
   try {
     const { format = "json", startDate, endDate, status } = req.query;
 
+    if (format !== "json" && format !== "csv") {
+      return res.status(400).json({ error: "Bad Request", message: "format debe ser 'json' o 'csv'" });
+    }
+    if (startDate !== undefined && !isValidIsoDate(startDate)) {
+      return res.status(400).json({ error: "Bad Request", message: "startDate debe ser una fecha válida YYYY-MM-DD" });
+    }
+    if (endDate !== undefined && !isValidIsoDate(endDate)) {
+      return res.status(400).json({ error: "Bad Request", message: "endDate debe ser una fecha válida YYYY-MM-DD" });
+    }
+    if (status !== undefined && !APPOINTMENT_STATUSES.includes(status as AppointmentStatus)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `status debe ser uno de [${APPOINTMENT_STATUSES.join(", ")}]`,
+      });
+    }
+
     const conditions = [];
-    if (startDate && typeof startDate === "string") {
-      conditions.push(gte(appointments.scheduledDate, startDate));
-    }
-    if (endDate && typeof endDate === "string") {
-      conditions.push(lte(appointments.scheduledDate, endDate));
-    }
-    if (status && typeof status === "string") {
-      conditions.push(eq(appointments.status, status as any));
-    }
+    if (startDate) conditions.push(gte(appointments.scheduledDate, startDate as string));
+    if (endDate) conditions.push(lte(appointments.scheduledDate, endDate as string));
+    if (status) conditions.push(eq(appointments.status, status as AppointmentStatus));
 
     const data = await db
       .select({
@@ -584,7 +606,7 @@ export async function exportAppointments(req: Request, res: Response) {
 
     // Auditoría del respaldo/exportación
     logAudit({
-      action: `DATA_EXPORT_${(format as string).toUpperCase()}`,
+      action: `DATA_EXPORT_${format.toUpperCase()}`,
       entityType: "export",
       details: { format, count: data.length, startDate, endDate, status },
       req,
