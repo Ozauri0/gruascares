@@ -71,3 +71,14 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 - **Consecuencias**:
   - Positivas: se elimina la suplantación de cuentas y la creación de usuarios por el endpoint público; el taller sigue viendo nombre, correo y teléfono del solicitante (agenda y exportación).
   - Riesgo conocido: no hay verificación de correo, por lo que quien se registre primero con un correo ajeno vería las solicitudes de invitado de ese correo. Mitigación pendiente: verificación de correo al registrarse (a evaluar junto al flujo de recuperación de contraseña, issue #57).
+
+---
+
+### ADR 007: El frontend consume el backend por un proxy `/api` de Next (mismo origen)
+- **Fecha**: 2026-10-15
+- **Estado**: Aceptado
+- **Contexto**: Frontend (puerto 3000) y backend (puerto 4000) viven en orígenes distintos. Hablar directo exige CORS con credenciales, cookies entre sitios y expone la URL del API al navegador.
+- **Decisión**: `next.config.ts` reenvía `/api/:path*` a `BACKEND_URL`. El navegador solo conoce su propio origen; la cookie `httpOnly` de sesión es de primera parte y `SameSite=Lax` basta contra CSRF. El cliente `app/lib/api.ts` (`credentials: "include"`, errores tipados `ApiError`, 401 → `/login`) solo acepta rutas `/api/...`, y `app/lib/api-adapters.ts` convierte las respuestas del backend en los tipos de las pantallas.
+- **Consecuencias**:
+  - Positivas: sin CORS ni cookies cross-site; la CSP puede limitar `connect-src` a `'self'`; el backend puede quedar fuera de internet público.
+  - A tener en cuenta: en producción el despliegue debe exponer el frontend y alcanzar al backend por red interna (`BACKEND_URL`); un proxy inverso (nginx) delante puede sustituir el rewrite sin cambiar el código del cliente.
