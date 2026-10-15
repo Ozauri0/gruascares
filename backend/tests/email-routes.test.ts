@@ -74,7 +74,7 @@ describe("SEC-1: deshabilitado en producción", () => {
       cmd: [
         "bun",
         "-e",
-        `process.env.NODE_ENV="production";process.env.JWT_SECRET="x".repeat(40);process.env.CORS_ORIGIN="http://localhost:3000";process.env.DATABASE_URL="postgres://x";
+        `process.env.NODE_ENV="production";process.env.DEMO_MODE="false";process.env.JWT_SECRET="x".repeat(40);process.env.CORS_ORIGIN="http://localhost:3000";process.env.DATABASE_URL="postgres://x";
          const {createApp}=await import("./src/app.js");const app=createApp();
          const s=app.listen(0,async()=>{const r=await fetch("http://127.0.0.1:"+s.address().port+"/api/email/preview/welcome");console.log(r.status);s.close()})`,
       ],
