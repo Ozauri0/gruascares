@@ -7,6 +7,7 @@ import { generateToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
 import { sendWelcomeEmail } from "../services/email/email.service.js";
 import { MAX_LEN, findTooLong } from "../utils/validate.js";
+import { isUniqueViolation } from "../utils/db-errors.js";
 
 const COOKIE_NAME = "gc_token";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
@@ -114,6 +115,12 @@ export async function register(req: Request, res: Response) {
       user: newUser,
     });
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "Ya existe una cuenta registrada con este correo electrónico",
+      });
+    }
     console.error("Error en register:", error);
     return res.status(500).json({
       error: "Internal Server Error",

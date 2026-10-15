@@ -242,45 +242,7 @@ export async function createAppointment(req: Request, res: Response) {
       guest = { name: clientName, email: clientEmail, phone: phone ? String(phone).trim() : null };
     }
 
-    // 4.1 Verificar si la fecha o bloque está bloqueado por administración
-    const [blockedRecord] = await db
-      .select()
-      .from(blockedDates)
-      .where(
-        and(
-          eq(blockedDates.date, scheduledDate),
-          sql`(${blockedDates.timeSlot} is null or ${blockedDates.timeSlot} = ${timeSlot})`
-        )
-      )
-      .limit(1);
-
-    if (blockedRecord) {
-      return res.status(409).json({
-        error: "Conflict",
-        message: `El horario de las ${timeSlot} hrs del ${scheduledDate} no se encuentra disponible: ${blockedRecord.reason}`,
-      });
-    }
-
-    // 4.2 Validar disponibilidad del bloque horario
-    const [slotUsage] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(appointments)
-      .where(
-        and(
-          eq(appointments.scheduledDate, scheduledDate),
-          eq(appointments.timeSlot, timeSlot),
-          ne(appointments.status, "cancelada")
-        )
-      );
-
-    if (slotUsage && slotUsage.count >= MAX_CONCURRENT_APPOINTMENTS_PER_SLOT) {
-      return res.status(409).json({
-        error: "Conflict",
-        message: `El horario de las ${timeSlot} hrs ya no tiene cupos disponibles para el ${scheduledDate}. Por favor elija otro horario.`,
-      });
-    }
-
-    // 5. Validar vehículo: debe pertenecer al usuario autenticado
+    // 4. Validar vehículo: debe pertenecer al usuario autenticado
     let vehicleInfo: { plate: string; brand: string; model: string } | null = null;
     if (vehicleId) {
       const [veh] = await db
@@ -297,23 +259,70 @@ export async function createAppointment(req: Request, res: Response) {
       vehicleInfo = veh;
     }
 
-    // 6. Insertar cita
-    const [newAppointment] = await db
-      .insert(appointments)
-      .values({
-        userId: targetUserId,
-        guestName: guest?.name ?? null,
-        guestEmail: guest?.email ?? null,
-        guestPhone: guest?.phone ?? null,
-        vehicleId: vehicleId || null,
-        serviceId: service.id,
-        scheduledDate,
-        timeSlot,
-        status: "solicitada",
-        location: location ? String(location).trim() : null,
-        notes: notes ? String(notes).trim() : null,
-      })
-      .returning();
+    // 5. Verificar bloqueos y cupo e insertar de forma atómica. El candado por (fecha, bloque)
+    // serializa las reservas simultáneas del mismo horario: sin él, dos solicitudes paralelas
+    // leerían "queda un cupo" y ambas insertarían superando la capacidad.
+    const outcome = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`appointment-slot:${scheduledDate}|${timeSlot}`}))`);
+
+      const [blockedRecord] = await tx
+        .select()
+        .from(blockedDates)
+        .where(
+          and(
+            eq(blockedDates.date, scheduledDate),
+            sql`(${blockedDates.timeSlot} is null or ${blockedDates.timeSlot} = ${timeSlot})`
+          )
+        )
+        .limit(1);
+      if (blockedRecord) return { kind: "blocked" as const, reason: blockedRecord.reason };
+
+      const [slotUsage] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.scheduledDate, scheduledDate),
+            eq(appointments.timeSlot, timeSlot),
+            ne(appointments.status, "cancelada")
+          )
+        );
+      if (slotUsage && slotUsage.count >= MAX_CONCURRENT_APPOINTMENTS_PER_SLOT) {
+        return { kind: "full" as const };
+      }
+
+      const [created] = await tx
+        .insert(appointments)
+        .values({
+          userId: targetUserId,
+          guestName: guest?.name ?? null,
+          guestEmail: guest?.email ?? null,
+          guestPhone: guest?.phone ?? null,
+          vehicleId: vehicleId || null,
+          serviceId: service.id,
+          scheduledDate,
+          timeSlot,
+          status: "solicitada",
+          location: location ? String(location).trim() : null,
+          notes: notes ? String(notes).trim() : null,
+        })
+        .returning();
+      return { kind: "created" as const, appointment: created };
+    });
+
+    if (outcome.kind === "blocked") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `El horario de las ${timeSlot} hrs del ${scheduledDate} no se encuentra disponible: ${outcome.reason}`,
+      });
+    }
+    if (outcome.kind === "full") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `El horario de las ${timeSlot} hrs ya no tiene cupos disponibles para el ${scheduledDate}. Por favor elija otro horario.`,
+      });
+    }
+    const newAppointment = outcome.appointment;
 
     // 7. Disparar correo de confirmación de forma asíncrona
     if (clientEmail) {
