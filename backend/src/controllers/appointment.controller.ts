@@ -6,7 +6,7 @@ import { appointments, services, vehicles, users, serviceRecords, blockedDates }
 import { DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
-import { MAX_LEN, findTooLong } from "../utils/validate.js";
+import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 
 /**
  * 1. Obtener catálogo de servicios activos para agendamiento
@@ -160,6 +160,22 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
+    if (!isUuid(serviceId)) {
+      return res.status(400).json({ error: "Bad Request", message: "serviceId debe ser un UUID válido" });
+    }
+
+    if (vehicleId !== undefined && vehicleId !== null && vehicleId !== "") {
+      if (!isUuid(vehicleId)) {
+        return res.status(400).json({ error: "Bad Request", message: "vehicleId debe ser un UUID válido" });
+      }
+      if (!req.user) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Para asociar un vehículo a la cita debes iniciar sesión",
+        });
+      }
+    }
+
     const tooLong = findTooLong([
       ["El nombre", name, MAX_LEN.name],
       ["El correo", email, MAX_LEN.email],
@@ -281,15 +297,21 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    // 5. Validar vehículo si se especificó
+    // 5. Validar vehículo: debe pertenecer al usuario autenticado
     let vehicleInfo: { plate: string; brand: string; model: string } | null = null;
     if (vehicleId) {
       const [veh] = await db
         .select()
         .from(vehicles)
-        .where(eq(vehicles.id, vehicleId))
+        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, targetUserId)))
         .limit(1);
-      if (veh) vehicleInfo = veh;
+      if (!veh) {
+        return res.status(404).json({
+          error: "Not Found",
+          message: "El vehículo indicado no existe en tu cuenta",
+        });
+      }
+      vehicleInfo = veh;
     }
 
     // 6. Insertar cita
