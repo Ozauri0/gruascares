@@ -32,7 +32,7 @@ graph TD
 - **Localización**: Raíz del proyecto (`/app`, `/public`, etc.).
 - **Responsabilidad**: Presentación de la web corporativa, catálogo visual, agenda pública y los 3 portales/paneles (`/portal`, `/mecanico`, `/admin`).
 - **Navegación & Seguridad**:
-  - Middleware de Next.js para inspección de sesión y redirección por rol antes de renderizar la página.
+  - `proxy.ts` (Next 16) protege `/portal`, `/mecanico` y `/admin`: consulta `GET /api/auth/me` con la cookie `gc_token` y redirige por rol (`app/lib/route-guard.ts`). Si no puede verificar la sesión (sin cookie, inválida, revocada o backend caído) falla cerrado y envía a `/login?redirect=…`. Solo evita mostrar pantallas ajenas; la autorización de los datos la decide siempre el backend.
   - Contexto de autenticación en React (`AuthContext`) para actualizar estado en el cliente.
 - **Estilos**: Sistema de diseño basado en la identidad oficial en `app/globals.css`.
 
