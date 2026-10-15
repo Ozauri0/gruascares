@@ -3,7 +3,7 @@
 // Respuesta esperada: { date: string; slots: SlotAvailability[] }
 // Hasta que exista el backend, se generan bloques demostrativos deterministas.
 
-export type SlotAvailability = { time: string; available: boolean };
+export type SlotAvailability = { time: string; available: boolean; reason?: string };
 
 export const WORKSHOP_SLOTS = [
   "08:00",

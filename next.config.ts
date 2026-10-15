@@ -28,7 +28,14 @@ const securityHeaders = [
   ...(isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]),
 ];
 
+// El navegador habla solo con este origen: /api/* se reenvía al backend (sin CORS y con la
+// cookie httpOnly de sesión como cookie de primera parte).
+const backendUrl = (process.env.BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
