@@ -100,10 +100,17 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 - **Fecha**: 2026-10-15
 - **Estado**: Aceptado
 - **Contexto**: El frontend generaba 21 bloques ficticios (08:00–18:00 cada 30 min) y el backend ofrece 8 (`DEFAULT_TIME_SLOTS`: 08:30, 09:30, 10:30, 11:30, 14:00, 15:00, 16:00, 17:00) con capacidad por bloque, bloqueos del administrador y hora de Chile.
-- **Decisión**: `GET /api/appointments/availability` es la única fuente de verdad. `/agendar` pinta los bloques que devuelve (disponible, ocupado, ya transcurrido o bloqueado con motivo) y se eliminó el generador de bloques del frontend. Cambiar los horarios del taller es un cambio en `backend/src/config/constants.ts`.
+- **Decisión**: `GET /api/appointments/availability` es la única fuente de verdad. `/agendar` pinta los bloques que devuelve (disponible, ocupado, ya transcurrido o bloqueado con motivo) y se eliminó el generador de bloques del frontend. Los bloques predefinidos están en `backend/src/config/constants.ts` y el admin añade los propios por día (ADR 011).
 - **Consecuencias**: la web nunca ofrece un horario que el backend rechazaría; si el taller quiere otros bloques se cambia en un solo lugar (a futuro, desde el panel de administración).
 
 ---
+
+
+### ADR 011: Horarios propios por día y bloqueo por bloque
+
+- **Contexto**: El calendario maestro solo bloqueaba días completos y los bloques eran fijos (`DEFAULT_TIME_SLOTS`).
+- **Decisión**: tabla `custom_time_slots (date, time_slot)`; los horarios de un día son los predefinidos más los propios de esa fecha (`slotsForDate`). El admin los gestiona con `GET /api/admin/schedule?date=`, `POST /api/admin/time-slots` y `DELETE /api/admin/time-slots/:id` (se niega con citas activas y limpia sus bloqueos). El bloqueo de un bloque usa `POST /api/admin/blocked-dates` con `timeSlot`, ahora validado contra los horarios del día. `/agendar` no cambia: sigue pintando lo que devuelve la disponibilidad.
+- **Consecuencias**: no se pueden quitar los bloques predefinidos de un día (se bloquean); los horarios propios son por fecha, no recurrentes.
 
 ### ADR 010: Recuperación de contraseña por enlace de un solo uso
 - **Fecha**: 2026-10-15

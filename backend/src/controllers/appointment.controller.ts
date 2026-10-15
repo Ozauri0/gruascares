@@ -3,11 +3,12 @@ import { eq, and, ne, sql, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
 import { appointments, services, vehicles, users, serviceRecords, blockedDates } from "../db/schema.js";
-import { DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
+import { isValidSlotFormat, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { isCancellable } from "../domain/appointment-status.js";
+import { slotsForDate } from "../utils/slots.js";
 import { isSlotPast, isValidIsoDate, todayInSantiago } from "../utils/dates.js";
 
 /**
@@ -96,7 +97,8 @@ export async function getAvailableSlots(req: Request, res: Response) {
       activeBlocks.filter((b) => Boolean(b.timeSlot)).map((b) => [b.timeSlot!, b.reason])
     );
 
-    const slots = DEFAULT_TIME_SLOTS.map((slot) => {
+    const daySlots = await slotsForDate(date);
+    const slots = daySlots.map((slot) => {
       if (isSlotPast(date, slot)) {
         return {
           time: slot,
@@ -198,10 +200,10 @@ export async function createAppointment(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: tooLong });
     }
 
-    if (!DEFAULT_TIME_SLOTS.includes(timeSlot)) {
+    if (typeof timeSlot !== "string" || !isValidSlotFormat(timeSlot)) {
       return res.status(400).json({
         error: "Bad Request",
-        message: `El horario '${timeSlot}' no es válido. Opciones: ${DEFAULT_TIME_SLOTS.join(", ")}`,
+        message: `El horario '${timeSlot}' no es válido. Usa el formato HH:MM`,
       });
     }
 
@@ -216,6 +218,14 @@ export async function createAppointment(req: Request, res: Response) {
       return res.status(400).json({
         error: "Bad Request",
         message: "No se puede agendar para una fecha en el pasado",
+      });
+    }
+
+    const validSlots = await slotsForDate(scheduledDate);
+    if (!validSlots.includes(timeSlot)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `El horario '${timeSlot}' no es válido para ese día. Opciones: ${validSlots.join(", ")}`,
       });
     }
 

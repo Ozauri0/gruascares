@@ -20,3 +20,9 @@ export const limits = {
   /** Máximo de filas por exportación; si se supera hay que acotar el rango de fechas. */
   exportMaxRows: 20000,
 };
+
+/** Horario HH:MM válido para un bloque propio (entre 06:00 y 22:30). */
+export function isValidSlotFormat(value: unknown): value is string {
+  if (typeof value !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return false;
+  return value >= "06:00" && value <= "22:30";
+}

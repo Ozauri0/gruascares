@@ -7,6 +7,7 @@ import StatusBadge from "../../components/StatusBadge";
 import AdminNav from "../components/AdminNav";
 import { todayInSantiago } from "../../lib/dates";
 import { isoDay, useCalendar } from "../../lib/use-calendar";
+import { useDaySchedule } from "../../lib/use-day-schedule";
 
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const DEFAULT_REASON = "Día no laboral";
@@ -16,6 +17,9 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(() => Number(todayInSantiago().slice(5, 7)) - 1);
   const [selected, setSelected] = useState<string | null>(null);
   const { byDay, blocked, staff, loading, error, reload, block, unblock, assign } = useCalendar(year, month);
+  const schedule = useDaySchedule(selected);
+  const [newTime, setNewTime] = useState("");
+  const [slotReason, setSlotReason] = useState("Bloque no disponible");
   const [reason, setReason] = useState(DEFAULT_REASON);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -119,7 +123,7 @@ export default function CalendarPage() {
                       <button
                         key={iso}
                         type="button"
-                        onClick={() => { setSelected(iso); setActionError(""); }}
+                        onClick={() => { setSelected(iso); setActionError(""); setNewTime(""); }}
                         className={[
                           "calendar-day",
                           selected === iso ? "selected" : "",
@@ -160,6 +164,70 @@ export default function CalendarPage() {
                     )}
                     {selectedBlock && <p className="blocked-note">Bloqueado: {selectedBlock.reason}. No se agenda ni se confirma.</p>}
                     {actionError && <p className="field-error" role="alert">{actionError}</p>}
+                    <section className="slot-manager" aria-label="Horarios del día">
+                      <h3>Horarios del día</h3>
+                      {schedule.error && <p className="field-error" role="alert">{schedule.error}</p>}
+                      {schedule.loading && schedule.slots.length === 0 ? (
+                        <p className="portal-empty">Cargando horarios…</p>
+                      ) : (
+                        <ul className="slot-list">
+                          {schedule.slots.map((slot) => (
+                            <li key={slot.time} className={slot.block ? "slot-row blocked" : "slot-row"}>
+                              <strong>{slot.time}</strong>
+                              <span className="slot-meta">
+                                {slot.custom ? "Propio · " : ""}{slot.booked} {slot.booked === 1 ? "cita" : "citas"}
+                                {slot.block ? ` · Bloqueado: ${slot.block.reason}` : ""}
+                              </span>
+                              <span className="slot-actions">
+                                <button
+                                  type="button"
+                                  className="toggle-btn"
+                                  disabled={busy || Boolean(selectedBlock)}
+                                  onClick={() => void run(() => (slot.block ? schedule.unblock(slot.block.id) : schedule.block(slot.time, slotReason.trim())))}
+                                >
+                                  {slot.block ? "Desbloquear" : "Bloquear"}
+                                </button>
+                                {slot.custom && slot.customId && (
+                                  <button
+                                    type="button"
+                                    className="toggle-btn danger"
+                                    disabled={busy}
+                                    onClick={() => void run(() => schedule.removeSlot(slot.customId!))}
+                                    aria-label={`Eliminar el horario ${slot.time}`}
+                                  >
+                                    Eliminar
+                                  </button>
+                                )}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <label className="calendar-reason">
+                        Motivo para bloquear un horario
+                        <input value={slotReason} onChange={(event) => setSlotReason(event.target.value)} maxLength={200} />
+                      </label>
+                      <form
+                        className="slot-add"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          if (!newTime) {
+                            setActionError("Elige la hora del nuevo horario.");
+                            return;
+                          }
+                          void run(async () => {
+                            await schedule.add(newTime);
+                            setNewTime("");
+                          });
+                        }}
+                      >
+                        <label className="calendar-reason">
+                          Nuevo horario
+                          <input type="time" min="06:00" max="22:30" value={newTime} onChange={(event) => setNewTime(event.target.value)} />
+                        </label>
+                        <button type="submit" className="toggle-btn" disabled={busy}>Agregar horario</button>
+                      </form>
+                    </section>
                     {selectedItems.length === 0 ? (
                       <p className="portal-empty">Sin citas ese día.</p>
                     ) : (

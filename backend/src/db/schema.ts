@@ -201,6 +201,22 @@ export const blockedDatesRelations = relations(blockedDates, ({ one }) => ({
   }),
 }));
 
+// 7b. Horarios propios de un día concreto (se suman a DEFAULT_TIME_SLOTS)
+export const customTimeSlots = pgTable(
+  "custom_time_slots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    date: date("date").notNull(),
+    timeSlot: varchar("time_slot", { length: 5 }).notNull(), // HH:MM
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("custom_time_slots_date_idx").on(table.date),
+    unique("custom_time_slots_date_slot_uq").on(table.date, table.timeSlot),
+  ]
+);
+
 // 8. Tabla de Auditoría y Trazabilidad de Operaciones Críticas (T1.10)
 export const auditLogs = pgTable(
   "audit_logs",

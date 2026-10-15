@@ -8,13 +8,15 @@ import {
   services,
   serviceRecords,
   blockedDates,
+  customTimeSlots,
   auditLogs,
 } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { isValidIsoDate, todayInSantiago, weekRange } from "../utils/dates.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { escapeCsvCell } from "../utils/csv.js";
-import { limits } from "../config/constants.js";
+import { isValidSlotFormat, limits, DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
+import { slotsForDate } from "../utils/slots.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const APPOINTMENT_STATUSES = ["solicitada", "confirmada", "en_proceso", "finalizada", "cancelada"] as const;
@@ -305,6 +307,13 @@ export async function createBlockedDate(req: Request, res: Response) {
 
     const cleanSlot = timeSlot && typeof timeSlot === "string" ? timeSlot.trim() : null;
 
+    if (cleanSlot && !(await slotsForDate(date)).includes(cleanSlot)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `El horario '${cleanSlot}' no existe en el día ${date}`,
+      });
+    }
+
     // Verificar si ya existe este bloqueo
     const existing = await db
       .select({ id: blockedDates.id })
@@ -412,6 +421,142 @@ export async function deleteBlockedDate(req: Request, res: Response) {
       error: "Internal Server Error",
       message: "Error al eliminar el bloqueo",
     });
+  }
+}
+
+/**
+ * GET /api/admin/schedule?date=YYYY-MM-DD
+ * Horarios del día (predefinidos + propios) con su carga y bloqueos, para el calendario maestro.
+ */
+export async function getDaySchedule(req: Request, res: Response) {
+  try {
+    const date = req.query.date;
+    if (!isValidIsoDate(date)) {
+      return res.status(400).json({ error: "Bad Request", message: "El parámetro 'date' debe ser una fecha YYYY-MM-DD" });
+    }
+    const [custom, blocks, booked] = await Promise.all([
+      db.select().from(customTimeSlots).where(eq(customTimeSlots.date, date)),
+      db.select().from(blockedDates).where(eq(blockedDates.date, date)),
+      db
+        .select({ timeSlot: appointments.timeSlot, count: sql<number>`count(*)::int` })
+        .from(appointments)
+        .where(and(eq(appointments.scheduledDate, date), ne(appointments.status, "cancelada")))
+        .groupBy(appointments.timeSlot),
+    ]);
+    const customBySlot = new Map(custom.map((c) => [c.timeSlot, c.id]));
+    const bookedBySlot = new Map(booked.map((b) => [b.timeSlot, b.count]));
+    const blockBySlot = new Map(blocks.filter((b) => b.timeSlot).map((b) => [b.timeSlot!, b]));
+    const times = [...new Set<string>([...DEFAULT_TIME_SLOTS, ...custom.map((c) => c.timeSlot)])].sort();
+    return res.json({
+      date,
+      capacityPerSlot: MAX_CONCURRENT_APPOINTMENTS_PER_SLOT,
+      slots: times.map((time) => {
+        const block = blockBySlot.get(time);
+        return {
+          time,
+          custom: customBySlot.has(time),
+          customId: customBySlot.get(time) ?? null,
+          booked: bookedBySlot.get(time) ?? 0,
+          block: block ? { id: block.id, reason: block.reason } : null,
+        };
+      }),
+    });
+  } catch (error) {
+    console.error("Error al consultar los horarios del día:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al consultar los horarios del día" });
+  }
+}
+
+/**
+ * POST /api/admin/time-slots
+ * Crea un horario propio dentro de un día (se suma a los predefinidos).
+ */
+export async function createTimeSlot(req: Request, res: Response) {
+  try {
+    const { date, timeSlot } = req.body ?? {};
+    if (!isValidIsoDate(date)) {
+      return res.status(400).json({ error: "Bad Request", message: "El campo 'date' debe ser una fecha válida YYYY-MM-DD" });
+    }
+    if (date < todayInSantiago()) {
+      return res.status(400).json({ error: "Bad Request", message: "No se pueden crear horarios en una fecha pasada" });
+    }
+    if (!isValidSlotFormat(timeSlot)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "El horario debe tener formato HH:MM y estar entre 06:00 y 22:30",
+      });
+    }
+    if ((await slotsForDate(date)).includes(timeSlot)) {
+      return res.status(409).json({ error: "Conflict", message: `El horario ${timeSlot} ya existe el ${date}` });
+    }
+    const [created] = await db
+      .insert(customTimeSlots)
+      .values({ date, timeSlot, createdBy: req.user!.userId })
+      .returning();
+    logAudit({
+      action: "TIME_SLOT_CREATED",
+      entityType: "custom_time_slot",
+      entityId: created.id,
+      details: { date, timeSlot },
+      req,
+    });
+    return res.status(201).json({ message: "Horario creado", timeSlot: created });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({ error: "Conflict", message: "Ese horario ya existe en el día" });
+    }
+    console.error("Error al crear horario:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al crear el horario" });
+  }
+}
+
+/**
+ * DELETE /api/admin/time-slots/:id
+ * Elimina un horario propio. No se puede si tiene citas activas (hay que cancelarlas o reasignarlas antes).
+ */
+export async function deleteTimeSlot(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    if (!id || !UUID_REGEX.test(id)) {
+      return res.status(400).json({ error: "Bad Request", message: "ID de horario inválido: debe ser un UUID" });
+    }
+    const [existing] = await db.select().from(customTimeSlots).where(eq(customTimeSlots.id, id)).limit(1);
+    if (!existing) {
+      return res.status(404).json({ error: "Not Found", message: "El horario solicitado no existe" });
+    }
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.scheduledDate, existing.date),
+          eq(appointments.timeSlot, existing.timeSlot),
+          ne(appointments.status, "cancelada")
+        )
+      );
+    if (count > 0) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `El horario ${existing.timeSlot} tiene ${count} cita(s) activa(s). Cancélalas o reasígnalas antes de eliminarlo.`,
+      });
+    }
+    await db.transaction(async (tx) => {
+      await tx.delete(customTimeSlots).where(eq(customTimeSlots.id, id));
+      await tx
+        .delete(blockedDates)
+        .where(and(eq(blockedDates.date, existing.date), eq(blockedDates.timeSlot, existing.timeSlot)));
+    });
+    logAudit({
+      action: "TIME_SLOT_DELETED",
+      entityType: "custom_time_slot",
+      entityId: id,
+      details: { date: existing.date, timeSlot: existing.timeSlot },
+      req,
+    });
+    return res.json({ message: "Horario eliminado", deletedId: id });
+  } catch (error) {
+    console.error("Error al eliminar horario:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al eliminar el horario" });
   }
 }
 
