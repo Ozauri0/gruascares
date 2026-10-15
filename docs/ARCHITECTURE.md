@@ -43,7 +43,16 @@ graph TD
 - **Seguridad**:
   - Helmet para cabeceras HTTP seguras.
   - CORS configurado exclusivamente para el dominio del frontend.
-  - Rate limiting en rutas de autenticación (`/api/auth/*`).
+  - Rate limiting en login, registro, creación pública de citas y consulta de disponibilidad (`backend/src/middlewares/rate-limit.ts`, `express-rate-limit`, memoria del proceso):
+
+    | Ruta | Límite |
+    | :--- | :--- |
+    | `POST /api/auth/login` | 10 intentos / 15 min por IP + correo, y 100 / 15 min por IP |
+    | `POST /api/auth/register` | 10 / hora por IP |
+    | `POST /api/appointments` (público) | 10 / hora por IP |
+    | `GET /api/appointments/availability` | 60 / minuto por IP |
+
+    Responde `429` con `Retry-After`. Detrás de un proxy hay que definir `TRUST_PROXY` para que `req.ip` sea la IP real. Con varias instancias del backend se debe migrar a un almacén compartido (Redis).
   - Passwords hasheadas con `bcrypt`.
   - Tokens JWT firmados o sesiones persistidas en cookies `httpOnly`, `SameSite=Lax`, `Secure`.
 
