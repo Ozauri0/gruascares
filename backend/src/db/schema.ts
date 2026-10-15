@@ -21,6 +21,8 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").default("usuario").notNull(),
   phone: varchar("phone", { length: 50 }),
   isActive: boolean("is_active").default(true).notNull(),
+  // Se incrementa para invalidar todas las sesiones activas del usuario (cambio de rol, baja, cierre global).
+  tokenVersion: integer("token_version").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

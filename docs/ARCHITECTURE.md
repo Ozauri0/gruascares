@@ -54,7 +54,8 @@ graph TD
 
     Responde `429` con `Retry-After`. Detrás de un proxy hay que definir `TRUST_PROXY` para que `req.ip` sea la IP real. Con varias instancias del backend se debe migrar a un almacén compartido (Redis).
   - Passwords hasheadas con `bcrypt`.
-  - Tokens JWT firmados o sesiones persistidas en cookies `httpOnly`, `SameSite=Lax`, `Secure`.
+  - Tokens JWT (HS256 fijado) en cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción; el token **no** se devuelve en el cuerpo JSON.
+  - Cada request autenticado se contrasta con la BD: el usuario debe existir y estar activo, el rol efectivo es el de la BD y `users.token_version` debe coincidir con el del token. Desactivar o degradar a un usuario, o `POST /api/auth/logout-all`, invalida sus sesiones de inmediato.
 
 ### 2.3. Base de Datos (PostgreSQL)
 - **Migraciones**: el esquema vive en `backend/src/db/schema.ts` y los cambios se versionan en `backend/drizzle/`.

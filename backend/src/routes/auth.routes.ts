@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, getMe, logout } from "../controllers/auth.controller.js";
+import { register, login, getMe, logout, logoutAll } from "../controllers/auth.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -11,6 +11,7 @@ router.post("/logout", logout);
 
 // Rutas Protegidas
 router.get("/me", authenticate, getMe);
+router.post("/logout-all", authenticate, logoutAll);
 
 // Rutas de Verificación RBAC (Control de acceso por rol)
 router.get("/admin-check", authenticate, authorizeRoles("admin"), (req, res) => {

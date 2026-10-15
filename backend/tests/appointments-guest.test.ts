@@ -86,7 +86,8 @@ describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
       body: JSON.stringify({ name: "Nuevo Cliente", email: "nuevo.cliente@test.cl", password: "clave1234" }),
     });
     expect(reg.status).toBe(201);
-    const { user, token } = await reg.json();
+    const { user } = await reg.json();
+    const token = /gc_token=([^;]+)/.exec(reg.headers.get("set-cookie") ?? "")?.[1];
 
     const [row] = await sql`select user_id, guest_email, guest_name from appointments`;
     expect(row.user_id).toBe(user.id);
