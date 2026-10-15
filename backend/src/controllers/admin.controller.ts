@@ -13,6 +13,8 @@ import {
 import { logAudit } from "../services/audit/audit.service.js";
 import { isValidIsoDate, todayInSantiago } from "../utils/dates.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
+import { escapeCsvCell } from "../utils/csv.js";
+import { limits } from "../config/constants.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const APPOINTMENT_STATUSES = ["solicitada", "confirmada", "en_proceso", "finalizada", "cancelada"] as const;
@@ -609,7 +611,15 @@ export async function exportAppointments(req: Request, res: Response) {
       .leftJoin(services, eq(appointments.serviceId, services.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(appointments.scheduledDate));
+      .orderBy(desc(appointments.scheduledDate))
+      .limit(limits.exportMaxRows + 1);
+
+    if (data.length > limits.exportMaxRows) {
+      return res.status(413).json({
+        error: "Payload Too Large",
+        message: `La exportación supera ${limits.exportMaxRows} registros. Acota el rango de fechas (startDate/endDate) y vuelve a intentarlo.`,
+      });
+    }
 
     // Auditoría del respaldo/exportación
     logAudit({
@@ -644,12 +654,6 @@ export async function exportAppointments(req: Request, res: Response) {
         "Fecha_Completado",
       ];
 
-      function escapeCsv(val: any): string {
-        if (val === null || val === undefined) return "";
-        const str = String(val).replace(/"/g, '""');
-        return `"${str}"`;
-      }
-
       const rows = data.map((item) =>
         [
           item.id,
@@ -673,7 +677,7 @@ export async function exportAppointments(req: Request, res: Response) {
           item.reportRecommendations,
           item.reportCompletedAt ? new Date(item.reportCompletedAt).toISOString() : "",
         ]
-          .map(escapeCsv)
+          .map(escapeCsvCell)
           .join(",")
       );
 

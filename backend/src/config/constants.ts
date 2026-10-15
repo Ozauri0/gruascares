@@ -14,3 +14,9 @@ export type TimeSlot = (typeof DEFAULT_TIME_SLOTS)[number];
 
 // Capacidad máxima de citas simultáneas por bloque horario (bahías / mecánicos disponibles)
 export const MAX_CONCURRENT_APPOINTMENTS_PER_SLOT = 2;
+
+/** Límites operativos ajustables (las pruebas los modifican). */
+export const limits = {
+  /** Máximo de filas por exportación; si se supera hay que acotar el rango de fechas. */
+  exportMaxRows: 20000,
+};
