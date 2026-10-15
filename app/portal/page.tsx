@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import InnerFooter from "../components/InnerFooter";
 import InnerHeader from "../components/InnerHeader";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { useAuth } from "../lib/auth";
-import { MOCK_APPOINTMENTS, MOCK_VEHICLES } from "../lib/portal-mocks";
+import { MOCK_APPOINTMENTS } from "../lib/portal-mocks";
 import { formatPlate } from "../lib/plate";
-import type { PortalVehicle } from "../lib/portal-types";
+import { useVehicles } from "../lib/use-vehicles";
 
 // Portal del cliente (T2.4). Usa datos demostrativos hasta conectar
 // AuthContext + GET /api/auth/me, /api/appointments y /api/vehicles (T2.2).
@@ -42,17 +41,7 @@ function longDate(iso: string): string {
 }
 
 export default function PortalPage() {
-  const [vehicles, setVehicles] = useState<PortalVehicle[]>(MOCK_VEHICLES);
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("gruas-cares-vehicles");
-      if (saved) setVehicles(JSON.parse(saved));
-    } catch {
-      // Sin respaldo local: se muestran los datos demostrativos.
-    }
-  }, []);
-
+  const { vehicles, loading: vehiclesLoading, error: vehiclesError, reload: reloadVehicles } = useVehicles();
   const { user } = useAuth();
   const firstName = user ? user.name.split(" ")[0] : "";
   const active = [...MOCK_APPOINTMENTS]
@@ -91,7 +80,7 @@ export default function PortalPage() {
             <a href="/portal/vehiculos" className="portal-nav-tab">
               <span className="tab-icon">🚗</span>
               <span>Mis Vehículos</span>
-              <span className="tab-pill">{vehicles.length}</span>
+              {!vehiclesLoading && !vehiclesError && <span className="tab-pill">{vehicles.length}</span>}
             </a>
             <a href="/agendar" className="portal-nav-tab portal-nav-cta">
               <span className="tab-icon">➕</span>
@@ -165,7 +154,14 @@ export default function PortalPage() {
               </div>
               <a href="/portal/vehiculos">Administrar vehículos <span>→</span></a>
             </div>
-            {vehicles.length === 0 ? (
+            {vehiclesLoading ? (
+              <div className="portal-empty-card" aria-busy="true"><p>Cargando tus vehículos…</p></div>
+            ) : vehiclesError ? (
+              <div className="portal-empty-card" role="alert">
+                <p>{vehiclesError}</p>
+                <button type="button" className="button button-sm" onClick={() => void reloadVehicles()}>Reintentar</button>
+              </div>
+            ) : vehicles.length === 0 ? (
               <div className="portal-empty-card">
                 <p>Aún no has registrado vehículos en tu perfil.</p>
                 <a className="button button-sm" href="/portal/vehiculos">+ Agregar tu primer vehículo</a>
