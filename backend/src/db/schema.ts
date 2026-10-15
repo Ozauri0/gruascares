@@ -1,5 +1,5 @@
-import { pgTable, uuid, varchar, text, integer, boolean, timestamp, date, pgEnum, index, unique, uniqueIndex } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { pgTable, uuid, varchar, text, integer, boolean, timestamp, date, pgEnum, index, unique, uniqueIndex, check } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 
 // 1. Enums
 export const userRoleEnum = pgEnum("user_role", ["admin", "mecanico", "usuario"]);
@@ -66,9 +66,11 @@ export const appointments = pgTable(
   "appointments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" })
-      .notNull(),
+    // Nulo en solicitudes de invitado (sin cuenta): se identifican por los datos de contacto guest_*.
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    guestName: varchar("guest_name", { length: 255 }),
+    guestEmail: varchar("guest_email", { length: 255 }),
+    guestPhone: varchar("guest_phone", { length: 50 }),
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
     serviceId: uuid("service_id")
       .references(() => services.id, { onDelete: "restrict" })
@@ -86,6 +88,8 @@ export const appointments = pgTable(
     index("appointments_user_id_idx").on(table.userId),
     index("appointments_scheduled_date_idx").on(table.scheduledDate),
     index("appointments_status_idx").on(table.status),
+    index("appointments_guest_email_idx").on(table.guestEmail),
+    check("appointments_owner_chk", sql`${table.userId} is not null or ${table.guestEmail} is not null`),
   ]
 );
 

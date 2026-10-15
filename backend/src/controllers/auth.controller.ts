@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { users } from "../db/schema.js";
+import { appointments, users } from "../db/schema.js";
 import { generateToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
 import { sendWelcomeEmail } from "../services/email/email.service.js";
@@ -83,6 +83,12 @@ export async function register(req: Request, res: Response) {
         phone: users.phone,
         createdAt: users.createdAt,
       });
+
+    // 4.1 Vincular solicitudes hechas como invitado con este mismo correo
+    await db
+      .update(appointments)
+      .set({ userId: newUser.id, guestName: null, guestEmail: null, guestPhone: null })
+      .where(and(isNull(appointments.userId), eq(sql`lower(${appointments.guestEmail})`, normalizedEmail)));
 
     // 5. Enviar correo de bienvenida (asíncrono, fire-and-forget)
     sendWelcomeEmail(newUser.email, newUser.name);

@@ -60,3 +60,14 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 - **Consecuencias Positivas**:
   - Permite al cliente y al mecánico consultar el historial histórico de mantención por vehículo.
   - Facilita el diagnóstico y seguimiento de insumos recomendados en cada servicio.
+
+---
+
+### ADR 006: Solicitudes de cita sin sesión (invitado) no crean ni usan cuentas
+- **Fecha**: 2026-10-15
+- **Estado**: Aceptado
+- **Contexto**: Agendar sin sesión creaba una cuenta con el correo indicado (y clave aleatoria) o asociaba la cita a la cuenta existente con ese correo. Cualquiera podía así "ocupar" el correo de otra persona (que luego no podía registrarse) o ensuciar el historial de cuentas ajenas, incluidas las de administración.
+- **Decisión**: Una solicitud sin sesión se guarda con `user_id` nulo y los datos de contacto en `guest_name`, `guest_email` y `guest_phone` (restricción de BD: debe existir cuenta o correo de invitado). Nunca se busca ni crea un usuario. Al registrarse una cuenta, las solicitudes de invitado con el mismo correo se vinculan a ella.
+- **Consecuencias**:
+  - Positivas: se elimina la suplantación de cuentas y la creación de usuarios por el endpoint público; el taller sigue viendo nombre, correo y teléfono del solicitante (agenda y exportación).
+  - Riesgo conocido: no hay verificación de correo, por lo que quien se registre primero con un correo ajeno vería las solicitudes de invitado de ese correo. Mitigación pendiente: verificación de correo al registrarse (a evaluar junto al flujo de recuperación de contraseña, issue #57).
