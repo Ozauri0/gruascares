@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
 import { appointments, users, vehicles, services, serviceRecords } from "../db/schema.js";
 import { sendServiceCompletedEmail } from "../services/email/email.service.js";
@@ -62,6 +63,7 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       conditions.push(eq(appointments.mechanicId, mechanicId));
     }
 
+    const assignedMechanic = alias(users, "assigned_mechanic");
     const { page, limit, offset } = parsePagination(req.query, { limit: 200, maxLimit: 500 });
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(appointments).where(where);
@@ -76,6 +78,8 @@ export async function getMechanicAgenda(req: Request, res: Response) {
         notes: appointments.notes,
         createdAt: appointments.createdAt,
         updatedAt: appointments.updatedAt,
+        mechanicId: appointments.mechanicId,
+        mechanicName: assignedMechanic.name,
         clientId: appointments.userId,
         clientName: sql<string>`coalesce(${users.name}, ${appointments.guestName})`,
         clientEmail: sql<string>`coalesce(${users.email}, ${appointments.guestEmail})`,
@@ -109,14 +113,16 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
       .leftJoin(services, eq(appointments.serviceId, services.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
+      .leftJoin(assignedMechanic, eq(appointments.mechanicId, assignedMechanic.id))
       .where(where)
       .orderBy(asc(appointments.scheduledDate), asc(appointments.timeSlot), asc(appointments.id))
       .limit(limit)
       .offset(offset);
 
     // El cliente puede ser una cuenta registrada o una solicitud de invitado (datos de contacto en la cita).
-    const agenda = agendaList.map(({ clientId, clientName, clientEmail, clientPhone, ...rest }) => ({
+    const agenda = agendaList.map(({ clientId, clientName, clientEmail, clientPhone, report, ...rest }) => ({
       ...rest,
+      report: report && report.id ? report : null,
       client: { id: clientId, name: clientName, email: clientEmail, phone: clientPhone, isGuest: clientId === null },
     }));
 

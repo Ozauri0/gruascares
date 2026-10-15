@@ -94,6 +94,7 @@ describe("INT-1: adaptadores API → UI", () => {
       status: "solicitada",
       notes: null,
       mechanicId: null,
+      mechanicName: null,
     });
   });
 

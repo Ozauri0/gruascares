@@ -178,3 +178,43 @@ describe.skipIf(!dbReady)("BUG-4: cancelación", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe.skipIf(!dbReady)("INT-8: agenda del mecánico", () => {
+  const agenda = async (user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" }, query = "") => {
+    const res = await fetch(`${server.url}/api/mechanic/agenda${query}`, { headers: cookieFor(user) });
+    return { status: res.status, body: (await res.json()) as any };
+  };
+
+  test("incluye el mecánico asignado (id y nombre) y report null sin informe", async () => {
+    const withMechanic = await createAppointment("confirmada");
+    await sql`update appointments set mechanic_id = ${seed.mechanic.id} where id = ${withMechanic}`;
+    const unassigned = await createAppointment("solicitada");
+
+    const { status, body } = await agenda(seed.mechanic, `?date=${futureDate()}`);
+    expect(status).toBe(200);
+    const a = body.agenda.find((i: any) => i.id === withMechanic);
+    const b = body.agenda.find((i: any) => i.id === unassigned);
+    expect(a.mechanicId).toBe(seed.mechanic.id);
+    expect(a.mechanicName).toBe("Mecanico Test");
+    expect(a.report).toBeNull();
+    expect(b.mechanicId).toBeNull();
+    expect(b.mechanicName).toBeNull();
+  });
+
+  test("un cliente no accede a la agenda del taller", async () => {
+    expect((await agenda(seed.clientA)).status).toBe(403);
+  });
+
+  test("el flujo completo desde la agenda: confirmar, iniciar, informar y finalizar", async () => {
+    const id = await createAppointment("solicitada");
+    expect((await patchStatus(id, seed.mechanic, { status: "confirmada" })).status).toBe(200);
+    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso" })).status).toBe(200);
+    const res = await postReport(id, seed.mechanic, { observations: "Trabajo terminado sin novedades", mileageAtService: 1200, finalize: true });
+    expect(res.status).toBe(201);
+    const { body } = await agenda(seed.mechanic, `?date=${futureDate()}`);
+    const item = body.agenda.find((i: any) => i.id === id);
+    expect(item.status).toBe("finalizada");
+    expect(item.mechanicName).toBe("Mecanico Test");
+    expect(item.report.observations).toBe("Trabajo terminado sin novedades");
+  });
+});
