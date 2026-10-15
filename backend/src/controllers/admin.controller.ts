@@ -12,6 +12,7 @@ import {
 } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { isValidIsoDate } from "../utils/dates.js";
+import { isUniqueViolation } from "../utils/db-errors.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const APPOINTMENT_STATUSES = ["solicitada", "confirmada", "en_proceso", "finalizada", "cancelada"] as const;
@@ -298,6 +299,12 @@ export async function createBlockedDate(req: Request, res: Response) {
       blockedDate: newBlocked,
     });
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "Ese bloqueo ya se encuentra registrado",
+      });
+    }
     console.error("Error al registrar bloqueo de fecha:", error);
     return res.status(500).json({
       error: "Internal Server Error",

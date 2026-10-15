@@ -3,6 +3,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { vehicles, users } from "../db/schema.js";
 import { isValidChileanPlate, normalizePlate } from "../utils/plate.js";
+import { isUniqueViolation } from "../utils/db-errors.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -262,6 +263,12 @@ export async function createVehicle(req: Request, res: Response) {
       vehicle: newVehicle,
     });
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "Ya existe un vehículo con esa patente en la cuenta",
+      });
+    }
     console.error("Error al registrar vehículo:", error);
     return res.status(500).json({
       error: "Internal Server Error",
@@ -425,6 +432,12 @@ export async function updateVehicle(req: Request, res: Response) {
       vehicle: updatedVehicle,
     });
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "Ya tienes otro vehículo registrado con esa patente",
+      });
+    }
     console.error("Error al actualizar vehículo:", error);
     return res.status(500).json({
       error: "Internal Server Error",
