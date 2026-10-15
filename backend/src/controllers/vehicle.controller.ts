@@ -4,6 +4,7 @@ import { db } from "../db/connection.js";
 import { vehicles, users } from "../db/schema.js";
 import { isValidChileanPlate, normalizePlate } from "../utils/plate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
+import { parsePagination } from "../utils/pagination.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -59,6 +60,10 @@ export async function getVehicles(req: Request, res: Response) {
       }
     }
 
+    const { page, limit, offset } = parsePagination(req.query, { limit: 100, maxLimit: 500 });
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(vehicles).where(where);
+
     const allVehicles = await db
       .select({
         id: vehicles.id,
@@ -77,11 +82,16 @@ export async function getVehicles(req: Request, res: Response) {
       })
       .from(vehicles)
       .leftJoin(users, eq(vehicles.userId, users.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(vehicles.createdAt));
+      .where(where)
+      .orderBy(desc(vehicles.createdAt), desc(vehicles.id))
+      .limit(limit)
+      .offset(offset);
 
     return res.json({
       count: allVehicles.length,
+      total,
+      page,
+      limit,
       vehicles: allVehicles,
     });
   } catch (error) {

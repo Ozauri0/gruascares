@@ -53,7 +53,10 @@ graph TD
     | `GET /api/appointments/availability` | 60 / minuto por IP |
 
     Responde `429` con `Retry-After`. Detrás de un proxy hay que definir `TRUST_PROXY` para que `req.ip` sea la IP real. Con varias instancias del backend se debe migrar a un almacén compartido (Redis).
-  - Passwords hasheadas con `bcrypt`.
+  - Passwords con `bcrypt` (costo 12, `BCRYPT_ROUNDS`), mínimo 8 caracteres y máximo 72 bytes; el login responde igual y tarda igual para "usuario inexistente" y "clave incorrecta", y una cuenta desactivada solo se informa a quien aporta la clave correcta.
+  - CSRF: la cookie `gc_token` es `SameSite=Lax`, por lo que el navegador no la envía en peticiones POST/PATCH/DELETE originadas en otros sitios. Es suficiente mientras frontend y API compartan sitio (mismo dominio o `/api` por proxy de Next). Si se separan en sitios distintos habría que añadir un token CSRF o `SameSite=None` con protección adicional.
+  - Listados de personal (`/api/mechanic/agenda`, `/api/vehicles`) paginados (`page`, `limit`, máximo 500).
+  - Frontend: cabeceras de seguridad (CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, HSTS en producción) en `next.config.ts`.
   - Tokens JWT (HS256 fijado) en cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción; el token **no** se devuelve en el cuerpo JSON.
   - Cada request autenticado se contrasta con la BD: el usuario debe existir y estar activo, el rol efectivo es el de la BD y `users.token_version` debe coincidir con el del token. Desactivar o degradar a un usuario, o `POST /api/auth/logout-all`, invalida sus sesiones de inmediato.
 

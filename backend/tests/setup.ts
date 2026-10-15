@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import path from "path";
 
+process.env.BCRYPT_ROUNDS = "4";
 process.env.SMTP_HOST = "";
 process.env.SMTP_USER = "";
 process.env.SMTP_PASS = "";

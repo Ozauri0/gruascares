@@ -5,6 +5,7 @@ import { appointments, users, vehicles, services, serviceRecords } from "../db/s
 import { sendServiceCompletedEmail } from "../services/email/email.service.js";
 import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { logAudit } from "../services/audit/audit.service.js";
+import { parsePagination } from "../utils/pagination.js";
 import {
   ALLOWED_TRANSITIONS,
   APPOINTMENT_STATUSES,
@@ -61,6 +62,10 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       conditions.push(eq(appointments.mechanicId, mechanicId));
     }
 
+    const { page, limit, offset } = parsePagination(req.query, { limit: 200, maxLimit: 500 });
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(appointments).where(where);
+
     const agendaList = await db
       .select({
         id: appointments.id,
@@ -104,8 +109,10 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
       .leftJoin(services, eq(appointments.serviceId, services.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(asc(appointments.scheduledDate), asc(appointments.timeSlot));
+      .where(where)
+      .orderBy(asc(appointments.scheduledDate), asc(appointments.timeSlot), asc(appointments.id))
+      .limit(limit)
+      .offset(offset);
 
     // El cliente puede ser una cuenta registrada o una solicitud de invitado (datos de contacto en la cita).
     const agenda = agendaList.map(({ clientId, clientName, clientEmail, clientPhone, ...rest }) => ({
@@ -115,6 +122,9 @@ export async function getMechanicAgenda(req: Request, res: Response) {
 
     return res.json({
       count: agenda.length,
+      total,
+      page,
+      limit,
       agenda,
     });
   } catch (error) {

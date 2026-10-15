@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import bcrypt from "bcryptjs";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { appointments, users } from "../db/schema.js";
@@ -8,6 +7,7 @@ import { config } from "../config/env.js";
 import { sendWelcomeEmail } from "../services/email/email.service.js";
 import { MAX_LEN, findTooLong } from "../utils/validate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
+import { hashPassword, validatePassword, verifyPassword } from "../utils/password.js";
 import { logAudit } from "../services/audit/audit.service.js";
 
 const COOKIE_NAME = "gc_token";
@@ -32,11 +32,9 @@ export async function register(req: Request, res: Response) {
       });
     }
 
-    if (!password || typeof password !== "string" || password.length < 6) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "La contraseña debe tener al menos 6 caracteres",
-      });
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({ error: "Bad Request", message: passwordError });
     }
 
     const tooLong = findTooLong([
@@ -65,7 +63,7 @@ export async function register(req: Request, res: Response) {
     }
 
     // 3. Hashear contraseña
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await hashPassword(password);
 
     // 4. Insertar usuario con rol 'usuario'
     const [newUser] = await db
@@ -143,46 +141,42 @@ export async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (!email || !password || typeof email !== "string" || typeof password !== "string") {
       return res.status(400).json({
         error: "Bad Request",
         message: "Correo y contraseña son obligatorios",
       });
     }
 
-    const normalizedEmail = String(email).toLowerCase().trim();
+    const normalizedEmail = email.toLowerCase().trim().slice(0, MAX_LEN.email);
 
-    // 1. Buscar usuario
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, normalizedEmail))
-      .limit(1);
+    // 1. Buscar usuario y verificar la contraseña SIEMPRE (con hash ficticio si no existe):
+    // misma respuesta y mismo tiempo para "no existe" y "clave incorrecta".
+    const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+    const passwordMatch = await verifyPassword(password, user?.passwordHash);
 
-    if (!user) {
-      logAudit({ userEmail: normalizedEmail, action: "LOGIN_FAILED", entityType: "user", details: { reason: "unknown_user" }, req });
+    if (!user || !passwordMatch) {
+      logAudit({
+        userId: user?.id,
+        userEmail: normalizedEmail,
+        action: "LOGIN_FAILED",
+        entityType: "user",
+        entityId: user?.id,
+        details: { reason: user ? "bad_password" : "unknown_user" },
+        req,
+      });
       return res.status(401).json({
         error: "Unauthorized",
         message: "Credenciales inválidas",
       });
     }
 
-    // 2. Verificar estado activo
+    // 2. Cuenta desactivada: solo se informa a quien demostró conocer la contraseña.
     if (!user.isActive) {
       logAudit({ userId: user.id, userEmail: user.email, action: "LOGIN_BLOCKED", entityType: "user", entityId: user.id, details: { reason: "inactive" }, req });
       return res.status(403).json({
         error: "Forbidden",
         message: "Tu cuenta ha sido desactivada. Comunícate con Grúas Cares.",
-      });
-    }
-
-    // 3. Comparar contraseñas
-    const passwordMatch = await bcrypt.compare(String(password), user.passwordHash);
-    if (!passwordMatch) {
-      logAudit({ userId: user.id, userEmail: user.email, action: "LOGIN_FAILED", entityType: "user", entityId: user.id, details: { reason: "bad_password" }, req });
-      return res.status(401).json({
-        error: "Unauthorized",
-        message: "Credenciales inválidas",
       });
     }
 
