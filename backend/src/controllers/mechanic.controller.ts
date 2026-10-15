@@ -3,11 +3,17 @@ import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { appointments, users, vehicles, services, serviceRecords } from "../db/schema.js";
 import { sendServiceCompletedEmail } from "../services/email/email.service.js";
-import { MAX_LEN, findTooLong } from "../utils/validate.js";
+import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
+import { logAudit } from "../services/audit/audit.service.js";
+import {
+  ALLOWED_TRANSITIONS,
+  APPOINTMENT_STATUSES,
+  canTransition,
+  isAppointmentStatus,
+  type AppointmentStatus,
+} from "../domain/appointment-status.js";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const VALID_STATUSES = ["solicitada", "confirmada", "en_proceso", "finalizada", "cancelada"] as const;
-type AppointmentStatus = (typeof VALID_STATUSES)[number];
 
 /**
  * GET /api/mechanic/agenda
@@ -34,12 +40,12 @@ export async function getMechanicAgenda(req: Request, res: Response) {
 
     // Filtro por estado
     if (status && typeof status === "string") {
-      if (VALID_STATUSES.includes(status as AppointmentStatus)) {
+      if (isAppointmentStatus(status)) {
         conditions.push(eq(appointments.status, status as AppointmentStatus));
       } else {
         return res.status(400).json({
           error: "Bad Request",
-          message: `Estado inválido. Debe ser uno de [${VALID_STATUSES.join(", ")}]`,
+          message: `Estado inválido. Debe ser uno de [${APPOINTMENT_STATUSES.join(", ")}]`,
         });
       }
     }
@@ -120,108 +126,159 @@ export async function getMechanicAgenda(req: Request, res: Response) {
   }
 }
 
+async function loadAppointmentContext(id: string) {
+  const [row] = await db
+    .select({
+      appointment: appointments,
+      client: users,
+      service: services,
+      vehicle: vehicles,
+    })
+    .from(appointments)
+    .leftJoin(users, eq(appointments.userId, users.id))
+    .leftJoin(services, eq(appointments.serviceId, services.id))
+    .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
+    .where(eq(appointments.id, id))
+    .limit(1);
+  return row;
+}
+
+type AppointmentContext = NonNullable<Awaited<ReturnType<typeof loadAppointmentContext>>>;
+
+/** Envía al cliente (cuenta o invitado) la hoja de atención finalizada. */
+function notifyServiceCompleted(
+  ctx: AppointmentContext,
+  mechanicName: string,
+  report: { observations: string; mileageAtService: number | null; partsReplaced: string | null; recommendations: string | null }
+) {
+  const to = ctx.client?.email ?? ctx.appointment.guestEmail;
+  if (!to) return;
+  sendServiceCompletedEmail(to, {
+    name: ctx.client?.name ?? ctx.appointment.guestName ?? "Cliente",
+    serviceName: ctx.service?.name || "Servicio Técnico",
+    vehiclePlate: ctx.vehicle?.plate || "S/P",
+    vehicleInfo: ctx.vehicle ? `${ctx.vehicle.brand} ${ctx.vehicle.model}` : "Vehículo registrado",
+    mechanicName: mechanicName || "Equipo Técnico Grúas Cares",
+    observations: report.observations,
+    mileageAtService: report.mileageAtService,
+    partsReplaced: report.partsReplaced,
+    recommendations: report.recommendations,
+    completedAt: new Date().toLocaleDateString("es-CL", { dateStyle: "long" }),
+  }).catch((err) => console.error("Error al enviar correo de atención finalizada:", err));
+}
+
+const optionalText = (value: unknown): string | null =>
+  value && typeof value === "string" && value.trim() ? value.trim() : null;
+
 /**
  * PATCH /api/appointments/:id/status
- * Actualiza el estado de una cita en el flujo de taller (ej. de confirmada a en_proceso o finalizada).
+ * Avanza una cita por el flujo del taller (solicitada → confirmada → en_proceso → finalizada)
+ * o la cancela antes de que entre a taller. Las transiciones inválidas responden 409.
  */
 export async function updateAppointmentStatus(req: Request, res: Response) {
   try {
     const currentUser = req.user!;
     const { id } = req.params;
 
-    if (!id || !UUID_REGEX.test(id)) {
+    if (!isUuid(id)) {
+      return res.status(400).json({ error: "Bad Request", message: "ID de cita inválido: debe ser un UUID" });
+    }
+
+    const { status, notes, mechanicId } = req.body ?? {};
+
+    if (!isAppointmentStatus(status)) {
       return res.status(400).json({
         error: "Bad Request",
-        message: "ID de cita inválido: debe ser un UUID",
+        message: `El estado es obligatorio y debe ser uno de: [${APPOINTMENT_STATUSES.join(", ")}]`,
+      });
+    }
+    if (mechanicId !== undefined && mechanicId !== null && !isUuid(mechanicId)) {
+      return res.status(400).json({ error: "Bad Request", message: "mechanicId debe ser un UUID válido" });
+    }
+    if (notes !== undefined && typeof notes !== "string") {
+      return res.status(400).json({ error: "Bad Request", message: "notes debe ser texto" });
+    }
+    const tooLong = findTooLong([["Las notas", notes, MAX_LEN.notes]]);
+    if (tooLong) {
+      return res.status(400).json({ error: "Bad Request", message: tooLong });
+    }
+
+    const ctx = await loadAppointmentContext(id);
+    if (!ctx) {
+      return res.status(404).json({ error: "Not Found", message: "La cita solicitada no existe" });
+    }
+
+    const previousStatus = ctx.appointment.status;
+    if (!canTransition(previousStatus, status)) {
+      const allowed = ALLOWED_TRANSITIONS[previousStatus];
+      return res.status(409).json({
+        error: "Conflict",
+        message: `No se puede pasar una cita de '${previousStatus}' a '${status}'. ${
+          allowed.length ? `Transiciones válidas: [${allowed.join(", ")}]` : "Es un estado final."
+        }`,
       });
     }
 
-    const { status, notes, mechanicId } = req.body;
-
-    if (!status || !VALID_STATUSES.includes(status as AppointmentStatus)) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: `El estado es obligatorio y debe ser uno de: [${VALID_STATUSES.join(", ")}]`,
-      });
-    }
-
-    // Verificar si la cita existe
-    const [existing] = await db
-      .select({
-        appointment: appointments,
-        client: users,
-        service: services,
-        vehicle: vehicles,
-      })
-      .from(appointments)
-      .leftJoin(users, eq(appointments.userId, users.id))
-      .leftJoin(services, eq(appointments.serviceId, services.id))
-      .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
-      .where(eq(appointments.id, id))
-      .limit(1);
-
-    if (!existing) {
-      return res.status(404).json({
-        error: "Not Found",
-        message: "La cita solicitada no existe",
-      });
-    }
-
-    const updates: Partial<typeof appointments.$inferInsert> = {
-      status: status as AppointmentStatus,
-      updatedAt: new Date(),
-    };
-
-    if (notes !== undefined && typeof notes === "string") {
-      updates.notes = notes.trim();
-    }
-
-    // Asignación de mecánico:
-    // Si viene en el body y el rol es admin/mecanico
-    if (mechanicId && UUID_REGEX.test(mechanicId)) {
-      updates.mechanicId = mechanicId;
-    } else if (status === "en_proceso" && !existing.appointment.mechanicId) {
-      // Auto-asignar el mecánico que inicia la atención
-      updates.mechanicId = currentUser.userId;
-    }
-
-    const [updatedAppointment] = await db
-      .update(appointments)
-      .set(updates)
-      .where(eq(appointments.id, id))
-      .returning();
-
-    // Si pasa a finalizada y ya existe una hoja técnica, disparar correo
+    // Finalizar exige que exista el informe técnico (se registra con POST /:id/report).
+    let existingRecord: typeof serviceRecords.$inferSelect | undefined;
     if (status === "finalizada") {
-      const [existingRecord] = await db
-        .select()
-        .from(serviceRecords)
-        .where(eq(serviceRecords.appointmentId, id))
-        .limit(1);
-
-      const clientEmail = existing.client?.email ?? existing.appointment.guestEmail;
-      const clientName = existing.client?.name ?? existing.appointment.guestName ?? "Cliente";
-      if (existingRecord && clientEmail) {
-        const mechanicName = currentUser.name || "Equipo Técnico Grúas Cares";
-        const vehiclePlate = existing.vehicle?.plate || "S/P";
-        const vehicleInfo = existing.vehicle
-          ? `${existing.vehicle.brand} ${existing.vehicle.model}`
-          : "Vehículo registrado";
-
-        sendServiceCompletedEmail(clientEmail, {
-          name: clientName,
-          serviceName: existing.service?.name || "Servicio Técnico",
-          vehiclePlate,
-          vehicleInfo,
-          mechanicName,
-          observations: existingRecord.observations,
-          mileageAtService: existingRecord.mileageAtService,
-          partsReplaced: existingRecord.partsReplaced,
-          recommendations: existingRecord.recommendations,
-          completedAt: new Date().toLocaleDateString("es-CL", { dateStyle: "long" }),
-        }).catch((err) => console.error("Error al enviar correo en status finalizada:", err));
+      [existingRecord] = await db.select().from(serviceRecords).where(eq(serviceRecords.appointmentId, id)).limit(1);
+      if (!existingRecord) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Registra el informe técnico antes de finalizar la atención",
+        });
       }
     }
+
+    // Mecánico asignado: debe ser personal activo (mecánico o admin).
+    let assignedMechanicId = ctx.appointment.mechanicId;
+    if (mechanicId) {
+      const [mechanic] = await db
+        .select({ id: users.id, role: users.role, isActive: users.isActive })
+        .from(users)
+        .where(eq(users.id, mechanicId))
+        .limit(1);
+      if (!mechanic || !mechanic.isActive || (mechanic.role !== "mecanico" && mechanic.role !== "admin")) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "El mecánico indicado no existe, está inactivo o no tiene rol de taller",
+        });
+      }
+      assignedMechanicId = mechanic.id;
+    } else if (status === "en_proceso" && !assignedMechanicId) {
+      assignedMechanicId = currentUser.userId; // quien inicia la atención queda asignado
+    }
+
+    // Las notas del taller se agregan sin borrar las que dejó el cliente.
+    const staffNote = typeof notes === "string" && notes.trim() ? `[Taller] ${notes.trim()}` : null;
+    const mergedNotes = staffNote ? [ctx.appointment.notes, staffNote].filter(Boolean).join("\n") : ctx.appointment.notes;
+
+    // Actualización condicionada al estado leído: evita que dos operaciones simultáneas se pisen.
+    const [updatedAppointment] = await db
+      .update(appointments)
+      .set({ status, mechanicId: assignedMechanicId, notes: mergedNotes, updatedAt: new Date() })
+      .where(and(eq(appointments.id, id), eq(appointments.status, previousStatus)))
+      .returning();
+
+    if (!updatedAppointment) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "La cita cambió de estado mientras la editabas. Recárgala e inténtalo de nuevo.",
+      });
+    }
+
+    if (status === "finalizada" && existingRecord) {
+      notifyServiceCompleted(ctx, currentUser.name, existingRecord);
+    }
+
+    logAudit({
+      action: "APPOINTMENT_STATUS_CHANGE",
+      entityType: "appointment",
+      entityId: id,
+      details: { from: previousStatus, to: status, mechanicId: assignedMechanicId },
+      req,
+    });
 
     return res.json({
       message: `Estado de la cita actualizado a '${status}' exitosamente`,
@@ -238,29 +295,21 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
 
 /**
  * POST /api/appointments/:id/report
- * Registra o actualiza la hoja de atención técnica en service_records,
- * actualiza el kilometraje del vehículo si corresponde, pasa la cita a 'finalizada'
- * y despacha automáticamente el correo al cliente.
+ * Registra o corrige la hoja de atención técnica. Solo para citas en taller (en_proceso)
+ * o ya finalizadas (corrección). Con `finalize` (por defecto true) finaliza la cita y avisa
+ * al cliente por correo una única vez.
  */
 export async function saveTechnicalReport(req: Request, res: Response) {
   try {
     const currentUser = req.user!;
     const { id } = req.params;
 
-    if (!id || !UUID_REGEX.test(id)) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "ID de cita inválido: debe ser un UUID",
-      });
+    if (!isUuid(id)) {
+      return res.status(400).json({ error: "Bad Request", message: "ID de cita inválido: debe ser un UUID" });
     }
 
-    const {
-      observations,
-      partsReplaced,
-      mileageAtService,
-      recommendations,
-      finalize = true,
-    } = req.body;
+    const { observations, partsReplaced, mileageAtService, recommendations, finalize } = req.body ?? {};
+    const shouldFinalize = finalize !== false;
 
     const tooLong = findTooLong([
       ["Las observaciones", observations, MAX_LEN.report],
@@ -271,7 +320,6 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: tooLong });
     }
 
-    // Validar observaciones técnicas obligatorias
     if (!observations || typeof observations !== "string" || observations.trim().length < 5) {
       return res.status(400).json({
         error: "Bad Request",
@@ -279,7 +327,6 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       });
     }
 
-    // Validar kilometraje si se proporciona
     let parsedMileage: number | null = null;
     if (mileageAtService !== undefined && mileageAtService !== null && mileageAtService !== "") {
       parsedMileage = Number(mileageAtService);
@@ -291,123 +338,85 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       }
     }
 
-    // Consultar cita y relaciones
-    const [appointmentData] = await db
-      .select({
-        appointment: appointments,
-        client: users,
-        service: services,
-        vehicle: vehicles,
-      })
-      .from(appointments)
-      .leftJoin(users, eq(appointments.userId, users.id))
-      .leftJoin(services, eq(appointments.serviceId, services.id))
-      .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
-      .where(eq(appointments.id, id))
-      .limit(1);
+    const ctx = await loadAppointmentContext(id);
+    if (!ctx) {
+      return res.status(404).json({ error: "Not Found", message: "La cita indicada no existe" });
+    }
 
-    if (!appointmentData) {
-      return res.status(404).json({
-        error: "Not Found",
-        message: "La cita indicada no existe",
+    const status = ctx.appointment.status;
+    if (status !== "en_proceso" && status !== "finalizada") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `Solo se puede registrar el informe de una cita en taller (en_proceso). Estado actual: '${status}'`,
       });
     }
 
-    // Verificar si ya existe reporte para esta cita
-    const [existingRecord] = await db
-      .select()
-      .from(serviceRecords)
-      .where(eq(serviceRecords.appointmentId, id))
-      .limit(1);
-
-    let reportRecord;
-
-    if (existingRecord) {
-      // Actualizar reporte existente
-      const [updated] = await db
-        .update(serviceRecords)
-        .set({
-          mechanicId: currentUser.userId,
-          observations: observations.trim(),
-          partsReplaced: partsReplaced && typeof partsReplaced === "string" ? partsReplaced.trim() : null,
-          mileageAtService: parsedMileage,
-          recommendations: recommendations && typeof recommendations === "string" ? recommendations.trim() : null,
-          completedAt: new Date(),
-        })
-        .where(eq(serviceRecords.id, existingRecord.id))
-        .returning();
-      reportRecord = updated;
-    } else {
-      // Insertar nuevo reporte técnico
-      const [created] = await db
-        .insert(serviceRecords)
-        .values({
-          appointmentId: id,
-          mechanicId: currentUser.userId,
-          observations: observations.trim(),
-          partsReplaced: partsReplaced && typeof partsReplaced === "string" ? partsReplaced.trim() : null,
-          mileageAtService: parsedMileage,
-          recommendations: recommendations && typeof recommendations === "string" ? recommendations.trim() : null,
-          completedAt: new Date(),
-        })
-        .returning();
-      reportRecord = created;
+    const vehicleMileage = ctx.vehicle?.mileage ?? 0;
+    if (parsedMileage !== null && ctx.vehicle && parsedMileage < vehicleMileage) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: `El kilometraje no puede ser menor al ya registrado del vehículo (${vehicleMileage} km)`,
+      });
     }
 
-    // Si se reportó nuevo kilometraje y hay vehículo asociado, actualizar el odómetro del vehículo
-    if (parsedMileage !== null && appointmentData.appointment.vehicleId) {
-      await db
-        .update(vehicles)
-        .set({
-          mileage: parsedMileage,
-          updatedAt: new Date(),
-        })
-        .where(eq(vehicles.id, appointmentData.appointment.vehicleId));
+    const reportValues = {
+      mechanicId: currentUser.userId,
+      observations: observations.trim(),
+      partsReplaced: optionalText(partsReplaced),
+      mileageAtService: parsedMileage,
+      recommendations: optionalText(recommendations),
+      completedAt: new Date(),
+    };
+
+    const result = await db.transaction(async (tx) => {
+      const [existingRecord] = await tx.select().from(serviceRecords).where(eq(serviceRecords.appointmentId, id)).limit(1);
+
+      let report: typeof serviceRecords.$inferSelect;
+      if (existingRecord) {
+        [report] = await tx.update(serviceRecords).set(reportValues).where(eq(serviceRecords.id, existingRecord.id)).returning();
+      } else {
+        [report] = await tx.insert(serviceRecords).values({ appointmentId: id, ...reportValues }).returning();
+      }
+
+      // El odómetro del vehículo solo puede avanzar.
+      if (parsedMileage !== null && ctx.vehicle && parsedMileage > vehicleMileage) {
+        await tx.update(vehicles).set({ mileage: parsedMileage, updatedAt: new Date() }).where(eq(vehicles.id, ctx.vehicle.id));
+      }
+
+      let appointment = ctx.appointment;
+      let finalized = false;
+      if (shouldFinalize && status === "en_proceso") {
+        const [done] = await tx
+          .update(appointments)
+          .set({ status: "finalizada", mechanicId: ctx.appointment.mechanicId ?? currentUser.userId, updatedAt: new Date() })
+          .where(and(eq(appointments.id, id), eq(appointments.status, "en_proceso")))
+          .returning();
+        if (done) {
+          appointment = done;
+          finalized = true;
+        }
+      }
+      return { report, appointment, finalized, created: !existingRecord };
+    });
+
+    // Correo solo en la primera finalización (no al corregir un informe ya finalizado).
+    if (result.finalized) {
+      notifyServiceCompleted(ctx, currentUser.name, result.report);
     }
 
-    // Si finalize es true, marcar la cita como 'finalizada' y asociar el mecánico si faltaba
-    let updatedAppointment = appointmentData.appointment;
-    if (finalize) {
-      const [finalized] = await db
-        .update(appointments)
-        .set({
-          status: "finalizada",
-          mechanicId: appointmentData.appointment.mechanicId || currentUser.userId,
-          updatedAt: new Date(),
-        })
-        .where(eq(appointments.id, id))
-        .returning();
-      updatedAppointment = finalized;
-    }
+    logAudit({
+      action: result.finalized ? "APPOINTMENT_FINALIZED" : "TECHNICAL_REPORT_SAVED",
+      entityType: "appointment",
+      entityId: id,
+      details: { reportId: result.report.id, created: result.created, finalized: result.finalized },
+      req,
+    });
 
-    // Despacho del correo de Hoja de Atención Técnica Finalizada
-    const reportClientEmail = appointmentData.client?.email ?? appointmentData.appointment.guestEmail;
-    const reportClientName = appointmentData.client?.name ?? appointmentData.appointment.guestName ?? "Cliente";
-    if (reportClientEmail) {
-      const mechanicName = currentUser.name || "Equipo Técnico Grúas Cares";
-      const vehiclePlate = appointmentData.vehicle?.plate || "S/P";
-      const vehicleInfo = appointmentData.vehicle
-        ? `${appointmentData.vehicle.brand} ${appointmentData.vehicle.model}`
-        : "Vehículo registrado";
-
-      sendServiceCompletedEmail(reportClientEmail, {
-        name: reportClientName,
-        serviceName: appointmentData.service?.name || "Servicio Técnico",
-        vehiclePlate,
-        vehicleInfo,
-        mechanicName,
-        observations: observations.trim(),
-        mileageAtService: parsedMileage,
-        partsReplaced: partsReplaced && typeof partsReplaced === "string" ? partsReplaced.trim() : null,
-        recommendations: recommendations && typeof recommendations === "string" ? recommendations.trim() : null,
-        completedAt: new Date().toLocaleDateString("es-CL", { dateStyle: "long" }),
-      }).catch((err) => console.error("Error al enviar correo de atención finalizada:", err));
-    }
-
-    return res.status(existingRecord ? 200 : 201).json({
+    return res.status(result.created ? 201 : 200).json({
       message: "Hoja de atención técnica registrada exitosamente",
-      report: reportRecord,
-      appointment: updatedAppointment,
+      report: result.report,
+      appointment: result.appointment,
+      finalized: result.finalized,
     });
   } catch (error) {
     console.error("Error al guardar informe técnico:", error);

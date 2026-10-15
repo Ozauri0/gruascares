@@ -88,6 +88,8 @@ stateDiagram-v2
     Cancelada --> [*]: Se notifica por correo motivo de cancelación
 ```
 
+El backend aplica estas transiciones (`backend/src/domain/appointment-status.ts`): `solicitada → confirmada | cancelada`, `confirmada → en_proceso | cancelada`, `en_proceso → finalizada`; `finalizada` y `cancelada` son finales. Cualquier otro cambio responde `409`. Finalizar exige informe técnico, que solo se registra con la cita en taller (o para corregirlo una vez finalizada); el correo al cliente se envía una única vez, al finalizar.
+
 ---
 
 ## 4. Política de Notificaciones
