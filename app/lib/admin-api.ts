@@ -4,7 +4,7 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "./api";
 import { toAdminMetrics, toAgendaItem } from "./api-adapters";
 import type { AdminMetrics, BlockedDay, StaffMember } from "./admin-types";
 import type { ApiAgendaItem, ApiBlockedDate, ApiMetrics } from "./api-types";
-import type { AgendaItem } from "./workshop-mocks";
+import type { AgendaItem } from "./workshop-types";
 
 export async function fetchMetrics(signal?: AbortSignal): Promise<AdminMetrics> {
   return toAdminMetrics(await apiGet<ApiMetrics>("/api/admin/metrics", undefined, { signal }));

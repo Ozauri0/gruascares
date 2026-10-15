@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
 import AdminNav from "../components/AdminNav";
-import { MOCK_USERS } from "../../lib/admin-mocks";
-import type { SessionUser, UserRole } from "../../lib/portal-types";
+import { ApiError } from "../../lib/api";
+import type { UserRole } from "../../lib/portal-types";
+import { useUsers } from "../../lib/use-users";
 
 const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
   { value: "todos", label: "Todos los roles" },
@@ -23,18 +24,15 @@ const ROLE_LABELS: Record<UserRole, string> = {
 type StaffForm = { name: string; email: string; phone: string; role: "mecanico" | "admin"; password: string };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<SessionUser[]>(MOCK_USERS);
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<UserRole | "todos">("todos");
+  const { users, total, loading, error, reload, loadMore, add, toggleActive, hasMore } = useUsers(query, role);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<StaffForm>({ name: "", email: "", phone: "", role: "mecanico", password: "" });
-  const [errors, setErrors] = useState<Partial<Record<keyof StaffForm, string>>>({});
-
-  const filtered = users.filter((user) => {
-    const matchesRole = role === "todos" || user.role === role;
-    const text = `${user.name} ${user.email}`.toLowerCase();
-    return matchesRole && text.includes(query.trim().toLowerCase());
-  });
+  const [errors, setErrors] = useState<Partial<Record<keyof StaffForm | "form", string>>>({});
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [moreLoading, setMoreLoading] = useState(false);
 
   useEffect(() => {
     if (!modal) return;
@@ -45,40 +43,50 @@ export default function UsersPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [modal]);
 
-  function toggleActive(id: string) {
-    setUsers((current) => current.map((user) => (user.id === id ? { ...user, isActive: !user.isActive } : user)));
+  async function toggle(id: string, isActive: boolean) {
+    setActionError("");
+    try {
+      await toggleActive(id, !isActive);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo cambiar el estado del usuario.");
+    }
+  }
+
+  async function showMore() {
+    setMoreLoading(true);
+    setActionError("");
+    try {
+      await loadMore();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudieron cargar más usuarios.");
+    } finally {
+      setMoreLoading(false);
+    }
   }
 
   function validate(): boolean {
     const next: Partial<Record<keyof StaffForm, string>> = {};
     if (form.name.trim().length < 2) next.name = "El nombre es obligatorio.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      next.email = "Ingresa un correo válido.";
-    } else if (users.some((user) => user.email === form.email.trim().toLowerCase())) {
-      next.email = "Ese correo ya está registrado.";
-    }
-    if (form.password.length < 6) next.password = "Mínimo 6 caracteres (igual que en el backend).";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = "Ingresa un correo válido.";
+    if (form.password.length < 8) next.password = "Mínimo 8 caracteres (igual que en el backend).";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!validate()) return;
-    setUsers((current) => [
-      {
-        id: `u-${Date.now()}`,
-        name: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        role: form.role,
-        phone: form.phone.trim() === "" ? null : form.phone.trim(),
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      },
-      ...current,
-    ]);
-    setModal(false);
-    setForm({ name: "", email: "", phone: "", role: "mecanico", password: "" });
+    if (saving || !validate()) return;
+    setSaving(true);
+    try {
+      await add({ ...form, email: form.email.trim().toLowerCase() });
+      setModal(false);
+      setForm({ name: "", email: "", phone: "", role: "mecanico", password: "" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo crear la cuenta.";
+      setErrors(err instanceof ApiError && err.status === 409 ? { email: message } : { form: message });
+    } finally {
+      setSaving(false);
+    }
   }
 
   function set(field: keyof StaffForm, value: string) {
@@ -105,7 +113,7 @@ export default function UsersPage() {
           <section aria-label="Gestión de usuarios">
             <div className="portal-toolbar">
               <div className="portal-toolbar-left">
-                <span className="portal-badge-counter">{filtered.length} {filtered.length === 1 ? "usuario" : "usuarios"}</span>
+                <span className="portal-badge-counter">{loading ? "Cargando…" : error ? "No disponible" : `${total} ${total === 1 ? "usuario" : "usuarios"}`}</span>
               </div>
               <button type="button" className="portal-add" onClick={() => { setErrors({}); setModal(true); }}>
                 + Agregar miembro al equipo
@@ -137,7 +145,16 @@ export default function UsersPage() {
               </div>
             </div>
 
-            {filtered.length === 0 ? (
+            {actionError && <p className="field-error" role="alert">{actionError}</p>}
+
+            {loading ? (
+              <div className="portal-empty-card" aria-busy="true"><p>Cargando usuarios…</p></div>
+            ) : error ? (
+              <div className="portal-empty-card" role="alert">
+                <p>{error}</p>
+                <button type="button" className="button button-sm" onClick={reload}>Reintentar</button>
+              </div>
+            ) : users.length === 0 ? (
               <p className="portal-empty">Sin resultados para esa búsqueda.</p>
             ) : (
               <div className="table-scroll">
@@ -146,14 +163,14 @@ export default function UsersPage() {
                     <tr><th>Nombre</th><th>Contacto</th><th>Rol</th><th>Estado</th><th><span className="sr-only">Acciones</span></th></tr>
                   </thead>
                   <tbody>
-                    {filtered.map((user) => (
+                    {users.map((user) => (
                       <tr key={user.id} className={user.isActive ? "" : "row-inactive"}>
                         <td><strong>{user.name}</strong></td>
                         <td><span className="cell-sub">{user.email}{user.phone ? ` · ${user.phone}` : ""}</span></td>
                         <td><span className={`role-badge role-${user.role}`}>{ROLE_LABELS[user.role]}</span></td>
                         <td><span className={user.isActive ? "state-on" : "state-off"}>{user.isActive ? "Activo" : "Inactivo"}</span></td>
                         <td>
-                          <button type="button" className="toggle-btn" onClick={() => toggleActive(user.id)}>
+                          <button type="button" className="toggle-btn" onClick={() => void toggle(user.id, user.isActive)}>
                             {user.isActive ? "Desactivar" : "Activar"}
                           </button>
                         </td>
@@ -163,7 +180,16 @@ export default function UsersPage() {
                 </table>
               </div>
             )}
-            <p className="table-note">{filtered.length} de {users.length} usuarios · Los cambios se sincronizarán con la API de gestión.</p>
+            {!loading && !error && (
+              <p className="table-note">
+                {users.length} de {total} usuarios.{" "}
+                {hasMore && (
+                  <button type="button" className="toggle-btn" disabled={moreLoading} onClick={() => void showMore()}>
+                    {moreLoading ? "Cargando…" : "Ver más"}
+                  </button>
+                )}
+              </p>
+            )}
           </section>
         </div>
       </main>
@@ -190,11 +216,12 @@ export default function UsersPage() {
               </div>
               <div className="form-row">
                 <label>Rol *<select value={form.role} onChange={(e) => set("role", e.target.value)}><option value="mecanico">Mecánico</option><option value="admin">Administrador</option></select></label>
-                <label>Contraseña inicial *<input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 6 caracteres" autoComplete="new-password" />{errors.password && <small className="field-error">{errors.password}</small>}</label>
+                <label>Contraseña inicial *<input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />{errors.password && <small className="field-error">{errors.password}</small>}</label>
               </div>
+              {errors.form && <small className="field-error" role="alert">{errors.form}</small>}
               <div className="modal-actions">
                 <button type="button" className="modal-cancel" onClick={() => setModal(false)}>Cancelar</button>
-                <button type="submit" className="button">Crear cuenta <span>↗</span></button>
+                <button type="submit" className="button" disabled={saving}>{saving ? "Creando…" : <>Crear cuenta <span>↗</span></>}</button>
               </div>
             </form>
           </div>

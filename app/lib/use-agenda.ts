@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchAgenda } from "./workshop-api";
-import type { AgendaItem } from "./workshop-mocks";
+import type { AgendaItem } from "./workshop-types";
 
 /** Agenda del taller para una fecha: se recarga al cambiar el día y tras cada acción (`reload`). */
 export function useAgenda(date: string) {

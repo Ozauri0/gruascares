@@ -108,3 +108,28 @@ export type ApiMetrics = {
 
 /** GET /api/admin/blocked-dates */
 export type ApiBlockedDate = { id: string; date: string; timeSlot: string | null; reason: string };
+
+/** GET /api/catalog (público) y /api/admin/catalog (incluye `active`). */
+export type ApiProduct = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  category: string;
+  tag: string | null;
+  art: "tyre" | "oil" | "battery";
+  image: string | null;
+  featured: boolean;
+  active?: boolean;
+};
+
+export type ApiAdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "mecanico" | "usuario";
+  phone: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
