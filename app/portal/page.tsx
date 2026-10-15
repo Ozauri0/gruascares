@@ -1,17 +1,18 @@
 "use client";
 
+import { useMemo } from "react";
 import InnerFooter from "../components/InnerFooter";
 import InnerHeader from "../components/InnerHeader";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { useAuth } from "../lib/auth";
-import { MOCK_APPOINTMENTS } from "../lib/portal-mocks";
+import { splitAppointments } from "../lib/my-appointments-api";
+import { useMyAppointments } from "../lib/use-my-appointments";
 import { formatPlate } from "../lib/plate";
 import { useVehicles } from "../lib/use-vehicles";
 
 // Portal del cliente (T2.4). Usa datos demostrativos hasta conectar
 // AuthContext + GET /api/auth/me, /api/appointments y /api/vehicles (T2.2).
-const ACTIVE_STATUSES = ["solicitada", "confirmada", "en_proceso"];
 
 function parseLocal(iso: string): Date {
   const [year, month, day] = iso.split("-").map(Number);
@@ -44,9 +45,8 @@ export default function PortalPage() {
   const { vehicles, loading: vehiclesLoading, error: vehiclesError, reload: reloadVehicles } = useVehicles();
   const { user } = useAuth();
   const firstName = user ? user.name.split(" ")[0] : "";
-  const active = [...MOCK_APPOINTMENTS]
-    .filter((item) => ACTIVE_STATUSES.includes(item.status))
-    .sort((a, b) => `${a.scheduledDate} ${a.timeSlot}`.localeCompare(`${b.scheduledDate} ${b.timeSlot}`));
+  const { items, loading: appointmentsLoading, error: appointmentsError, reload: reloadAppointments } = useMyAppointments();
+  const active = useMemo(() => splitAppointments(items).active.map((item) => item.appointment), [items]);
   const next = active[0];
   const rest = active.slice(1);
 
@@ -75,7 +75,7 @@ export default function PortalPage() {
             <a href="/portal/citas" className="portal-nav-tab">
               <span className="tab-icon">📋</span>
               <span>Mis Citas</span>
-              {active.length > 0 && <span className="tab-pill">{active.length}</span>}
+              {!appointmentsLoading && !appointmentsError && active.length > 0 && <span className="tab-pill">{active.length}</span>}
             </a>
             <a href="/portal/vehiculos" className="portal-nav-tab">
               <span className="tab-icon">🚗</span>
@@ -90,7 +90,16 @@ export default function PortalPage() {
 
           <div className="portal-layout">
             <div className="portal-main">
-          {next ? (
+          {appointmentsLoading ? (
+            <section className="next-hero next-empty" aria-busy="true" aria-label="Cargando citas">
+              <div className="next-info"><h2>Cargando tus citas…</h2></div>
+            </section>
+          ) : appointmentsError ? (
+            <section className="next-hero next-empty" role="alert" aria-label="Error al cargar citas">
+              <div className="next-info"><h2>No pudimos cargar tus citas</h2><p>{appointmentsError}</p></div>
+              <button type="button" className="button" onClick={() => void reloadAppointments()}>Reintentar</button>
+            </section>
+          ) : next ? (
             <section className="next-hero" aria-label="Próxima cita">
               <div className="next-date">
                 <strong>{next.scheduledDate.slice(8, 10)}</strong>

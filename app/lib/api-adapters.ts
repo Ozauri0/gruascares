@@ -40,7 +40,7 @@ export function toPortalVehicle(vehicle: ApiVehicle): PortalVehicle {
 export function toPortalReport(appointmentId: string, report: ApiReport): PortalReport {
   return {
     appointmentId,
-    mechanicName: report.mechanic?.name ?? DEFAULT_MECHANIC_NAME,
+    mechanicName: report.mechanicName ?? report.mechanic?.name ?? DEFAULT_MECHANIC_NAME,
     observations: report.observations,
     partsReplaced: report.partsReplaced ?? null,
     mileageAtService: report.mileageAtService ?? null,

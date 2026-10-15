@@ -51,6 +51,8 @@ export type ApiReport = {
   mileageAtService: number | null;
   recommendations: string | null;
   completedAt: string;
+  /** GET /api/appointments/my entrega solo el nombre; el detalle del informe entrega el objeto `mechanic`. */
+  mechanicName?: string | null;
   mechanic?: { id: string; name: string; email?: string } | null;
 };
 
