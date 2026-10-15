@@ -8,8 +8,8 @@ export default function LogoutButton() {
     <button
       type="button"
       className="logout-btn"
-      onClick={() => {
-        logout();
+      onClick={async () => {
+        await logout().catch(() => null); // aunque falle la red, se limpia la sesión local
         window.location.href = "/";
       }}
     >
