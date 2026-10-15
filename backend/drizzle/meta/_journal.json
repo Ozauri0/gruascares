@@ -8,6 +8,13 @@
       "when": 1790999284309,
       "tag": "0000_steady_invaders",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792092791406,
+      "tag": "0001_sync_schema",
+      "breakpoints": true
     }
   ]
 }

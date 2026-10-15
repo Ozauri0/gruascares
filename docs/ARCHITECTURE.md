@@ -57,6 +57,14 @@ graph TD
   - Tokens JWT firmados o sesiones persistidas en cookies `httpOnly`, `SameSite=Lax`, `Secure`.
 
 ### 2.3. Base de Datos (PostgreSQL)
+- **Migraciones**: el esquema vive en `backend/src/db/schema.ts` y los cambios se versionan en `backend/drizzle/`.
+  1. Editar `schema.ts`.
+  2. `bun run db:generate` (revisar y commitear el `.sql` generado).
+  3. `bun run db:migrate` aplica las migraciones pendientes.
+
+  No se usa `db:push` (se eliminó el script) porque deja la base sin rastro de cambios y desalineada de las migraciones.
+  Si tu base local se creó antes con `db:push`, recréala: `docker compose down -v && docker compose up -d && bun run db:migrate && bun run db:seed`.
+  Las pruebas (`bun run test` en `/backend`) crean `gruas_cares_test` desde cero aplicando las migraciones reales.
 - **Modelos Principales**:
   - **`users`**: Administradores, mecánicos y clientes.
   - **`vehicles`**: Vehículos asociados a clientes (patente, marca, modelo, año, kilometraje).
