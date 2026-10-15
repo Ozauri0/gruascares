@@ -1,12 +1,11 @@
 import { Request, Response } from "express";
 import { eq, and, ne, sql, desc } from "drizzle-orm";
-import bcrypt from "bcryptjs";
 import { db } from "../db/connection.js";
 import { appointments, services, vehicles, users, serviceRecords, blockedDates } from "../db/schema.js";
 import { DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
-import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
+import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 
 /**
  * 1. Obtener catálogo de servicios activos para agendamiento
@@ -216,47 +215,30 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    // 3. Determinar usuario (autenticado o creación/búsqueda de cliente)
-    let targetUserId = req.user?.userId;
-    let clientName = req.user?.name || name;
-    let clientEmail = req.user?.email || email;
+    // 3. Determinar titular: usuario autenticado o solicitud de invitado.
+    // Una solicitud sin sesión NUNCA se asocia a una cuenta existente ni crea cuentas:
+    // queda con los datos de contacto y se vincula si esa persona se registra después.
+    const targetUserId: string | null = req.user?.userId ?? null;
+    let clientName: string = req.user?.name ?? "";
+    let clientEmail: string = req.user?.email ?? "";
+    let guest: { name: string; email: string; phone: string | null } | null = null;
 
     if (!targetUserId) {
-      if (!name || !email) {
+      if (typeof name !== "string" || name.trim().length < 2) {
         return res.status(400).json({
           error: "Bad Request",
-          message: "Para agendar sin sesión iniciada, debe indicar su nombre y correo electrónico",
+          message: "Para agendar sin sesión iniciada, indica tu nombre (mínimo 2 caracteres)",
         });
       }
-
-      const normalizedEmail = String(email).toLowerCase().trim();
-      clientEmail = normalizedEmail;
-      clientName = String(name).trim();
-
-      // Buscar si ya existe usuario con este correo
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, normalizedEmail))
-        .limit(1);
-
-      if (existingUser) {
-        targetUserId = existingUser.id;
-      } else {
-        // Crear nuevo usuario cliente con password temporal
-        const tempPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), 10);
-        const [createdUser] = await db
-          .insert(users)
-          .values({
-            name: clientName,
-            email: normalizedEmail,
-            passwordHash: tempPassword,
-            role: "usuario",
-            phone: phone ? String(phone).trim() : null,
-          })
-          .returning();
-        targetUserId = createdUser.id;
+      if (typeof email !== "string" || !EMAIL_REGEX.test(email.trim())) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Para agendar sin sesión iniciada, indica un correo electrónico válido",
+        });
       }
+      clientName = name.trim();
+      clientEmail = email.toLowerCase().trim();
+      guest = { name: clientName, email: clientEmail, phone: phone ? String(phone).trim() : null };
     }
 
     // 4.1 Verificar si la fecha o bloque está bloqueado por administración
@@ -303,7 +285,7 @@ export async function createAppointment(req: Request, res: Response) {
       const [veh] = await db
         .select()
         .from(vehicles)
-        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, targetUserId)))
+        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, targetUserId!)))
         .limit(1);
       if (!veh) {
         return res.status(404).json({
@@ -319,6 +301,9 @@ export async function createAppointment(req: Request, res: Response) {
       .insert(appointments)
       .values({
         userId: targetUserId,
+        guestName: guest?.name ?? null,
+        guestEmail: guest?.email ?? null,
+        guestPhone: guest?.phone ?? null,
         vehicleId: vehicleId || null,
         serviceId: service.id,
         scheduledDate,
@@ -348,7 +333,7 @@ export async function createAppointment(req: Request, res: Response) {
     logAudit({
       userId: targetUserId,
       userEmail: clientEmail,
-      action: "APPOINTMENT_CREATE",
+      action: guest ? "APPOINTMENT_CREATE_GUEST" : "APPOINTMENT_CREATE",
       entityType: "appointment",
       entityId: newAppointment.id,
       details: {

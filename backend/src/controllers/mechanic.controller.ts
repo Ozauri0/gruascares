@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { eq, and, desc, asc, gte, lte } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { appointments, users, vehicles, services, serviceRecords } from "../db/schema.js";
 import { sendServiceCompletedEmail } from "../services/email/email.service.js";
@@ -65,12 +65,10 @@ export async function getMechanicAgenda(req: Request, res: Response) {
         notes: appointments.notes,
         createdAt: appointments.createdAt,
         updatedAt: appointments.updatedAt,
-        client: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          phone: users.phone,
-        },
+        clientId: appointments.userId,
+        clientName: sql<string>`coalesce(${users.name}, ${appointments.guestName})`,
+        clientEmail: sql<string>`coalesce(${users.email}, ${appointments.guestEmail})`,
+        clientPhone: sql<string | null>`coalesce(${users.phone}, ${appointments.guestPhone})`,
         vehicle: {
           id: vehicles.id,
           plate: vehicles.plate,
@@ -103,9 +101,15 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(asc(appointments.scheduledDate), asc(appointments.timeSlot));
 
+    // El cliente puede ser una cuenta registrada o una solicitud de invitado (datos de contacto en la cita).
+    const agenda = agendaList.map(({ clientId, clientName, clientEmail, clientPhone, ...rest }) => ({
+      ...rest,
+      client: { id: clientId, name: clientName, email: clientEmail, phone: clientPhone, isGuest: clientId === null },
+    }));
+
     return res.json({
-      count: agendaList.length,
-      agenda: agendaList,
+      count: agenda.length,
+      agenda,
     });
   } catch (error) {
     console.error("Error al obtener agenda de mecánico:", error);
@@ -195,15 +199,17 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
         .where(eq(serviceRecords.appointmentId, id))
         .limit(1);
 
-      if (existingRecord && existing.client?.email) {
+      const clientEmail = existing.client?.email ?? existing.appointment.guestEmail;
+      const clientName = existing.client?.name ?? existing.appointment.guestName ?? "Cliente";
+      if (existingRecord && clientEmail) {
         const mechanicName = currentUser.name || "Equipo Técnico Grúas Cares";
         const vehiclePlate = existing.vehicle?.plate || "S/P";
         const vehicleInfo = existing.vehicle
           ? `${existing.vehicle.brand} ${existing.vehicle.model}`
           : "Vehículo registrado";
 
-        sendServiceCompletedEmail(existing.client.email, {
-          name: existing.client.name,
+        sendServiceCompletedEmail(clientEmail, {
+          name: clientName,
           serviceName: existing.service?.name || "Servicio Técnico",
           vehiclePlate,
           vehicleInfo,
@@ -375,15 +381,17 @@ export async function saveTechnicalReport(req: Request, res: Response) {
     }
 
     // Despacho del correo de Hoja de Atención Técnica Finalizada
-    if (appointmentData.client?.email) {
+    const reportClientEmail = appointmentData.client?.email ?? appointmentData.appointment.guestEmail;
+    const reportClientName = appointmentData.client?.name ?? appointmentData.appointment.guestName ?? "Cliente";
+    if (reportClientEmail) {
       const mechanicName = currentUser.name || "Equipo Técnico Grúas Cares";
       const vehiclePlate = appointmentData.vehicle?.plate || "S/P";
       const vehicleInfo = appointmentData.vehicle
         ? `${appointmentData.vehicle.brand} ${appointmentData.vehicle.model}`
         : "Vehículo registrado";
 
-      sendServiceCompletedEmail(appointmentData.client.email, {
-        name: appointmentData.client.name,
+      sendServiceCompletedEmail(reportClientEmail, {
+        name: reportClientName,
         serviceName: appointmentData.service?.name || "Servicio Técnico",
         vehiclePlate,
         vehicleInfo,
