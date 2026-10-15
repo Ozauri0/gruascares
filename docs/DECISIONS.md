@@ -82,3 +82,14 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 - **Consecuencias**:
   - Positivas: sin CORS ni cookies cross-site; la CSP puede limitar `connect-src` a `'self'`; el backend puede quedar fuera de internet público.
   - A tener en cuenta: en producción el despliegue debe exponer el frontend y alcanzar al backend por red interna (`BACKEND_URL`); un proxy inverso (nginx) delante puede sustituir el rewrite sin cambiar el código del cliente.
+
+---
+
+### ADR 008: Login demo sin credenciales con sesión real (`demo-login`)
+- **Fecha**: 2026-10-15
+- **Estado**: Aceptado (temporal; se elimina antes de producción, issue #47)
+- **Contexto**: El sitio es una demo y el acceso de cliente, mecánico y admin debe seguir sin pedir credenciales. Con el backend conectado, las rutas protegidas exigen una sesión real (JWT en cookie `httpOnly`).
+- **Decisión**: `POST /api/auth/demo-login { role }` abre una sesión real para la cuenta sembrada del rol indicado. Solo existe con `DEMO_MODE=true`; con `NODE_ENV=production` el servidor se niega a arrancar si está activo. Solo funciona con cuentas del dominio reservado `@demo.test` (`cliente@`, `mecanico@`, `admin@`) y con el rol esperado; está limitado por IP y auditado (`DEMO_LOGIN`). `bun run db:seed` (solo desarrollo, idempotente) crea esas cuentas con datos coherentes.
+- **Consecuencias**:
+  - Positivas: toda la app usa datos y autorización reales también en la demo; el flujo "Entrar como…" no cambia para quien la usa.
+  - Riesgos mitigados: no hay forma de elegir otro correo ni de usarlo en producción. Al salir de demo se borran `config/demo.ts`, el endpoint, `DEMO_MODE` y las cuentas demo.

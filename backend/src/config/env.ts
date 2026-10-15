@@ -22,6 +22,8 @@ export interface AppConfig {
   corsOrigins: string[];
   databaseUrl: string;
   trustProxy: boolean | number;
+  /** Login demo sin credenciales (POST /api/auth/demo-login). Solo fuera de producción. */
+  demoMode: boolean;
   jwt: { secret: string; expiresIn: string };
   email: { host: string; port: number; user: string; pass: string; from: string };
 }
@@ -48,10 +50,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     .filter(Boolean);
 
   const databaseUrl = env.DATABASE_URL || "";
+  const demoMode = env.DEMO_MODE === "true";
 
   let secret = env.JWT_SECRET || "";
   if (isProduction) {
     const problems: string[] = [];
+    if (demoMode) problems.push("DEMO_MODE=true no está permitido en producción (permite entrar sin credenciales)");
     if (!secret) problems.push("JWT_SECRET es obligatorio");
     else if (secret.length < MIN_SECRET_LENGTH) problems.push(`JWT_SECRET debe tener al menos ${MIN_SECRET_LENGTH} caracteres`);
     else if (KNOWN_WEAK_SECRETS.has(secret)) problems.push("JWT_SECRET usa un valor de ejemplo conocido");
@@ -73,6 +77,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     corsOrigins,
     databaseUrl,
     trustProxy: parseTrustProxy(env.TRUST_PROXY),
+    demoMode,
     jwt: { secret, expiresIn: env.JWT_EXPIRES_IN || "7d" },
     email: {
       host: env.SMTP_HOST || "",
