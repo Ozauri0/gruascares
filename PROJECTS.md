@@ -123,6 +123,17 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 
 ---
 
+### 🔐 Fase 4: Seguridad e integración frontend ↔ backend
+
+Revisión de seguridad y funcionalidad previa a conectar el frontend con la API (issues #32–#59). Guía de arranque y pruebas: `docs/DEVELOPMENT.md`.
+
+- [x] **Seguridad y bugs del backend** (#32–#46): rutas de correo protegidas, plantillas escapadas, configuración estricta, rate limiting, propiedad de vehículos, solicitudes de invitado, sesiones validadas contra la BD, filtros de auditoría/exportación, typecheck, migraciones, máquina de estados, sobrecupo, hora de Chile, CSV seguro y endurecimiento menor.
+- [ ] **#47 Retirar el login demo antes de producción**: pendiente a propósito; el acceso sin credenciales se mantiene mientras sea una demo.
+- [x] **Conexión** (#48–#58): proxy `/api`, sesión real con acceso demo, protección de rutas, vehículos, agendamiento, citas del cliente, panel del mecánico, dashboard y calendario del admin, endpoints faltantes (usuarios, catálogo, métricas, perfil y recuperación de contraseña), usuarios y catálogo.
+- [x] **#59 Pruebas de punta a punta y guía de arranque local**: `bun run smoke`, `bun run setup:local` y `docs/DEVELOPMENT.md`.
+
+---
+
 ## 🚦 Flujo de Git y Convenciones para 2 Desarrolladores
 - **Rama `main` (Producción)**: Versiones finales estables y desplegables. Protegida.
 - **Rama `dev` (Desarrollo e Integración)**: Rama base activa donde convergen todos los Pull Requests diarios.

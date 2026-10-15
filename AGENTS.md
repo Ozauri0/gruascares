@@ -4,7 +4,9 @@
 
 Mockup web para Grúas Cares, desarrollado desde cero con Next.js App Router. El proyecto parte de la identidad y contenido visible en `https://www.gruascares.cl/`, pero utiliza una composición visual nueva y más moderna.
 
-La web es un prototipo frontend. No hay backend, autenticación real, inventario real ni pagos online.
+La web es un prototipo (demo) conectado a un backend propio: sesiones reales con cookie `httpOnly`, citas, vehículos, informes técnicos, catálogo y paneles de administración persisten en PostgreSQL. **El acceso de cliente, mecánico y admin se mantiene sin pedir credenciales** mediante los botones "Entrar como…" (`POST /api/auth/demo-login`, solo con `DEMO_MODE=true`); se elimina antes de producción (issue #47). Sigue sin haber pagos online ni inventario real: precios y stock son referenciales.
+
+Guía de arranque, pruebas y variables de entorno: `docs/DEVELOPMENT.md`.
 
 ## Stack
 
@@ -19,12 +21,18 @@ La web es un prototipo frontend. No hay backend, autenticación real, inventario
 ## Commands
 
 ```bash
-bun install
-bun run dev
-bun run build
+bun run setup:local      # Postgres + .env + dependencias + migraciones + datos demo
+bun run backend:dev      # API en :4000
+bun run dev              # sitio en :3000
+bun run build            # build del frontend
+bun run backend:build    # build del backend
+bun run test             # pruebas del frontend
+bun run backend:test     # pruebas del backend (requieren Postgres)
+bun run backend:typecheck
+bun run smoke            # recorrido de punta a punta con el sistema levantado
 ```
 
-`bun run build` debe ejecutarse antes de considerar terminada una modificación.
+Antes de considerar terminada una modificación deben pasar `bun run build`, `bun run backend:build`, `bun run backend:typecheck`, `bun run test`, `bun run test:types` y `bun run backend:test`.
 
 ## Routes
 
@@ -92,12 +100,13 @@ El carrusel del hero debe usar únicamente las imágenes `carousel-*.webp`. No i
 
 ## Catalog And Cart
 
-El catálogo está planteado como tienda visual:
+El catálogo vive en la base de datos (`GET /api/catalog` público; el admin lo gestiona en `/admin/catalogo`). Es una tienda visual:
 
 - Top ventas: neumáticos para camión, aceite de motor y baterías.
 - Productos adicionales: filtros, pastillas de freno, refrigerante, kit de emergencia, accesorios para carga, luces LED, plumillas y cables de batería.
 - Cada producto muestra visual, nombre, descripción, precio referencial y stock referencial.
-- Los precios y stocks son datos de mockup, no inventario real.
+- Los precios y stocks son datos referenciales, no inventario real.
+- Las imágenes de producto son una URL https o una ruta `/images/…` (no se guardan archivos en la base).
 - El botón principal es `Agregar al carro`.
 - El carro conserva productos en `localStorage` usando la clave `gruas-cares-cart`.
 
@@ -111,13 +120,11 @@ El carro no debe transformarse en checkout:
 
 ## Forms
 
-Los formularios son demostrativos y muestran estados de confirmación local:
+Los formularios envían datos reales a la API:
 
-- `/agendar`: nombre, teléfono, servicio, fecha, ubicación y detalles.
-- `/login`: correo y contraseña visuales, sin conexión a auth.
-- Home: formulario simple de contacto.
-
-No presentar confirmaciones como reservas o compras reales mientras no exista backend.
+- `/agendar`: crea una **solicitud** de cita (`POST /api/appointments`). Queda "pendiente de confirmación" hasta que el taller la confirme; no presentarla como reserva confirmada. Sin sesión se guarda como solicitud de invitado (no crea cuentas).
+- `/login`: credenciales reales o acceso demo (botones). `/registro`: cuenta real.
+- Home: el formulario de contacto sigue siendo demostrativo (no tiene endpoint).
 
 ## Responsive Behavior
 
@@ -132,7 +139,7 @@ No presentar confirmaciones como reservas o compras reales mientras no exista ba
 - Mantener los assets locales.
 - Mantener el flujo de compra como solicitud directa, no e-commerce transaccional.
 - No cambiar la paleta sin contrastarla con la identidad original.
-- Ejecutar `npm run build` después de cambios en páginas, componentes o estilos.
+- Ejecutar `bun run build` (y las pruebas) después de cambios en páginas, componentes o estilos.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

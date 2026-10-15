@@ -10,7 +10,8 @@
   },
   "include": [
     "next-env.d.ts",
-    "app/lib/**/*.ts"
+    "app/lib/**/*.ts",
+    "scripts/**/*.ts"
   ],
   "exclude": [
     "node_modules",
