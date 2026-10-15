@@ -1,7 +1,8 @@
 // Entorno aislado para pruebas: nunca usar SMTP real, secretos de .env ni la BD de desarrollo.
 import postgres from "postgres";
-import { generateDrizzleJson, generateMigration } from "drizzle-kit/api";
-import * as schema from "../src/db/schema.js";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import path from "path";
 
 process.env.SMTP_HOST = "";
 process.env.SMTP_USER = "";
@@ -19,15 +20,15 @@ try {
   const adminUrl = testUrl.replace(/\/[^/?]+(\?.*)?$/, "/postgres$1");
   const admin = postgres(adminUrl, { max: 1, connect_timeout: 3 });
   const dbName = new URL(testUrl).pathname.slice(1);
-  // BD de pruebas siempre limpia: se recrea y se aplica el esquema actual de schema.ts.
+  // BD de pruebas siempre limpia: se recrea en cada ejecución.
   await admin`select pg_terminate_backend(pid) from pg_stat_activity where datname = ${dbName} and pid <> pg_backend_pid()`;
   await admin.unsafe(`drop database if exists "${dbName}"`);
   await admin.unsafe(`create database "${dbName}"`);
   await admin.end();
 
-  const statements = await generateMigration(generateDrizzleJson({}), generateDrizzleJson(schema as Record<string, unknown>));
+  // Se aplican las migraciones reales (así se detecta cualquier desfase entre schema.ts y drizzle/).
   const client = postgres(testUrl, { max: 1, connect_timeout: 3 });
-  for (const statement of statements) await client.unsafe(statement);
+  await migrate(drizzle(client), { migrationsFolder: path.resolve(import.meta.dir, "../drizzle") });
   await client.end();
   (globalThis as any).__TEST_DB_READY__ = true;
 } catch (error) {

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, boolean, timestamp, date, pgEnum, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, integer, boolean, timestamp, date, pgEnum, index, unique, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // 1. Enums
@@ -45,6 +45,7 @@ export const vehicles = pgTable(
   (table) => [
     index("vehicles_user_id_idx").on(table.userId),
     index("vehicles_plate_idx").on(table.plate),
+    uniqueIndex("vehicles_user_plate_uq").on(table.userId, table.plate),
   ]
 );
 
@@ -181,6 +182,8 @@ export const blockedDates = pgTable(
   },
   (table) => [
     index("blocked_dates_date_idx").on(table.date),
+    // time_slot nulo = día completo: NULLS NOT DISTINCT evita bloqueos duplicados del mismo día.
+    unique("blocked_dates_date_slot_uq").on(table.date, table.timeSlot).nullsNotDistinct(),
   ]
 );
 
