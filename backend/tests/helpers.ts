@@ -20,6 +20,8 @@ export async function startServer(options: AppOptions = {}): Promise<TestServer>
       publicAppointment: high,
       availability: high,
       catalog: high,
+      forgotPassword: high,
+      resetPassword: high,
       ...options.rateLimits,
     },
   });
