@@ -115,15 +115,76 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 @media(max-width:760px) and (max-height:680px){.booking-page{padding-top:104px}.booking-page .booking-intro{padding-bottom:5px}.booking-page .booking-intro h1{font-size:34px;margin-top:4px}.wide-form,.booking-success{padding:10px 12px;gap:6px}.service-category-tab{padding:7px 8px}.service-category-tab strong{font-size:14px}.service-category-tab small{font-size:8px}.wide-form input,.wide-form select{padding:4px 0}.time-slot{padding:4px 2px}.wide-form>.button{padding:8px 12px}}
 
 /* Mobile forms need natural height so every field remains reachable. */
-@media(max-width:760px){.booking-page{height:auto;min-height:100dvh;overflow:visible;display:block;padding-top:108px}.booking-form-section{display:block;min-height:0;padding:0 0 24px}.booking-form-layout{height:auto}.wide-form,.booking-success{height:auto;min-height:0;overflow:visible}}
-
-.booking-page .booking-intro{display:none}
+@media(max-width:760px){
+  .booking-page{
+    padding-top: 104px !important;
+  }
+  .booking-page .booking-intro{
+    display: block !important;
+    padding: 10px 0 16px !important;
+  }
+  .booking-page .booking-intro h1{
+    font-size: clamp(28px, 8vw, 36px) !important;
+    margin: 4px 0 0 !important;
+  }
+  .booking-page .booking-intro p{
+    display: block !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    margin: 6px 0 0 !important;
+  }
+  .booking-form-section{
+    padding: 16px 0 32px !important;
+  }
+  .booking-form-layout aside{
+    display: block !important;
+    padding: 24px 20px !important;
+    min-height: 0 !important;
+    border-radius: 16px !important;
+    margin-bottom: 20px;
+  }
+  .booking-form-layout aside h2{
+    font-size: 32px !important;
+    margin: 12px 0 !important;
+  }
+  .booking-emergency-box{
+    margin-top: 18px !important;
+    padding: 14px 16px !important;
+  }
+}
 
 /* Never clip the complete scheduling form on short viewports. */
-.booking-page{height:auto;min-height:100dvh;overflow:visible;display:block}
-.booking-form-section{display:block;min-height:0}
-.booking-form-layout{height:auto}
-.wide-form,.booking-success{height:auto;min-height:0;overflow:visible}
+.booking-page{
+  padding-top: 120px;
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
+  display: block;
+}
+.booking-page .booking-intro{
+  display: grid;
+  padding-top: 0;
+  padding-bottom: 20px;
+  gap: 40px;
+}
+.booking-page .booking-intro h1{
+  font-size: clamp(34px, 4.5vw, 54px);
+  margin: 6px 0 0;
+}
+.booking-form-section{
+  display: block;
+  min-height: 0;
+  padding: 30px 0 60px;
+}
+.booking-form-layout{
+  height: auto;
+  gap: 48px;
+}
+.wide-form,.booking-success{
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
 
 /* Floating WhatsApp CTA: official bubble artwork, fixed bottom-right; hero-home stacks above it. */
 .wa-float{position:fixed;z-index:35;right:28px;bottom:calc(28px + env(safe-area-inset-bottom, 0px));display:block;width:60px;height:60px;padding:0;background:transparent;opacity:0;visibility:hidden;transform:translateY(12px);transition:opacity .3s ease,transform .3s ease,visibility 0s linear .3s}
@@ -237,8 +298,8 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 .role-admin{background:var(--ink);color:#fff}
 .state-on{font:600 11px 'DM Mono',monospace;color:var(--green-dark)}
 .state-off{font:600 11px 'DM Mono',monospace;color:#b42318}
-.toggle-btn{border:1px solid #bbb;background:none;padding:8px 16px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
-.toggle-btn:hover{border-color:var(--green);color:var(--green-dark)}
+.toggle-btn{border:1px solid #c2c2c2;background:#fff;color:var(--ink);padding:8px 16px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s ease}
+.toggle-btn:hover{border-color:var(--green);color:var(--green-dark);background:#fbfbfb}
 .table-note{margin:16px 0 0;font:10px 'DM Mono',monospace;color:#999}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 .modal select{background:transparent;border:0;border-bottom:1px solid #c2c2c2;color:var(--ink);padding:9px 0;outline:0;border-radius:0}
@@ -347,11 +408,11 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 .vehicle-plate{display:inline-block;background:var(--ink);color:#fff;font:600 15px 'DM Mono',monospace;letter-spacing:.08em;padding:8px 14px;border-radius:8px;margin-bottom:16px}
 .vehicle-card h3{font:500 24px 'Space Grotesk';letter-spacing:-.02em;margin:0 0 6px}
 .vehicle-card p{margin:0 0 18px;color:#666;font-size:13px}
-.vehicle-actions{display:flex;gap:10px}
-.vehicle-actions button{border:1px solid #bbb;background:none;padding:9px 16px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;transition:border-color .2s,color .2s}
-.vehicle-actions button:hover{border-color:var(--green);color:var(--green-dark)}
-.vehicle-actions .danger{color:#b42318;border-color:#e5b4ae}
-.vehicle-actions .danger:hover{border-color:#b42318;color:#b42318}
+.vehicle-actions{display:flex;gap:10px;flex-wrap:wrap}
+.vehicle-actions button{border:1px solid #c2c2c2;background:#f8f9fa;color:var(--ink);padding:9px 16px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;transition:border-color .2s,color .2s,background .2s}
+.vehicle-actions button:hover{border-color:var(--green);color:var(--green-dark);background:#fff}
+.vehicle-actions .danger{color:#b42318;border-color:#e5b4ae;background:#fff5f4}
+.vehicle-actions .danger:hover{border-color:#b42318;color:#b42318;background:#ffebe9}
 .vehicle-actions .danger.confirm{background:#b42318;border-color:#b42318;color:#fff}
 .modal-overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(0,0,0,.55);padding:20px}
 .modal{background:#fff;border-radius:20px;padding:36px;width:min(560px,100%);max-height:calc(100dvh - 40px);overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)}
@@ -366,8 +427,8 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 .modal .form-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .modal .field-error{margin:0;color:#b42318;font:10px 'DM Mono',monospace;text-transform:none}
 .modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:6px}
-.modal-cancel{border:1px solid #bbb;background:none;padding:13px 20px;border-radius:0;font-size:12px;font-weight:700;cursor:pointer}
-.modal-cancel:hover{border-color:var(--ink)}
+.modal-cancel{border:1px solid #c2c2c2;background:#f4f4f4;color:#333;padding:13px 20px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease}
+.modal-cancel:hover{border-color:var(--ink);color:var(--ink);background:#e9e9e9}
 .modal-actions .button{border:0;cursor:pointer}
 @media(max-width:760px){.portal-toolbar{margin-bottom:24px}.vehicle-grid{grid-template-columns:1fr;gap:12px}.vehicle-card{padding:22px}.modal{padding:28px 22px}.modal .form-row{grid-template-columns:1fr;gap:18px}.modal-actions{flex-direction:column-reverse}.modal-actions .button,.modal-cancel{text-align:center}}
 
@@ -384,3 +445,336 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 .map-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:50px}
 .map-frame iframe{display:block;width:100%;height:550px;border:0;border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.1)}
 @media(max-width:760px){.map-section{padding:80px 0}.map-head{display:block;margin-bottom:30px}.map-head .section-note{margin:24px 0 0}.map-frame{width:calc(100% - 40px)}.map-frame iframe{height:380px;border-radius:16px}}
+
+/* ==========================================================================
+   USER-FRIENDLY REDESIGN ENHANCEMENTS (Portal, Agendar, Mecánico, Admin)
+   ========================================================================== */
+
+/* Subtitle and header helper texts */
+.portal-subtext{color:#555;font-size:13px;line-height:1.5;max-width:520px;margin:6px 0 0}
+.section-subtitle{display:block;font-size:12px;color:#777;margin-top:4px;font-weight:400}
+.modal-subtitle{display:block;font-size:12px;color:#666;margin-top:4px}
+
+/* Compact, efficient page-intro for internal app routes */
+.portal-page{
+  padding-top: 124px;
+}
+.portal-page .portal-intro{
+  padding-bottom: 22px;
+  gap: 32px;
+  align-items: center;
+}
+.portal-page .portal-intro h1{
+  font-size: clamp(34px, 4.5vw, 54px);
+  margin: 8px 0 0;
+  line-height: 1.02;
+  letter-spacing: -.06em;
+}
+.portal-page .portal-stack{
+  gap: 34px;
+  padding-bottom: 70px;
+}
+.portal-page .portal-contact{
+  margin: 0 0 10px;
+}
+
+/* Client Portal Nav Tabs */
+.portal-nav-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:0}
+.portal-nav-tab{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:#fff;border:1px solid #dcdcdc;border-radius:12px;font-size:13px;font-weight:600;color:#333;box-shadow:0 2px 8px rgba(0,0,0,.03);transition:all .2s ease}
+.portal-nav-tab:hover{border-color:var(--green);color:var(--green-dark);transform:translateY(-1px)}
+.portal-nav-tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.portal-nav-tab .tab-icon{font-size:15px}
+.portal-nav-tab .tab-pill{background:var(--green);color:#fff;border-radius:999px;font:700 10px 'DM Mono',monospace;padding:2px 7px;line-height:1}
+.portal-nav-tab.portal-nav-cta{margin-left:auto;background:var(--green);color:#fff;border-color:var(--green)}
+.portal-nav-tab.portal-nav-cta:hover{background:var(--green-dark)}
+
+/* Portal badge counter and status indicators */
+.portal-toolbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.portal-badge-counter{display:inline-block;padding:6px 14px;border-radius:999px;background:#eef2f6;color:#333;font:600 11px 'DM Mono',monospace;letter-spacing:.03em}
+.portal-badge-active{display:inline-block;padding:6px 14px;border-radius:999px;background:rgba(2,152,52,.12);color:var(--green-dark);font:600 11px 'DM Mono',monospace}
+
+/* Empty states */
+.portal-empty-card{background:#fff;border:2px dashed #dedede;border-radius:16px;padding:42px 24px;text-align:center;color:#666;display:grid;gap:14px;place-items:center}
+.portal-empty-card p{margin:0;font-size:15px}
+.button-sm{padding:10px 18px!important;font-size:12px!important;border-radius:999px!important}
+
+/* Next Hero refinements */
+.next-hero-compact{display:grid;grid-template-columns:100px 1fr;gap:24px;align-items:center;background:var(--ink);color:#fff;border-radius:18px;padding:24px 28px;box-shadow:0 12px 32px rgba(0,0,0,.12)}
+.next-btn-details{margin-top:16px;padding:10px 16px!important;font-size:11px!important;background:rgba(255,255,255,.15)!important;border:1px solid rgba(255,255,255,.3)!important}
+.next-btn-details:hover{background:var(--green)!important;border-color:var(--green)!important}
+.next-empty-icon{font-size:32px;margin-bottom:8px}
+
+/* Vehicle card refinements */
+.vehicle-specs{font:12px 'DM Mono',monospace;color:#666;margin:4px 0 16px!important}
+.badge-plate{display:inline-block;background:var(--ink);color:#fff;padding:2px 7px;border-radius:5px;font:600 11px 'DM Mono',monospace}
+
+/* Admin Nav Tabs Component */
+.admin-nav-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:0}
+.admin-nav-tab{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;background:#fff;border:1px solid #dcdcdc;border-radius:12px;font-size:13px;font-weight:600;color:#444;box-shadow:0 2px 8px rgba(0,0,0,.03);transition:all .2s ease}
+.admin-nav-tab:hover{border-color:var(--green);color:var(--green-dark);transform:translateY(-1px)}
+.admin-nav-tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.admin-tab-icon{font-size:16px}
+.admin-tab-text{letter-spacing:-.01em}
+
+/* Calendar layout toolbar & legends */
+.calendar-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.calendar-legend{display:flex;gap:14px;align-items:center;font-size:11px;color:#666}
+.legend-item{display:inline-flex;align-items:center;gap:6px}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.legend-dot.dot-active{background:var(--green)}
+.legend-dot.dot-blocked{background:#e0aaa4;border:1px solid #b42318}
+
+/* Mechanic agenda cards & workflow */
+.workshop-card{border-left:4px solid var(--green)}
+.mechanic-card-details{display:grid;gap:6px;margin:12px 0 16px;font-size:13px;color:#444}
+.mechanic-card-details p{margin:0}
+.mechanic-card-details a{color:var(--green-dark);font-weight:600}
+.portal-note-box{background:#f8f9fa;border-left:3px solid #ccc;padding:8px 12px;border-radius:4px;font-size:12px;color:#555}
+
+/* Action button fixes & high contrast */
+.button-accent,
+.vehicle-actions button.button-accent,
+.vehicle-actions .button-accent{
+  background: var(--ink) !important;
+  color: #fff !important;
+  border: 1px solid var(--ink) !important;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  transition: all .2s ease;
+}
+.button-accent:hover,
+.vehicle-actions button.button-accent:hover,
+.vehicle-actions .button-accent:hover{
+  background: var(--green) !important;
+  border-color: var(--green) !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(2,152,52,.25);
+}
+
+/* History report button in portal */
+.history-report button{
+  background: #fff;
+  border: 1px solid #222;
+  color: var(--ink);
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.history-report button:hover:not(:disabled){
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.history-report button:disabled{
+  opacity: .5;
+  background: #f4f4f4;
+  border-color: #ddd;
+  color: #888;
+  cursor: not-allowed;
+}
+
+/* Stepper progress in modal */
+.stepper-progress{display:flex;align-items:center;justify-content:space-between;margin:0 0 24px;padding:16px 20px;background:#fbfbfb;border:1px solid #ebebeb;border-radius:12px}
+.step-node{display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;z-index:2}
+.node-icon{width:26px;height:26px;border-radius:50%;background:#e5e5e5;color:#666;display:grid;place-items:center;font:700 11px 'DM Mono',monospace}
+.node-label{font:600 10px 'DM Mono',monospace;color:#888;text-transform:uppercase;white-space:nowrap}
+.step-node.completed .node-icon{background:var(--green);color:#fff}
+.step-node.completed .node-label{color:var(--green-dark)}
+.step-node.current .node-icon{background:var(--ink);color:#fff;box-shadow:0 0 0 3px rgba(2,152,52,.25)}
+.step-node.current .node-label{color:var(--ink);font-weight:700}
+.step-line{flex:1;height:2px;background:#e5e5e5;margin:0 8px;margin-bottom:18px}
+.step-line.active{background:var(--green)}
+
+/* Modal and Report sheet improvements */
+.modal-wide{width:min(680px,100%)}
+.report-summary-box{background:#f8f9fa;border:1px solid #e9ecef;border-radius:12px;padding:18px 20px;margin-bottom:20px}
+.sheet-advance-banner{display:flex;justify-content:space-between;align-items:center;gap:18px;background:rgba(2,152,52,.08);border:1px solid rgba(2,152,52,.25);border-radius:12px;padding:18px 20px;margin-bottom:20px}
+.sheet-advance-banner strong{font:600 15px 'Space Grotesk';color:var(--green-dark)}
+.sheet-advance-banner p{margin:4px 0 0;font-size:12px;color:#555}
+.sheet-advance-banner .button{flex-shrink:0}
+.form-info-banner{display:flex;gap:10px;align-items:center;background:#f4f6f8;border-radius:8px;padding:10px 14px;font-size:12px;color:#555;margin-bottom:16px}
+.form-info-banner p{margin:0}
+
+/* Booking / Agendar Redesign Elements */
+.booking-emergency-box{background:#1a1a1a;border:1px solid #333;border-radius:14px;padding:18px 20px;margin-top:26px}
+.emergency-title{display:block;font:600 13px 'Space Grotesk';color:#fff;margin-bottom:4px}
+.booking-emergency-box p{margin:0 0 10px;font-size:12px;color:#aaa}
+.emergency-phone-btn{display:inline-flex;align-items:center;gap:6px;background:var(--pink);color:#000;font-weight:700;font-size:12px;padding:9px 15px;border-radius:999px;transition:transform .2s}
+.emergency-phone-btn:hover{transform:translateY(-1px);background:#ff85ad}
+.success-instruction{background:#f4fbf6;border:1px solid #c3e6cb;border-radius:10px;padding:14px 18px;margin:16px 0 24px;font-size:13px;color:#155724}
+.success-actions{display:flex;gap:12px;flex-wrap:wrap}
+.button-secondary{background:none!important;border:1px solid #bbb!important;color:var(--ink)!important}
+.button-secondary:hover{border-color:var(--ink)!important}
+.button-submit{padding:16px 28px!important;font-size:13px!important;border-radius:999px!important}
+.slot-hour{font-weight:600;font-size:14px}
+
+@media(max-width:760px){
+  .portal-page{
+    padding-top: 104px !important;
+  }
+  .portal-page .portal-intro{
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding-bottom: 16px !important;
+  }
+  .portal-page .portal-intro h1{
+    font-size: clamp(28px, 8vw, 36px) !important;
+    margin: 4px 0 0 !important;
+  }
+  .portal-page .portal-subtext{
+    font-size: 12px !important;
+    margin: 0 !important;
+  }
+  .portal-page .portal-stack{
+    gap: 24px !important;
+    padding-bottom: 48px !important;
+  }
+  .portal-nav-tabs{
+    gap: 6px !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .portal-nav-tab{
+    padding: 8px 14px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0;
+  }
+  .portal-nav-tab.portal-nav-cta{
+    margin-left: 0 !important;
+    flex-shrink: 0;
+  }
+  .admin-nav-tabs{
+    gap: 6px !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+  .admin-nav-tab{
+    padding: 8px 14px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0;
+  }
+  .sheet-advance-banner{flex-direction:column;align-items:flex-start}
+  .stepper-progress{padding:12px 10px}
+  .node-label{font-size:8px}
+  .calendar-toolbar{flex-direction:column;align-items:flex-start}
+}
+
+
+
+/* ==========================================================================
+   APP SHELL: aprovechamiento de espacio en portales (cliente, mecánico, admin)
+   ========================================================================== */
+.portal-page{padding-top:108px}
+.portal-page .wrap{width:min(1280px,calc(100% - 64px))}
+.portal-page .portal-intro{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:18px}
+.portal-page .portal-intro h1{font-size:clamp(30px,3.4vw,44px);margin:6px 0 0}
+.portal-page .portal-intro>div:last-child{display:flex;align-items:center;gap:18px;text-align:right}
+.portal-page .portal-intro .portal-subtext,.portal-page .portal-intro .portal-contact{margin:0;max-width:380px}
+.portal-page .portal-stack{gap:22px;padding-bottom:56px}
+.portal-page .portal-row-head{margin-bottom:14px}
+.portal-page .portal-row-head h2{font-size:22px}
+.portal-page .portal-head{margin-bottom:16px}
+.portal-page .portal-head h2{font-size:28px}
+.portal-page .history-head{margin-top:36px}
+.portal-page .portal-toolbar{margin-bottom:18px}
+
+/* Navegación por pestañas pegada al contenido, sin estirar el CTA */
+.portal-nav-tabs,.admin-nav-tabs{padding-bottom:18px;border-bottom:1px solid #e4e4e4}
+
+/* Portal cliente: contenido principal + columna lateral */
+.portal-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:24px;align-items:start}
+.portal-main,.portal-side{display:grid;gap:24px;min-width:0}
+.portal-side .vehicle-strip{grid-template-columns:1fr;gap:10px}
+.portal-side .vehicle-mini{grid-template-columns:auto 1fr;grid-template-areas:"plate name" "plate meta";column-gap:14px;row-gap:2px;align-items:center;padding:14px 18px}
+.portal-side .vehicle-mini-plate{grid-area:plate}
+.portal-side .vehicle-mini strong{grid-area:name;font-size:16px}
+.portal-side .vehicle-mini small{grid-area:meta}
+.portal-side .quick-row{grid-template-columns:1fr}
+.portal-main .next-hero{padding:28px 32px}
+
+/* Listas de citas y vehículos en rejilla fluida */
+.portal-appointments{grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.portal-appointments .portal-card{display:flex;flex-direction:column}
+.portal-appointments .history-report{margin-top:auto;padding-top:14px}
+.vehicle-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+
+/* Panel del mecánico: barra lateral de control + agenda */
+.workshop-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:24px;align-items:start}
+.workshop-side{position:sticky;top:96px;display:grid;gap:18px;background:#fff;border:1px solid #e2e2e2;border-radius:16px;padding:20px;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+.workshop-side .workshop-bar{margin:0;display:grid;grid-template-columns:1fr auto;align-items:end}
+.workshop-side .workshop-bar input{width:100%}
+.workshop-side .workshop-bar .filter-pill{padding:11px 14px}
+.workshop-filters{display:grid;gap:6px}
+.workshop-filter{display:flex;justify-content:space-between;align-items:center;border:0;background:#f4f4f4;border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600;color:#444;cursor:pointer;transition:background .2s,color .2s}
+.workshop-filter b{font:700 11px 'DM Mono',monospace;background:#fff;border-radius:999px;padding:3px 9px;color:#555}
+.workshop-filter:hover{background:#e9efe9}
+.workshop-filter.selected{background:var(--ink);color:#fff}
+.workshop-filter.selected b{background:var(--green);color:#fff}
+.workshop-main .workshop-list{margin-top:0}
+.workshop-main .portal-appointments{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
+.workshop-card .vehicle-actions{margin-top:auto}
+
+/* Admin: indicadores compactos y paneles en paralelo */
+.admin-split{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.admin-split>section{min-width:0}
+.kpi-card{padding:20px 22px}
+.kpi-card strong{font-size:38px}
+.demand-card{padding:22px;gap:18px}
+
+@media(max-width:980px){
+  .portal-layout,.admin-split{grid-template-columns:1fr}
+  .workshop-layout{grid-template-columns:1fr}
+  .workshop-side{position:static}
+  .workshop-filters{display:flex;overflow-x:auto;gap:8px;padding-bottom:2px}
+  .workshop-filter{flex-shrink:0;gap:10px;white-space:nowrap}
+}
+@media(max-width:760px){
+  .portal-page .wrap{width:calc(100% - 40px)}
+  .portal-page .portal-intro{display:flex!important;flex-direction:column!important;align-items:flex-start!important}
+  .portal-page .portal-intro>div:last-child{text-align:left;flex-wrap:wrap;gap:10px}
+  .portal-appointments,.workshop-main .portal-appointments{grid-template-columns:1fr}
+  .vehicle-grid{grid-template-columns:1fr}
+  .portal-main .next-hero{padding:22px}
+  .portal-nav-tab.portal-nav-cta{margin-left:0}
+}
+
+/* Ajustes tras revisión visual */
+.portal-page{padding-top:140px}
+.portal-page .portal-stack>*{min-width:0}
+.portal-appointments{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.compact-row>.status-badge{font:600 10px 'DM Mono',monospace;color:inherit}
+.compact-row>.status-solicitada{color:#92400e}
+.compact-row>.status-confirmada{color:#1e40af}
+.compact-row>.status-en_proceso{color:var(--green-dark)}
+.compact-row>.status-finalizada{color:#fff}
+.compact-row>.status-cancelada{color:#555}
+@media(max-width:760px){.portal-page{padding-top:112px}}
+.portal-page .portal-stack{grid-template-columns:minmax(0,1fr)}
+.filter-bar{grid-template-columns:minmax(0,1fr)}.portal-toolbar{flex-wrap:wrap}
+.table-scroll{position:relative}
+
+/* Footer siempre al final del viewport cuando el contenido es corto */
+body{min-height:100dvh;display:flex;flex-direction:column}
+body>main{flex:1 0 auto}
+body>footer{flex-shrink:0}
