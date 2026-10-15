@@ -18,6 +18,8 @@ export type AgendaItem = {
   status: AppointmentStatus;
   notes: string | null;
   mechanicId: string | null;
+  /** Nombre del mecánico asignado (la API lo entrega junto a la cita). */
+  mechanicName?: string | null;
 };
 
 export const MOCK_MECHANICS = [

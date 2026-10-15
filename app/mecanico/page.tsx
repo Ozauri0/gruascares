@@ -5,7 +5,9 @@ import InnerFooter from "../components/InnerFooter";
 import InnerHeader from "../components/InnerHeader";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
-import { MOCK_AGENDA, MOCK_MECHANICS, todayISO } from "../lib/workshop-mocks";
+import { todayInSantiago } from "../lib/dates";
+import { useAgenda } from "../lib/use-agenda";
+import { changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
 import type { AgendaItem } from "../lib/workshop-mocks";
 import type { AppointmentStatus } from "../lib/portal-types";
 
@@ -24,26 +26,18 @@ const NEXT_STATUS: Partial<Record<AppointmentStatus, { to: AppointmentStatus; la
 
 type ReportDraft = { mileage: string; observations: string; parts: string; recommendations: string };
 
-// Abre en hoy; si hoy no tiene atenciones, en el día con citas más cercano.
-function initialDate(): string {
-  const today = todayISO();
-  const dates = Array.from(new Set(MOCK_AGENDA.map((item) => item.date)));
-  if (dates.includes(today) || dates.length === 0) return today;
-  const diff = (iso: string) => Math.abs(new Date(iso).getTime() - new Date(today).getTime());
-  return dates.sort((a, b) => diff(a) - diff(b))[0];
-}
-
 export default function MechanicPage() {
-  const [agenda, setAgenda] = useState<AgendaItem[]>(MOCK_AGENDA);
-  const [date, setDate] = useState(initialDate);
+  const [date, setDate] = useState(todayInSantiago);
+  const { agenda, loading, error, reload } = useAgenda(date);
   const [filter, setFilter] = useState<AppointmentStatus | "todas">("todas");
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ReportDraft>({ mileage: "", observations: "", parts: "", recommendations: "" });
   const [draftError, setDraftError] = useState("");
   const [finishedId, setFinishedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   const visible = agenda
-    .filter((item) => item.date === date)
     .filter((item) => filter === "todas" || item.status === filter)
     .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
 
@@ -61,17 +55,29 @@ export default function MechanicPage() {
   function openSheet(item: AgendaItem) {
     setDraft({ mileage: "", observations: "", parts: "", recommendations: "" });
     setDraftError("");
+    setActionError("");
     setFinishedId(null);
     setOpenId(item.id);
   }
 
-  function advance(item: AgendaItem) {
+  async function advance(item: AgendaItem) {
     const next = NEXT_STATUS[item.status];
-    if (!next) return;
-    setAgenda((list) => list.map((row) => (row.id === item.id ? { ...row, status: next.to } : row)));
+    if (!next || busy) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await changeAppointmentStatus(item.id, next.to);
+      reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo actualizar la cita.");
+      reload(); // el estado pudo cambiar por otra persona del taller
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function finish(item: AgendaItem) {
+  async function finish(item: AgendaItem) {
+    if (busy) return;
     if (draft.observations.trim().length < 5) {
       setDraftError("Describe las observaciones técnicas (mínimo 5 caracteres).");
       return;
@@ -83,9 +89,22 @@ export default function MechanicPage() {
         return;
       }
     }
-    // POST /api/appointments/:id/report al conectar la API real (T1.7).
-    setAgenda((list) => list.map((row) => (row.id === item.id ? { ...row, status: "finalizada" } : row)));
-    setFinishedId(item.id);
+    setBusy(true);
+    setDraftError("");
+    try {
+      await saveReportAndFinish(item.id, {
+        observations: draft.observations,
+        mileage: draft.mileage,
+        parts: draft.parts,
+        recommendations: draft.recommendations,
+      });
+      setFinishedId(item.id);
+      reload();
+    } catch (err) {
+      setDraftError(err instanceof Error ? err.message : "No se pudo guardar la ficha técnica.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function set(field: keyof ReportDraft, value: string) {
@@ -115,12 +134,12 @@ export default function MechanicPage() {
                   Fecha de trabajo
                   <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
                 </label>
-                <button type="button" className="filter-pill" onClick={() => setDate(todayISO())}>📅 Hoy</button>
+                <button type="button" className="filter-pill" onClick={() => setDate(todayInSantiago())}>📅 Hoy</button>
               </div>
 
               <div className="workshop-filters" role="tablist" aria-label="Filtrar por estado">
                 {FILTERS.map((option) => {
-                  const count = agenda.filter((item) => item.date === date && (option.value === "todas" || item.status === option.value)).length;
+                  const count = agenda.filter((item) => option.value === "todas" || item.status === option.value).length;
                   return (
                     <button
                       key={option.value}
@@ -139,10 +158,17 @@ export default function MechanicPage() {
             </aside>
 
             <div className="workshop-main">
-            {visible.length === 0 ? (
+            {loading ? (
+              <div className="portal-empty-card" aria-busy="true"><p>Cargando la agenda del taller…</p></div>
+            ) : error ? (
+              <div className="portal-empty-card" role="alert">
+                <p>{error}</p>
+                <button type="button" className="button button-sm" onClick={reload}>Reintentar</button>
+              </div>
+            ) : visible.length === 0 ? (
               <div className="portal-empty-card">
                 <p>No hay servicios programados para la fecha y filtro seleccionados.</p>
-                <button type="button" className="button button-sm" onClick={() => { setDate(todayISO()); setFilter("todas"); }}>
+                <button type="button" className="button button-sm" onClick={() => { setDate(todayInSantiago()); setFilter("todas"); }}>
                   Restablecer a hoy
                 </button>
               </div>
@@ -159,7 +185,7 @@ export default function MechanicPage() {
                       <p>👤 <b>Cliente:</b> {item.clientName} · 📞 <a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a></p>
                       <p>🚗 <b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
                       {item.notes && <p className="portal-note-box">📝 <b>Nota del cliente:</b> {item.notes}</p>}
-                      <p className="portal-meta">🔧 <b>Asignado a:</b> {item.mechanicId ? MOCK_MECHANICS.find((m) => m.id === item.mechanicId)?.name : "Sin mecánico asignado"}</p>
+                      <p className="portal-meta">🔧 <b>Asignado a:</b> {item.mechanicName ?? "Sin mecánico asignado"}</p>
                     </div>
                     <div className="vehicle-actions mechanic-actions">
                       <button type="button" className="button-accent" onClick={() => openSheet(item)}>
@@ -244,14 +270,16 @@ export default function MechanicPage() {
                         {current.status === "confirmada" && "Indica que el vehículo ya ingresó y se comenzó el trabajo."}
                       </p>
                     </div>
-                    <button type="button" className="button" onClick={() => advance(current)}>
-                      {NEXT_STATUS[current.status]?.label} <span>↗</span>
+                    <button type="button" className="button" disabled={busy} onClick={() => void advance(current)}>
+                      {busy ? "Guardando…" : <>{NEXT_STATUS[current.status]?.label} <span>↗</span></>}
                     </button>
                   </div>
                 )}
 
+                {actionError && <p className="field-error" role="alert">{actionError}</p>}
+
                 {current.status === "en_proceso" && (
-                  <form className="report-form" onSubmit={(event) => { event.preventDefault(); finish(current); }} noValidate>
+                  <form className="report-form" onSubmit={(event) => { event.preventDefault(); void finish(current); }} noValidate>
                     <div className="form-info-banner">
                       <span>ℹ️</span>
                       <p>Al completar este informe y marcar finalizada, el cliente recibirá la ficha técnica en su portal.</p>
@@ -275,7 +303,7 @@ export default function MechanicPage() {
                     </label>
                     <div className="modal-actions">
                       <button type="button" className="modal-cancel" onClick={() => setOpenId(null)}>Cancelar</button>
-                      <button type="submit" className="button">Completar e Informar Cliente <span>✓</span></button>
+                      <button type="submit" className="button" disabled={busy}>{busy ? "Guardando…" : <>Completar e Informar Cliente <span>✓</span></>}</button>
                     </div>
                   </form>
                 )}

@@ -82,6 +82,7 @@ export function toAgendaItem(item: ApiAgendaItem): AgendaItem {
     status: item.status,
     notes: item.notes ?? null,
     mechanicId: item.mechanicId ?? null,
+    mechanicName: item.mechanicName ?? null,
   };
 }
 
