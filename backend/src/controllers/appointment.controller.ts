@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { eq, and, ne, sql, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
 import { appointments, services, vehicles, users, serviceRecords, blockedDates } from "../db/schema.js";
 import { DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
@@ -401,6 +402,7 @@ export async function createAppointment(req: Request, res: Response) {
  */
 export async function getMyAppointments(req: Request, res: Response) {
   try {
+    const reportMechanic = alias(users, "report_mechanic");
     if (!req.user) {
       return res.status(401).json({ error: "Unauthorized", message: "No autenticado" });
     }
@@ -435,16 +437,24 @@ export async function getMyAppointments(req: Request, res: Response) {
           mileageAtService: serviceRecords.mileageAtService,
           recommendations: serviceRecords.recommendations,
           completedAt: serviceRecords.completedAt,
+          mechanicName: reportMechanic.name,
         },
       })
       .from(appointments)
       .innerJoin(services, eq(appointments.serviceId, services.id))
       .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
+      .leftJoin(reportMechanic, eq(serviceRecords.mechanicId, reportMechanic.id))
       .where(eq(appointments.userId, req.user.userId))
       .orderBy(desc(appointments.scheduledDate), desc(appointments.timeSlot));
 
-    return res.status(200).json({ appointments: list });
+    // Sin informe, el objeto anidado llega con todos los campos nulos: se normaliza a null.
+    const appointmentsWithReport = list.map((item) => ({
+      ...item,
+      report: item.report && item.report.id ? item.report : null,
+    }));
+
+    return res.status(200).json({ appointments: appointmentsWithReport });
   } catch (error) {
     console.error("Error en getMyAppointments:", error);
     return res.status(500).json({

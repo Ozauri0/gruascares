@@ -1,24 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
 import StatusBadge from "../../components/StatusBadge";
-import { MOCK_APPOINTMENTS, MOCK_REPORTS } from "../../lib/portal-mocks";
-import type { PortalAppointment } from "../../lib/portal-types";
-
-const ACTIVE_STATUSES = ["solicitada", "confirmada", "en_proceso"];
-
-function byDateTime(a: PortalAppointment, b: PortalAppointment) {
-  return `${a.scheduledDate} ${a.timeSlot}`.localeCompare(`${b.scheduledDate} ${b.timeSlot}`);
-}
+import { CANCELLABLE_STATUSES, splitAppointments, type PortalItem } from "../../lib/my-appointments-api";
+import { formatPlate } from "../../lib/plate";
+import { useMyAppointments } from "../../lib/use-my-appointments";
 
 export default function AppointmentsPage() {
+  const { items, loading, error, reload, cancel } = useMyAppointments();
   const [reportId, setReportId] = useState<string | null>(null);
-  const active = [...MOCK_APPOINTMENTS].filter((item) => ACTIVE_STATUSES.includes(item.status)).sort(byDateTime);
-  const history = [...MOCK_APPOINTMENTS].filter((item) => !ACTIVE_STATUSES.includes(item.status)).sort((a, b) => byDateTime(b, a));
-  const report = MOCK_REPORTS.find((item) => item.appointmentId === reportId);
-  const reportAppointment = MOCK_APPOINTMENTS.find((item) => item.id === reportId);
+  const [confirmCancel, setConfirmCancel] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
+  const { active, history } = useMemo(() => splitAppointments(items), [items]);
+  const current = items.find((item) => item.appointment.id === reportId);
+  const report = current?.report ?? null;
+  const reportAppointment = current?.appointment;
+
+  async function requestCancel(id: string) {
+    if (confirmCancel !== id) {
+      setConfirmCancel(id);
+      return;
+    }
+    setConfirmCancel(null);
+    setActionError("");
+    try {
+      await cancel(id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo cancelar la cita.");
+      void reload();
+    }
+  }
 
   useEffect(() => {
     if (!reportId) return;
@@ -53,7 +66,7 @@ export default function AppointmentsPage() {
             <a href="/portal/citas" className="portal-nav-tab active">
               <span className="tab-icon">📋</span>
               <span>Mis Citas</span>
-              {active.length > 0 && <span className="tab-pill">{active.length}</span>}
+              {!loading && !error && active.length > 0 && <span className="tab-pill">{active.length}</span>}
             </a>
             <a href="/portal/vehiculos" className="portal-nav-tab">
               <span className="tab-icon">🚗</span>
@@ -72,9 +85,17 @@ export default function AppointmentsPage() {
                 <h2>Atenciones Activas</h2>
                 <span className="section-subtitle">Servicios solicitados o actualmente en proceso en nuestro taller</span>
               </div>
-              <span className="portal-badge-counter">{active.length} {active.length === 1 ? "cita activa" : "citas activas"}</span>
+              <span className="portal-badge-counter">{loading ? "Cargando…" : error ? "No disponible" : `${active.length} ${active.length === 1 ? "cita activa" : "citas activas"}`}</span>
             </div>
-            {active.length === 0 ? (
+            {actionError && <p className="field-error" role="alert">{actionError}</p>}
+            {loading ? (
+              <div className="portal-empty-card" aria-busy="true"><p>Cargando tus citas…</p></div>
+            ) : error ? (
+              <div className="portal-empty-card" role="alert">
+                <p>{error}</p>
+                <button type="button" className="button button-sm" onClick={() => void reload()}>Reintentar</button>
+              </div>
+            ) : active.length === 0 ? (
               <div className="portal-empty-card">
                 <p>No tienes citas activas en este momento.</p>
                 <a className="button button-sm" href="/agendar">Agendar nuevo servicio ↗</a>
@@ -82,7 +103,13 @@ export default function AppointmentsPage() {
             ) : (
               <div className="portal-appointments history-list">
                 {active.map((item) => (
-                  <AppointmentCard key={item.id} item={item} />
+                  <AppointmentCard
+                    key={item.appointment.id}
+                    item={item}
+                    onCancel={CANCELLABLE_STATUSES.includes(item.appointment.status) ? () => void requestCancel(item.appointment.id) : undefined}
+                    confirmingCancel={confirmCancel === item.appointment.id}
+                    onBlurCancel={() => setConfirmCancel(null)}
+                  />
                 ))}
               </div>
             )}
@@ -93,14 +120,14 @@ export default function AppointmentsPage() {
                 <h2>Historial de Servicios</h2>
                 <span className="section-subtitle">Servicios finalizados con su informe técnico emitido por el mecánico</span>
               </div>
-              <span className="portal-badge-counter">{history.length} {history.length === 1 ? "atención previa" : "atenciones previas"}</span>
+              <span className="portal-badge-counter">{loading ? "Cargando…" : error ? "No disponible" : `${history.length} ${history.length === 1 ? "atención previa" : "atenciones previas"}`}</span>
             </div>
-            {history.length === 0 ? (
+            {loading || error ? null : history.length === 0 ? (
               <p className="portal-empty">Aún no registras atenciones finalizadas.</p>
             ) : (
               <div className="portal-appointments history-list">
                 {history.map((item) => (
-                  <AppointmentCard key={item.id} item={item} onReport={() => setReportId(item.id)} hasReport={MOCK_REPORTS.some((r) => r.appointmentId === item.id)} />
+                  <AppointmentCard key={item.appointment.id} item={item} onReport={() => setReportId(item.appointment.id)} />
                 ))}
               </div>
             )}
@@ -145,17 +172,37 @@ export default function AppointmentsPage() {
   );
 }
 
-function AppointmentCard({ item, onReport, hasReport }: { item: PortalAppointment; onReport?: () => void; hasReport?: boolean }) {
+function AppointmentCard({
+  item,
+  onReport,
+  onCancel,
+  confirmingCancel,
+  onBlurCancel,
+}: {
+  item: PortalItem;
+  onReport?: () => void;
+  onCancel?: () => void;
+  confirmingCancel?: boolean;
+  onBlurCancel?: () => void;
+}) {
+  const { appointment, report } = item;
   return (
     <article className="portal-card history-card">
-      <div className="portal-card-top"><StatusBadge status={item.status} /><span className="portal-slot">{item.scheduledDate} · {item.timeSlot}</span></div>
-      <h3>{item.serviceName}</h3>
-      <p>{item.vehicleLabel} · Patente {item.vehiclePlate}</p>
-      {item.location && <p className="portal-meta">{item.location}</p>}
-      {item.status === "finalizada" && (
+      <div className="portal-card-top"><StatusBadge status={appointment.status} /><span className="portal-slot">{appointment.scheduledDate} · {appointment.timeSlot}</span></div>
+      <h3>{appointment.serviceName}</h3>
+      <p>{appointment.vehiclePlate ? `${appointment.vehicleLabel} · Patente ${formatPlate(appointment.vehiclePlate)}` : appointment.vehicleLabel}</p>
+      {appointment.location && <p className="portal-meta">{appointment.location}</p>}
+      {appointment.status === "finalizada" && (
         <div className="vehicle-actions history-report">
-          <button type="button" onClick={onReport} disabled={!hasReport} title={hasReport ? "Ver informe del mecánico" : "Informe aún no disponible"}>
-            {hasReport ? "Ver informe técnico" : "Informe pendiente"}
+          <button type="button" onClick={onReport} disabled={!report} title={report ? "Ver informe del mecánico" : "Informe aún no disponible"}>
+            {report ? "Ver informe técnico" : "Informe pendiente"}
+          </button>
+        </div>
+      )}
+      {onCancel && (
+        <div className="vehicle-actions history-report">
+          <button type="button" className={confirmingCancel ? "danger confirm" : "danger"} onClick={onCancel} onBlur={onBlurCancel}>
+            {confirmingCancel ? "Confirmar cancelación" : "Cancelar cita"}
           </button>
         </div>
       )}
