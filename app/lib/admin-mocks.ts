@@ -4,21 +4,8 @@
 // - GET /api/admin/users -> { users: SessionUser[] } (T1.9/T1.10)
 import type { SessionUser } from "./portal-types";
 
-export type AdminMetrics = {
-  appointmentsToday: number;
-  appointmentsWeek: number;
-  totalClients: number;
-  totalVehicles: number;
-  byCategory: { category: "grua" | "serviteca"; label: string; count: number }[];
-  todayAgenda: {
-    id: string;
-    timeSlot: string;
-    serviceName: string;
-    clientName: string;
-    vehiclePlate: string;
-    status: "solicitada" | "confirmada" | "en_proceso" | "finalizada" | "cancelada";
-  }[];
-};
+export type { AdminMetrics } from "./admin-types";
+import type { AdminMetrics } from "./admin-types";
 
 export const MOCK_USERS: SessionUser[] = [
   { id: "u-admin", name: "Carlos Cares", email: "admin@gruascares.cl", role: "admin", phone: "+56 9 9162 7809", isActive: true, createdAt: "2025-03-02T12:00:00.000Z" },
