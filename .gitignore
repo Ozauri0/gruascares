@@ -24,3 +24,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# La raíz usa package-lock.json (npm); bun install genera un bun.lock que no se versiona.
+/bun.lock
