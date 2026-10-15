@@ -3,18 +3,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { demoLoginRequest, fetchSession, loginRequest, logoutRequest, registerRequest, type RegisterInput } from "./auth-api";
 import type { SessionUser, UserRole } from "./portal-types";
-import { clearSessionHint, setSessionHint } from "./session-hint";
+import { HOME_FOR_ROLE } from "./route-guard";
+
+export { HOME_FOR_ROLE };
 
 // Sesión del frontend conectada al backend (issue #50).
 // - La sesión real es la cookie httpOnly `gc_token`; el estado `user` se obtiene de GET /api/auth/me.
 // - Acceso demo sin credenciales: loginAs(role) → POST /api/auth/demo-login (solo con DEMO_MODE en el backend).
 // - login/register usan las rutas reales. Los errores llegan como `ApiError` con mensaje en español.
-
-export const HOME_FOR_ROLE: Record<UserRole, string> = {
-  usuario: "/portal",
-  mecanico: "/mecanico",
-  admin: "/admin",
-};
 
 type AuthContextValue = {
   user: SessionUser | null;
@@ -44,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const establish = useCallback((next: SessionUser) => {
-    setSessionHint(next.role);
     setUser(next);
     return next;
   }, []);
@@ -54,11 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchSession()
       .then((session) => {
         if (cancelled) return;
-        if (session) establish(session);
-        else {
-          clearSessionHint();
-          setUser(null);
-        }
+        setUser(session);
       })
       .catch(() => {
         // Backend inaccesible: no se asume sesión; las pantallas muestran su propio error al pedir datos.
@@ -70,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [establish]);
+  }, []);
 
   const loginAs = useCallback(async (role: UserRole) => establish(await demoLoginRequest(role)), [establish]);
   const login = useCallback(async (email: string, password: string) => establish(await loginRequest(email, password)), [establish]);
@@ -79,7 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await logoutRequest();
     } finally {
-      clearSessionHint();
       setUser(null);
     }
   }, []);
