@@ -93,3 +93,12 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 - **Consecuencias**:
   - Positivas: toda la app usa datos y autorización reales también en la demo; el flujo "Entrar como…" no cambia para quien la usa.
   - Riesgos mitigados: no hay forma de elegir otro correo ni de usarlo en producción. Al salir de demo se borran `config/demo.ts`, el endpoint, `DEMO_MODE` y las cuentas demo.
+
+---
+
+### ADR 009: Los bloques horarios los define el backend
+- **Fecha**: 2026-10-15
+- **Estado**: Aceptado
+- **Contexto**: El frontend generaba 21 bloques ficticios (08:00–18:00 cada 30 min) y el backend ofrece 8 (`DEFAULT_TIME_SLOTS`: 08:30, 09:30, 10:30, 11:30, 14:00, 15:00, 16:00, 17:00) con capacidad por bloque, bloqueos del administrador y hora de Chile.
+- **Decisión**: `GET /api/appointments/availability` es la única fuente de verdad. `/agendar` pinta los bloques que devuelve (disponible, ocupado, ya transcurrido o bloqueado con motivo) y se eliminó el generador de bloques del frontend. Cambiar los horarios del taller es un cambio en `backend/src/config/constants.ts`.
+- **Consecuencias**: la web nunca ofrece un horario que el backend rechazaría; si el taller quiere otros bloques se cambia en un solo lugar (a futuro, desde el panel de administración).
