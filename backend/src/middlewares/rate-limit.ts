@@ -6,12 +6,13 @@ const MINUTE = 60 * 1000;
 type Limit = { windowMs: number; max: number };
 
 /** Límites por defecto (ventana en ms, máximo de peticiones). Ajustables sin tocar los controladores. */
-export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" | "publicAppointment" | "availability", Limit> = {
+export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" | "publicAppointment" | "availability" | "catalog", Limit> = {
   loginPerAccount: { windowMs: 15 * MINUTE, max: 10 }, // IP + correo
   loginPerIp: { windowMs: 15 * MINUTE, max: 100 },
   register: { windowMs: 60 * MINUTE, max: 10 },
   publicAppointment: { windowMs: 60 * MINUTE, max: 10 },
   availability: { windowMs: MINUTE, max: 60 },
+  catalog: { windowMs: MINUTE, max: 120 },
 };
 
 function build(limit: Limit, message: string, keyGenerator?: (req: Request) => string): RateLimitRequestHandler {
@@ -51,5 +52,6 @@ export function createRateLimiters(overrides: Partial<typeof RATE_LIMITS> = {}) 
       "Has enviado muchas solicitudes de agendamiento. Si es urgente, llámanos al +56 9 9162 7809."
     ),
     availability: build(limits.availability, "Demasiadas consultas de disponibilidad. Espera un momento."),
+    catalog: build(limits.catalog, "Demasiadas consultas al catálogo. Espera un momento."),
   };
 }

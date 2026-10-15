@@ -4,6 +4,7 @@ import { relations, sql } from "drizzle-orm";
 // 1. Enums
 export const userRoleEnum = pgEnum("user_role", ["admin", "mecanico", "usuario"]);
 export const serviceCategoryEnum = pgEnum("service_category", ["grua", "serviteca"]);
+export const productArtEnum = pgEnum("product_art", ["tyre", "oil", "battery"]);
 export const appointmentStatusEnum = pgEnum("appointment_status", [
   "solicitada",
   "confirmada",
@@ -228,3 +229,26 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+
+// 9. Tabla Catálogo de productos (tienda visual; precios y stock son referenciales, sin pagos)
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description").default("").notNull(),
+    price: integer("price").default(0).notNull(),
+    stock: integer("stock").default(0).notNull(),
+    category: varchar("category", { length: 100 }).default("GENERAL").notNull(),
+    tag: varchar("tag", { length: 100 }),
+    art: productArtEnum("art").default("oil").notNull(),
+    // URL https o ruta local /images/...; null = arte automático
+    image: varchar("image", { length: 500 }),
+    featured: boolean("featured").default(false).notNull(),
+    active: boolean("active").default(true).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("products_active_idx").on(table.active), index("products_featured_idx").on(table.featured)]
+);

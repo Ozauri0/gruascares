@@ -19,6 +19,7 @@ export async function startServer(options: AppOptions = {}): Promise<TestServer>
       register: high,
       publicAppointment: high,
       availability: high,
+      catalog: high,
       ...options.rateLimits,
     },
   });
