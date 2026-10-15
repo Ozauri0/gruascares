@@ -5,12 +5,16 @@ import {
   saveTechnicalReport,
   getAppointmentReport,
 } from "../controllers/mechanic.controller.js";
+import { listWorkshopStaff } from "../controllers/admin-users.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
 // Todas las rutas de mecánicos requieren autenticación
 router.use(authenticate);
+
+// 0. Personal de taller activo (selector de asignación)
+router.get("/list", authorizeRoles("mecanico", "admin"), listWorkshopStaff);
 
 // 1. Agenda diaria/semanal del taller (mecánicos y administradores)
 router.get("/agenda", authorizeRoles("mecanico", "admin"), getMechanicAgenda);

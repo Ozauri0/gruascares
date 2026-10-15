@@ -8,6 +8,7 @@ import {
   getAuditLogs,
   exportAppointments,
 } from "../controllers/admin.controller.js";
+import { createStaffUser, listUsers, updateUser } from "../controllers/admin-users.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -24,6 +25,11 @@ router.get("/blocked-dates", getBlockedDates);
 router.post("/blocked-dates", createBlockedDate);
 router.delete("/blocked-dates/:id", deleteBlockedDate);
 router.patch("/appointments/:id/assign", reassignAppointmentMechanic);
+
+// Gestión de usuarios y personal
+router.get("/users", listUsers);
+router.post("/users", createStaffUser);
+router.patch("/users/:id", updateUser);
 
 // 3. [T1.10] Auditoría y Respaldo de Datos
 router.get("/audit-logs", getAuditLogs);
