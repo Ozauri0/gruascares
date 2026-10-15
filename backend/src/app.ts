@@ -49,7 +49,10 @@ export function createApp(): Express {
   app.use("/", healthRouter);
   app.use("/api", healthRouter);
   app.use("/api/auth", authRouter);
-  app.use("/api/email", emailRouter);
+  // Utilidades de correo solo fuera de producción (y siempre solo para administradores).
+  if (config.nodeEnv !== "production") {
+    app.use("/api/email", emailRouter);
+  }
   app.use("/api/appointments", appointmentRouter);
   app.use("/api/vehicles", vehicleRouter);
   app.use("/api/mechanic", mechanicRouter);
