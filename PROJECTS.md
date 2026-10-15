@@ -132,4 +132,4 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
   - El jefe de proyecto revisa y aprueba los PRs en `dev`.
 - **Releases a Producción**: Al completar una fase o hito probado en `dev`, se abre un PR de `dev` hacia `main` como versión final.
 - **Commits**: Formato convencional (`feat:`, `fix:`, `refactor:`, `docs:`).
-- **Verificación**: Antes de abrir o mergear un PR, ejecutar `bun run build` y `bun run backend:build`.
+- **Verificación**: Antes de abrir o mergear un PR, ejecutar `bun run build`, `bun run backend:build`, `bun run backend:typecheck` y `bun run backend:test` (requiere Postgres local de `docker compose up -d`).

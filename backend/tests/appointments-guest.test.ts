@@ -59,7 +59,7 @@ describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
 
     // el dueño de la cuenta no ve esa solicitud en su historial
     const mine = await fetch(`${server.url}/api/appointments/my`, { headers: cookieFor(seed.admin) });
-    expect((await mine.json()).appointments).toHaveLength(0);
+    expect(((await mine.json() as any)).appointments).toHaveLength(0);
   });
 
   test("correo inválido o nombre ausente devuelve 400", async () => {
@@ -86,7 +86,7 @@ describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
       body: JSON.stringify({ name: "Nuevo Cliente", email: "nuevo.cliente@test.cl", password: "clave1234" }),
     });
     expect(reg.status).toBe(201);
-    const { user } = await reg.json();
+    const { user } = (await reg.json() as any);
     const token = /gc_token=([^;]+)/.exec(reg.headers.get("set-cookie") ?? "")?.[1];
 
     const [row] = await sql`select user_id, guest_email, guest_name from appointments`;
@@ -94,7 +94,7 @@ describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
     expect(row.guest_email).toBeNull();
 
     const mine = await fetch(`${server.url}/api/appointments/my`, { headers: { Cookie: `gc_token=${token}` } });
-    expect((await mine.json()).appointments).toHaveLength(1);
+    expect(((await mine.json() as any)).appointments).toHaveLength(1);
   });
 
   test("el mecánico ve los datos de contacto del invitado en la agenda", async () => {
@@ -105,7 +105,7 @@ describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
       body: JSON.stringify(guestBody({ serviceId: seed.serviceAceite.id, scheduledDate: date })),
     });
     const res = await fetch(`${server.url}/api/mechanic/agenda?date=${date}`, { headers: cookieFor(seed.mechanic) });
-    const { agenda } = await res.json();
+    const { agenda } = (await res.json() as any);
     expect(agenda).toHaveLength(1);
     expect(agenda[0].client.name).toBe("Invitado Prueba");
     expect(agenda[0].client.email).toBe("invitado@nuevo.cl");

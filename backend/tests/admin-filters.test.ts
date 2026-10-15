@@ -42,20 +42,20 @@ describe.skipIf(!dbReady)("BUG-1: /api/admin/audit-logs", () => {
   test("sin filtros devuelve todos", async () => {
     const res = await get("/api/admin/audit-logs");
     expect(res.status).toBe(200);
-    expect((await res.json()).total).toBe(3);
+    expect(((await res.json() as any)).total).toBe(3);
   });
 
   test("filtra por rango de fechas (antes lanzaba ReferenceError)", async () => {
     const res = await get("/api/admin/audit-logs?startDate=2026-02-01&endDate=2026-02-28");
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = (await res.json() as any);
     expect(data.total).toBe(1);
     expect(data.logs[0].action).toBe("B");
   });
 
   test("endDate sin hora incluye el día completo", async () => {
     const res = await get("/api/admin/audit-logs?startDate=2026-01-10&endDate=2026-01-10");
-    expect((await res.json()).total).toBe(1);
+    expect(((await res.json() as any)).total).toBe(1);
   });
 
   test("fechas inválidas devuelven 400", async () => {
@@ -68,13 +68,13 @@ describe.skipIf(!dbReady)("BUG-1: /api/admin/export/appointments", () => {
   test("json sin filtros", async () => {
     const res = await get("/api/admin/export/appointments");
     expect(res.status).toBe(200);
-    expect((await res.json()).count).toBe(3);
+    expect(((await res.json() as any)).count).toBe(3);
   });
 
   test("filtra por fechas y estado", async () => {
     const res = await get("/api/admin/export/appointments?startDate=2026-01-01&endDate=2026-02-28&status=finalizada");
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = (await res.json() as any);
     expect(data.count).toBe(1);
     expect(data.appointments[0].scheduledDate).toBe("2026-01-10");
   });

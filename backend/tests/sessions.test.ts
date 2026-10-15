@@ -25,7 +25,7 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
   test("token válido de usuario activo accede", async () => {
     const res = await me(cookieFor(seed.clientA));
     expect(res.status).toBe(200);
-    expect((await res.json()).user.email).toBe(seed.clientA.email);
+    expect(((await res.json() as any)).user.email).toBe(seed.clientA.email);
   });
 
   test("usuario desactivado pierde el acceso de inmediato", async () => {
@@ -67,7 +67,7 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
       body: JSON.stringify({ email: seed.clientA.email, password: "password123" }),
     });
     expect(login.status).toBe(200);
-    expect((await login.json()).token).toBeUndefined(); // el token solo viaja en la cookie httpOnly
+    expect(((await login.json() as any)).token).toBeUndefined(); // el token solo viaja en la cookie httpOnly
     const cookie = /gc_token=([^;]+)/.exec(login.headers.get("set-cookie") ?? "")?.[1];
     expect(cookie).toBeTruthy();
     expect((await me({ Cookie: `gc_token=${cookie}` })).status).toBe(200);
@@ -91,7 +91,7 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
       body: JSON.stringify({ name: "Nuevo", email: "nuevo@test.local", password: "clave1234" }),
     });
     expect(res.status).toBe(201);
-    expect((await res.json()).token).toBeUndefined();
+    expect(((await res.json() as any)).token).toBeUndefined();
     expect(res.headers.get("set-cookie")).toContain("HttpOnly");
   });
 });
