@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { db, sql } from "./connection.js";
-import { users, services, vehicles, appointments, serviceRecords } from "./schema.js";
+import { users, services, vehicles, appointments, serviceRecords, products } from "./schema.js";
 import { hashPassword } from "../utils/password.js";
 import { todayInSantiago } from "../utils/dates.js";
 import { DEMO_ACCOUNTS, DEMO_EMAIL_DOMAIN } from "../config/demo.js";
@@ -22,6 +22,21 @@ const BASE_SERVICES = [
   { category: "serviteca" as const, name: "Cambio y balanceo de neumáticos", description: "Montaje, desmontaje y balanceo de neumáticos para autos, camionetas y camiones.", basePrice: 25000, estimatedDurationMin: 60 },
   { category: "serviteca" as const, name: "Mantenimiento general preventivo", description: "Inspección completa de niveles, correas, suspensión, fluidos y sistema eléctrico.", basePrice: 65000, estimatedDurationMin: 120 },
   { category: "serviteca" as const, name: "Revisión y cambio de pastillas de freno", description: "Diagnóstico del sistema de frenado, cambio de pastillas y rectificación si aplica.", basePrice: 40000, estimatedDurationMin: 90 },
+];
+
+// Productos de la tienda visual (precios y stock referenciales; no hay pagos online).
+const BASE_PRODUCTS = [
+  { name: "Neumáticos para camión", description: "Opciones para trabajo pesado y recorridos exigentes.", price: 189990, stock: 8, category: "TOP VENTAS", tag: "TOP VENTA 01", art: "tyre" as const, featured: true },
+  { name: "Aceite de motor", description: "Lubricación para mantener tu vehículo en movimiento.", price: 32990, stock: 24, category: "TOP VENTAS", tag: "TOP VENTA 02", art: "oil" as const, featured: true },
+  { name: "Baterías", description: "Energía confiable para autos, camiones y maquinaria.", price: 89990, stock: 6, category: "TOP VENTAS", tag: "TOP VENTA 03", art: "battery" as const, featured: true },
+  { name: "Filtros de aceite y aire", description: "Insumos para el mantenimiento periódico de tu vehículo.", price: 12990, stock: 18, category: "MANTENCIÓN", tag: null, art: "oil" as const, featured: false },
+  { name: "Pastillas de freno", description: "Componentes para una conducción más segura.", price: 46990, stock: 12, category: "SEGURIDAD", tag: null, art: "tyre" as const, featured: false },
+  { name: "Refrigerante", description: "Protección para el sistema de enfriamiento.", price: 9990, stock: 15, category: "MANTENCIÓN", tag: null, art: "battery" as const, featured: false },
+  { name: "Kit de emergencia", description: "Elementos esenciales para llevar siempre contigo.", price: 24990, stock: 9, category: "SEGURIDAD", tag: null, art: "oil" as const, featured: false },
+  { name: "Accesorios para carga", description: "Implementos para organizar y asegurar tu carga.", price: 39990, stock: 7, category: "TRANSPORTE", tag: null, art: "tyre" as const, featured: false },
+  { name: "Luces de trabajo LED", description: "Iluminación auxiliar para trabajo y carretera.", price: 54990, stock: 11, category: "EQUIPAMIENTO", tag: null, art: "battery" as const, featured: false },
+  { name: "Plumillas limpiaparabrisas", description: "Repuestos para una mejor visibilidad en ruta.", price: 8990, stock: 20, category: "MANTENCIÓN", tag: null, art: "oil" as const, featured: false },
+  { name: "Cables de batería", description: "Apoyo de arranque para llevar siempre en tu vehículo.", price: 17990, stock: 5, category: "EMERGENCIA", tag: null, art: "tyre" as const, featured: false },
 ];
 
 async function seed() {
@@ -60,6 +75,12 @@ async function seed() {
   const missing = BASE_SERVICES.filter((s) => !existingNames.has(s.name));
   if (missing.length > 0) await db.insert(services).values(missing);
   const serviceByName = Object.fromEntries((await db.select().from(services)).map((s) => [s.name, s]));
+
+  // 2.1 Catálogo de productos (solo los que faltan)
+  console.log("-> Catálogo de productos...");
+  const existingProducts = new Set((await db.select({ name: products.name }).from(products)).map((p) => p.name));
+  const missingProducts = BASE_PRODUCTS.map((p, index) => ({ ...p, sortOrder: index })).filter((p) => !existingProducts.has(p.name));
+  if (missingProducts.length > 0) await db.insert(products).values(missingProducts);
 
   // 3. Vehículos de los clientes demo
   console.log("-> Vehículos demo...");

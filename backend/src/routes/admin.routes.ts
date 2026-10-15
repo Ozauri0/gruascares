@@ -8,6 +8,7 @@ import {
   getAuditLogs,
   exportAppointments,
 } from "../controllers/admin.controller.js";
+import { createProduct, deleteProduct, getAdminCatalog, updateProduct } from "../controllers/catalog.controller.js";
 import { createStaffUser, listUsers, updateUser } from "../controllers/admin-users.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -30,6 +31,12 @@ router.patch("/appointments/:id/assign", reassignAppointmentMechanic);
 router.get("/users", listUsers);
 router.post("/users", createStaffUser);
 router.patch("/users/:id", updateUser);
+
+// Catálogo de productos (la lectura pública está en GET /api/catalog)
+router.get("/catalog", getAdminCatalog);
+router.post("/catalog", createProduct);
+router.patch("/catalog/:id", updateProduct);
+router.delete("/catalog/:id", deleteProduct);
 
 // 3. [T1.10] Auditoría y Respaldo de Datos
 router.get("/audit-logs", getAuditLogs);

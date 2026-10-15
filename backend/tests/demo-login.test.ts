@@ -51,13 +51,14 @@ describe.skipIf(!dbReady)("INT-2: POST /api/auth/demo-login", () => {
     expect(first.exitCode).toBe(0);
     const counts = async () =>
       JSON.stringify(
-        (await sql`select (select count(*) from users) u, (select count(*) from services) s, (select count(*) from vehicles) v, (select count(*) from appointments) a, (select count(*) from service_records) r`)[0]
+        (await sql`select (select count(*) from users) u, (select count(*) from services) s, (select count(*) from vehicles) v, (select count(*) from appointments) a, (select count(*) from service_records) r, (select count(*) from products) p`)[0]
       );
     const before = await counts();
     expect(runSeed().exitCode).toBe(0);
     expect(await counts()).toBe(before);
     const row = (await sql`select count(*)::int as n from users where email like '%@demo.test'`)[0];
     expect(row.n).toBe(5);
+    expect((await sql`select count(*)::int as n from products`)[0].n).toBe(11);
   });
 
   test("sin DEMO_MODE el endpoint no existe (404)", async () => {

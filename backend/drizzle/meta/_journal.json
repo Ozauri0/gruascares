@@ -29,6 +29,13 @@
       "when": 1792093051252,
       "tag": "0003_session_token_version",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792095575720,
+      "tag": "0004_products_catalog",
+      "breakpoints": true
     }
   ]
 }
