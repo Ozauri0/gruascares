@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import InnerHeader from "../components/InnerHeader";
 import { HOME_FOR_ROLE, useAuth } from "../lib/auth";
 import type { UserRole } from "../lib/portal-types";
@@ -24,12 +24,17 @@ function redirectTarget(): string | null {
 }
 
 export default function LoginPage() {
-  const { loginAs, login } = useAuth();
+  const { user, loginAs, login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [demoError, setDemoError] = useState("");
   const [busy, setBusy] = useState<UserRole | "form" | null>(null);
+
+  // Con sesión activa no se vuelve a pedir el acceso: se va directo al portal del rol.
+  useEffect(() => {
+    if (user && busy === null) window.location.replace(redirectTarget() ?? HOME_FOR_ROLE[user.role]);
+  }, [user, busy]);
 
   function goHome(role: UserRole) {
     window.location.href = redirectTarget() ?? HOME_FOR_ROLE[role];

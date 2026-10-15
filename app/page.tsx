@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import SocialLinks from "./components/SocialLinks";
+import { HOME_FOR_ROLE, useAuth } from "./lib/auth";
 
 const imageBase = "/images/";
 const logo = "/images/logo.png";
@@ -18,6 +19,7 @@ const services = [
 ];
 
 export default function Home() {
+  const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sent, setSent] = useState(false);
   const [service, setService] = useState("Rescate vehicular");
@@ -50,7 +52,7 @@ export default function Home() {
           <a href="#nosotros" onClick={() => setMenuOpen(false)}>Nosotros</a>
           <a href="#servicios" onClick={() => setMenuOpen(false)}>Servicios</a>
           <a href="/catalogo" onClick={() => setMenuOpen(false)}>Catálogo</a>
-          <a href="/login" onClick={() => setMenuOpen(false)}>Portal</a>
+          <a href={user ? HOME_FOR_ROLE[user.role] : "/login"} onClick={() => setMenuOpen(false)}>Portal</a>
           <a href="#contacto" onClick={() => setMenuOpen(false)}>Contacto</a>
         </div>
         <a className="nav-cta" href="/agendar">Agendar servicio <span>↗</span></a>

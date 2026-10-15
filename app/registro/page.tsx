@@ -1,18 +1,22 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import InnerHeader from "../components/InnerHeader";
 import { ApiError } from "../lib/api";
 import { HOME_FOR_ROLE, useAuth } from "../lib/auth";
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { user, register } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; form?: string }>({});
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (user && !busy) window.location.replace(HOME_FOR_ROLE[user.role]);
+  }, [user, busy]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
