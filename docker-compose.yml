@@ -5,10 +5,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgrespassword} # cambiar fuera de local
       POSTGRES_DB: gruas_cares
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432" # solo accesible desde esta máquina
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

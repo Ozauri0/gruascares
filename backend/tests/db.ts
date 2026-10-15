@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../src/utils/password.js";
 import { sql as rawSql, db } from "../src/db/connection.js";
 import { users, services, vehicles } from "../src/db/schema.js";
 import { generateToken } from "../src/utils/jwt.js";
@@ -24,7 +24,7 @@ export interface Seed {
 
 /** Datos mínimos y deterministas para las pruebas de integración. */
 export async function seedBasics(): Promise<Seed> {
-  const hash = await bcrypt.hash("password123", 4);
+  const hash = await hashPassword("password123");
   const [admin, mechanic, clientA, clientB] = await db
     .insert(users)
     .values([

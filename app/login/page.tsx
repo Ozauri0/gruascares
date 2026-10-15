@@ -11,10 +11,16 @@ const DEMO_ACCOUNTS: { role: UserRole; label: string; email: string }[] = [
   { role: "admin", label: "Admin", email: "admin@gruascares.cl" },
 ];
 
+// Solo rutas internas: rechaza "//host", "/\\host" y cualquier URL que resuelva a otro origen.
 function redirectTarget(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  const redirect = params.get("redirect");
-  return redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//") || redirect.includes("\\")) return null;
+  try {
+    const url = new URL(redirect, window.location.origin);
+    return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : null;
+  } catch {
+    return null;
+  }
 }
 
 export default function LoginPage() {

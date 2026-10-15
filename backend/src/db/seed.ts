@@ -1,15 +1,21 @@
 import { todayInSantiago } from "../utils/dates.js";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../utils/password.js";
 import { db, sql } from "./connection.js";
 import { users, services, vehicles, appointments, serviceRecords } from "./schema.js";
 
 async function seed() {
+  // Crea cuentas con contraseñas conocidas (admin1234, etc.): jamás en producción.
+  if ((process.env.NODE_ENV || "production") === "production") {
+    console.error("❌ db:seed está bloqueado en producción (crea usuarios con contraseñas conocidas). Define NODE_ENV=development solo en entornos locales.");
+    process.exit(1);
+  }
+
   console.log("🌱 Iniciando seed de la base de datos de Grúas Cares...");
 
   // 1. Password Hashes
-  const adminPassword = await bcrypt.hash("admin1234", 10);
-  const mechanicPassword = await bcrypt.hash("mecanico1234", 10);
-  const clientPassword = await bcrypt.hash("cliente1234", 10);
+  const adminPassword = await hashPassword("admin1234");
+  const mechanicPassword = await hashPassword("mecanico1234");
+  const clientPassword = await hashPassword("cliente1234");
 
   // 2. Usuarios Iniciales
   console.log("-> Creando usuarios iniciales...");
