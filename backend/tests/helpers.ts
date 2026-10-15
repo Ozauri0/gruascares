@@ -9,7 +9,19 @@ export interface TestServer {
 }
 
 export async function startServer(options: AppOptions = {}): Promise<TestServer> {
-  const app = createApp(options);
+  // Límites muy altos por defecto para que las pruebas funcionales no se bloqueen entre sí.
+  const high = { windowMs: 60_000, max: 100_000 };
+  const app = createApp({
+    ...options,
+    rateLimits: {
+      loginPerAccount: high,
+      loginPerIp: high,
+      register: high,
+      publicAppointment: high,
+      availability: high,
+      ...options.rateLimits,
+    },
+  });
   const server: Server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
