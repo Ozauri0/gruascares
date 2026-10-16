@@ -11,6 +11,8 @@ import { ALL_FIELDS, DEFAULTS, SECTIONS, resolve } from "../../lib/site-content"
 type Panel = "elemento" | "campos";
 type Device = "escritorio" | "movil";
 
+const DESKTOP_WIDTH = 1280;
+
 const PAGES = [
   { path: "/", label: "Inicio" },
   { path: "/catalogo", label: "Tienda" },
@@ -28,6 +30,24 @@ export default function ContentAdminPage() {
   const [previewPath, setPreviewPath] = useState("/");
   const [menuOpen, setMenuOpen] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ width: 0, height: 0 });
+
+  // La vista de escritorio se dibuja a 1280 px reales y se reduce para caber (así se ve el diseño de escritorio de verdad).
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const measure = () => setBox({ width: el.clientWidth, height: el.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [saved]);
+  const scale = device === "escritorio" && box.width > 0 ? Math.min(1, box.width / DESKTOP_WIDTH) : 1;
+  const frameStyle: React.CSSProperties =
+    device === "escritorio"
+      ? { width: scale < 1 ? DESKTOP_WIDTH : "100%", height: scale < 1 ? box.height / scale : "100%", transform: scale < 1 ? `scale(${scale})` : undefined, transformOrigin: "top left" }
+      : {};
 
   const load = useCallback(() => {
     setError("");
@@ -143,8 +163,8 @@ export default function ContentAdminPage() {
                     <button type="button" className="toggle-btn ve-open-menu" onClick={() => setMenuOpen((o) => !o)}>{menuOpen ? "Cerrar editor" : "Abrir editor"}</button>
                     <a className="toggle-btn" href={previewPath} target="_blank" rel="noreferrer">Abrir sitio ↗</a>
                   </div>
-                  <div className={`ve-frame-wrap ${device}`}>
-                    <iframe ref={frame} key={previewPath} src={`${previewPath}?editar=1`} title="Vista previa editable del sitio" onLoad={push} />
+                  <div ref={wrap} className={`ve-frame-wrap ${device}`}>
+                    <iframe ref={frame} style={frameStyle} key={previewPath} src={`${previewPath}?editar=1`} title="Vista previa editable del sitio" onLoad={push} />
                   </div>
                 </section>
 
