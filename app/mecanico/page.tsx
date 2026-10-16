@@ -8,7 +8,9 @@ import StatusBadge from "../components/StatusBadge";
 import { todayInSantiago } from "../lib/dates";
 import { useAgenda } from "../lib/use-agenda";
 import { usePendingRequests } from "../lib/use-pending-requests";
-import { changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
+import { assignAppointmentMechanic, changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
+import { listStaff } from "../lib/admin-api";
+import type { StaffMember } from "../lib/admin-types";
 import type { AgendaItem } from "../lib/workshop-types";
 import type { AppointmentStatus } from "../lib/portal-types";
 import Skeleton from "../components/Skeleton";
@@ -16,7 +18,6 @@ import Icon from "../components/Icon";
 
 const FILTERS: { value: AppointmentStatus | "todas"; label: string }[] = [
   { value: "todas", label: "Todas" },
-  { value: "solicitada", label: "Solicitadas" },
   { value: "confirmada", label: "Confirmadas" },
   { value: "en_proceso", label: "En taller" },
   { value: "finalizada", label: "Finalizadas" },
@@ -36,12 +37,14 @@ const prettyDay = (iso: string) => {
 type ReportDraft = { mileage: string; observations: string; parts: string; recommendations: string };
 
 export default function MechanicPage() {
-  const [date, setDate] = useState(""); // vacío = todos los días
-  const { agenda, loading, error, reload } = useAgenda(date);
+  const { agenda, loading, error, reload } = useAgenda(""); // todos los días
   const pending = usePendingRequests();
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [pendingError, setPendingError] = useState("");
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [mechanicChoice, setMechanicChoice] = useState("");
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [filter, setFilter] = useState<AppointmentStatus | "todas">("todas");
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ReportDraft>({ mileage: "", observations: "", parts: "", recommendations: "" });
@@ -50,7 +53,9 @@ export default function MechanicPage() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  const visible = agenda
+  // Las solicitudes sin confirmar se atienden arriba; aquí va el resto de la agenda.
+  const scheduled = agenda.filter((item) => item.status !== "solicitada");
+  const visible = scheduled
     .filter((item) => filter === "todas" || item.status === filter)
     .sort((a, b) => a.date.localeCompare(b.date) || a.timeSlot.localeCompare(b.timeSlot));
 
@@ -66,6 +71,13 @@ export default function MechanicPage() {
 
   const current = agenda.find((item) => item.id === openId);
 
+  // Personal de taller para el selector "Mecánico a cargo".
+  useEffect(() => {
+    const controller = new AbortController();
+    listStaff(controller.signal).then(setStaff).catch(() => setStaff([]));
+    return () => controller.abort();
+  }, []);
+
   useEffect(() => {
     if (!openId) return;
     const onKey = (event: KeyboardEvent) => {
@@ -80,6 +92,8 @@ export default function MechanicPage() {
     setDraftError("");
     setActionError("");
     setFinishedId(null);
+    setConfirmCancel(false);
+    setMechanicChoice(item.mechanicId ?? "");
     setOpenId(item.id);
   }
 
@@ -97,6 +111,38 @@ export default function MechanicPage() {
       setDecidingId(null);
       pending.reload(); // también si falló: otra persona del taller pudo resolverla antes
       reload();
+    }
+  }
+
+  async function cancel(item: AgendaItem) {
+    if (busy) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await changeAppointmentStatus(item.id, "cancelada");
+      setOpenId(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo cancelar la cita.");
+    } finally {
+      setBusy(false);
+      setConfirmCancel(false);
+      reload();
+      pending.reload();
+    }
+  }
+
+  async function saveMechanic(item: AgendaItem) {
+    if (busy || !mechanicChoice || mechanicChoice === item.mechanicId) return;
+    setBusy(true);
+    setActionError("");
+    try {
+      await assignAppointmentMechanic(item.id, mechanicChoice);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo cambiar el mecánico.");
+    } finally {
+      setBusy(false);
+      reload();
+      pending.reload();
     }
   }
 
@@ -162,7 +208,6 @@ export default function MechanicPage() {
             <h1>Agenda del <em>mecánico.</em></h1>
           </div>
           <div>
-            <p className="portal-subtext">Todas las citas del taller por día y horario, con sus estados: confirma solicitudes, avanza el trabajo y emite informes técnicos.</p>
             <LogoutButton />
           </div>
         </section>
@@ -205,11 +250,13 @@ export default function MechanicPage() {
                         <p><Icon name="user" /><b>Cliente:</b> {item.clientName}{item.clientPhone && <> · <Icon name="phone" /><a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a></>}</p>
                         <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
                         {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
+                        <p className="portal-meta"><Icon name="wrench" /><b>Mecánico a cargo:</b> {item.mechanicName ?? "Sin asignar"}</p>
                       </div>
                       <div className="vehicle-actions mechanic-actions pending-actions">
                         <button type="button" className="button-accent" disabled={!!decidingId} onClick={() => void decide(item, "confirmada")}>
                           {working ? "Guardando…" : <><Icon name="check" />Confirmar cita</>}
                         </button>
+                        <button type="button" className="toggle-btn" disabled={!!decidingId} onClick={() => openSheet(item)}><Icon name="clipboard" />Ficha y mecánico</button>
                         {confirmCancelId === item.id ? (
                           <>
                             <button type="button" className="toggle-btn danger" disabled={!!decidingId} onClick={() => void decide(item, "cancelada")}>Sí, cancelar</button>
@@ -228,18 +275,9 @@ export default function MechanicPage() {
 
           <section aria-label="Agenda del taller" className="workshop-layout">
             <aside className="workshop-side">
-              <div className="workshop-bar">
-                <label>
-                  Ver un solo día (opcional)
-                  <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-                </label>
-                <button type="button" className={date === todayIso ? "filter-pill selected" : "filter-pill"} onClick={() => setDate(todayIso)}><Icon name="calendar" />Hoy</button>
-                <button type="button" className={date === "" ? "filter-pill selected" : "filter-pill"} onClick={() => setDate("")}>Todos los días</button>
-              </div>
-
               <div className="workshop-filters" role="tablist" aria-label="Filtrar por estado">
                 {FILTERS.map((option) => {
-                  const count = agenda.filter((item) => option.value === "todas" || item.status === option.value).length;
+                  const count = scheduled.filter((item) => option.value === "todas" || item.status === option.value).length;
                   return (
                     <button
                       key={option.value}
@@ -268,7 +306,7 @@ export default function MechanicPage() {
             ) : visible.length === 0 ? (
               <div className="portal-empty-card">
                 <p>No hay citas con ese filtro.</p>
-                <button type="button" className="button button-sm" onClick={() => { setDate(""); setFilter("todas"); }}>
+                <button type="button" className="button button-sm" onClick={() => setFilter("todas")}>
                   Ver todas las citas
                 </button>
               </div>
@@ -383,6 +421,37 @@ export default function MechanicPage() {
                     <button type="button" className="button" disabled={busy} onClick={() => void advance(current)}>
                       {busy ? "Guardando…" : <>{NEXT_STATUS[current.status]?.label} <span>↗</span></>}
                     </button>
+                  </div>
+                )}
+
+                {(current.status === "solicitada" || current.status === "confirmada" || current.status === "en_proceso") && (
+                  <div className="sheet-mechanic">
+                    <label>
+                      Mecánico a cargo
+                      <select value={mechanicChoice} disabled={busy} onChange={(event) => setMechanicChoice(event.target.value)}>
+                        <option value="">{current.mechanicId ? "Elige un mecánico…" : "Sin mecánico asignado"}</option>
+                        {staff.map((member) => (
+                          <option key={member.id} value={member.id}>{member.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button type="button" className="button button-sm" disabled={busy || !mechanicChoice || mechanicChoice === current.mechanicId} onClick={() => void saveMechanic(current)}>
+                      {busy ? "Guardando…" : "Cambiar mecánico"}
+                    </button>
+                  </div>
+                )}
+
+                {(current.status === "solicitada" || current.status === "confirmada") && (
+                  <div className="sheet-cancel">
+                    {confirmCancel ? (
+                      <>
+                        <span>¿Cancelar esta cita? Se avisará al cliente.</span>
+                        <button type="button" className="toggle-btn danger" disabled={busy} onClick={() => void cancel(current)}>Sí, cancelar cita</button>
+                        <button type="button" className="toggle-btn" disabled={busy} onClick={() => setConfirmCancel(false)}>No</button>
+                      </>
+                    ) : (
+                      <button type="button" className="toggle-btn danger" disabled={busy} onClick={() => setConfirmCancel(true)}><Icon name="x" />Cancelar cita</button>
+                    )}
                   </div>
                 )}
 

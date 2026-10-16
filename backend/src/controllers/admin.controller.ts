@@ -862,6 +862,13 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
       });
     }
 
+    if (existingAppointment.status === "finalizada" || existingAppointment.status === "cancelada") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "La cita ya está finalizada o cancelada: no se puede cambiar su mecánico",
+      });
+    }
+
     const [updatedAppointment] = await db
       .update(appointments)
       .set({
