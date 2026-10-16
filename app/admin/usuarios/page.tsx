@@ -12,16 +12,18 @@ const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
   { value: "todos", label: "Todos los roles" },
   { value: "usuario", label: "Clientes" },
   { value: "mecanico", label: "Mecánicos" },
+  { value: "vendedor", label: "Vendedores" },
   { value: "admin", label: "Administradores" },
 ];
 
 const ROLE_LABELS: Record<UserRole, string> = {
   usuario: "Cliente",
   mecanico: "Mecánico",
+  vendedor: "Vendedor",
   admin: "Administrador",
 };
 
-type StaffForm = { name: string; email: string; phone: string; role: "mecanico" | "admin"; password: string };
+type StaffForm = { name: string; email: string; phone: string; role: "mecanico" | "vendedor" | "admin"; password: string };
 
 export default function UsersPage() {
   const [query, setQuery] = useState("");
@@ -215,7 +217,7 @@ export default function UsersPage() {
                 <label>Teléfono<input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+56 9 ..." autoComplete="off" /></label>
               </div>
               <div className="form-row">
-                <label>Rol *<select value={form.role} onChange={(e) => set("role", e.target.value)}><option value="mecanico">Mecánico</option><option value="admin">Administrador</option></select></label>
+                <label>Rol *<select value={form.role} onChange={(e) => set("role", e.target.value)}><option value="mecanico">Mecánico</option><option value="vendedor">Vendedor (catálogo)</option><option value="admin">Administrador</option></select></label>
                 <label>Contraseña inicial *<input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />{errors.password && <small className="field-error">{errors.password}</small>}</label>
               </div>
               {errors.form && <small className="field-error" role="alert">{errors.form}</small>}

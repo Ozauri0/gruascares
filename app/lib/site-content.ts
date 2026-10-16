@@ -135,11 +135,17 @@ export const SECTIONS: ContentSection[] = [
   {
     id: "footer",
     title: "Pie de página",
-    description: "Los teléfonos no se editan aquí: son datos verificados del negocio.",
+    description: "Los enlaces a redes sociales no se editan. Si cambias un teléfono, usa el formato +56 9 XXXX XXXX.",
     fields: [
+      text("footer.contact.title", "Título de contactos", "Contacto emergencia"),
+      text("footer.phone1", "Teléfono 1", "+56 9 9162 7809"),
+      text("footer.phone2", "Teléfono 2", "+56 9 6832 7329"),
+      text("footer.phone3", "Teléfono 3 (solo portada)", "+56 9 6857 4677"),
+      text("footer.social.title", "Título de redes (solo portada)", "Síguenos"),
+      text("footer.location.title", "Título de ubicación (páginas internas)", "Ubicación"),
       text("footer.bottom1", "Línea inferior 1", "Grúas Cares Villarrica"),
       text("footer.bottom2", "Línea inferior 2", "IX Región de la Araucanía y alrededores"),
-      text("footer.inner1", "Pie de páginas internas: línea 1", "Villarrica · IX Región"),
+      text("footer.inner1", "Pie de páginas internas: línea 1", "Villarrica, IX Región"),
       text("footer.inner2", "Pie de páginas internas: línea 2", "La Araucanía y alrededores"),
     ],
   },
@@ -160,6 +166,11 @@ export const DEFAULTS: Record<string, string> = Object.fromEntries(ALL_FIELDS.ma
 export type ContentOverrides = Record<string, string>;
 
 /** Interruptor (no es un texto editable): "1" oculta la sección Top ventas de /catalogo. Se cambia desde /admin/catalogo. */
+/** Enlace `tel:` de un teléfono escrito libremente ("+56 9 9162 7809" → "tel:+56991627809"). */
+export function telHref(phone: string): string {
+  return `tel:+${phone.replace(/\D/g, "")}`;
+}
+
 export const SHOP_TOP_HIDDEN_KEY = "shop.top.hidden";
 
 /** Valor de un campo: lo editado por el admin o, si no hay, el original. */

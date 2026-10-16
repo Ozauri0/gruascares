@@ -153,7 +153,7 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
 });
 
 describe.skipIf(!dbReady)("INT-10: PATCH /api/auth/me", () => {
-  const patch = (user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" }, body: unknown) =>
+  const patch = (user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" }, body: unknown) =>
     fetch(`${server.url}/api/auth/me`, { method: "PATCH", headers: cookieFor(user), body: JSON.stringify(body) });
 
   test("edita nombre y teléfono, sin tocar correo ni rol", async () => {

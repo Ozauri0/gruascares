@@ -24,6 +24,39 @@ function merge(published: Record<string, string>, draft: Record<string, string |
   return values;
 }
 
+/** Mover un elemento fijo arrastrando su "asa" (ratón o dedo), sin sacarlo de la pantalla. */
+function useDrag<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const drag = useRef<{ sx: number; sy: number; ox: number; oy: number; minX: number; maxX: number; minY: number; maxY: number } | null>(null);
+  const handle = {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      drag.current = {
+        sx: e.clientX, sy: e.clientY, ox: pos.x, oy: pos.y,
+        minX: pos.x - r.left, maxX: pos.x + (window.innerWidth - r.right),
+        minY: pos.y - r.top, maxY: pos.y + (window.innerHeight - r.bottom),
+      };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      const d = drag.current;
+      if (!d) return;
+      setPos({
+        x: Math.min(d.maxX, Math.max(d.minX, d.ox + e.clientX - d.sx)),
+        y: Math.min(d.maxY, Math.max(d.minY, d.oy + e.clientY - d.sy)),
+      });
+    },
+    onPointerUp: () => { drag.current = null; },
+    onPointerCancel: () => { drag.current = null; },
+  };
+  const style = { "--dx": `${pos.x}px`, "--dy": `${pos.y}px` } as React.CSSProperties;
+  return { ref, style, handle };
+}
+
 /**
  * Modo edición del sitio (solo administradores): un botón en la página pública abre el editor sobre la propia
  * página. Lo que se edita se guarda como borrador y solo el público lo ve al "Publicar".
@@ -33,6 +66,8 @@ export default function ContentEditor() {
   const pathname = usePathname();
   const router = useRouter();
   const setPreview = useContentPreview();
+  const barDrag = useDrag<HTMLDivElement>();
+  const panelDrag = useDrag<HTMLElement>();
   const allowed = user?.role === "admin" && EDITABLE_PATHS.includes(pathname);
 
   const [editing, setEditing] = useState(false);
@@ -244,8 +279,8 @@ export default function ContentEditor() {
     <>
       <div ref={box} data-gc-ui aria-hidden="true" className="ed-outline" />
 
-      <div className="ed-bar" data-gc-ui role="region" aria-label="Modo edición">
-        <span className="ed-badge"><i aria-hidden="true" /> Modo edición</span>
+      <div className="ed-bar" ref={barDrag.ref} style={barDrag.style} data-gc-ui role="region" aria-label="Modo edición">
+        <span className="ed-badge ed-grip" title="Arrastra para mover el menú" {...barDrag.handle}><b aria-hidden="true">⠿</b><i aria-hidden="true" /> Modo edición</span>
         <span className="ed-status" aria-live="polite">{message ? <span className={message.error ? "ed-error" : ""}>{message.text}</span> : status}</span>
         <span className="ed-actions">
           <button type="button" className="toggle-btn" onClick={() => setPanelOpen((o) => !o)}>{panelOpen ? "Ocultar panel" : "Mostrar panel"}</button>
@@ -265,8 +300,9 @@ export default function ContentEditor() {
       </div>
 
       {panelOpen && (
-        <aside className="ed-panel" data-gc-ui aria-label="Editor de contenido">
+        <aside className="ed-panel" ref={panelDrag.ref} style={panelDrag.style} data-gc-ui aria-label="Editor de contenido">
           <div className="ed-panel-head">
+            <span className="ed-grip ed-panel-grip" title="Arrastra para mover el panel" {...panelDrag.handle}><b aria-hidden="true">⠿</b></span>
             <div className="cms-tabs ve-tabs" role="tablist" aria-label="Editor">
               <button type="button" role="tab" aria-selected={tab === "elemento"} className={tab === "elemento" ? "on" : ""} onClick={() => setTab("elemento")}>Elemento</button>
               <button type="button" role="tab" aria-selected={tab === "campos"} className={tab === "campos" ? "on" : ""} onClick={() => setTab("campos")}>Todos los campos</button>

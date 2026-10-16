@@ -40,7 +40,7 @@ describe.skipIf(!dbReady)("INT-10: catálogo", () => {
     seed = await seedBasics();
   });
 
-  type U = { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" };
+  type U = { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" };
   const admin = (user: U, method: string, path: string, body?: unknown) =>
     fetch(`${server.url}${path}`, { method, headers: cookieFor(user), body: body === undefined ? undefined : JSON.stringify(body) });
   const product = { name: "Neumático 295/80", description: "Para camión", price: 189990, stock: 8, category: "top ventas", art: "tyre", featured: true };
@@ -113,11 +113,24 @@ describe.skipIf(!dbReady)("INT-10: catálogo", () => {
     expect((await admin(seed.admin, "PATCH", `/api/admin/catalog/${id}`, {})).status).toBe(400);
   });
 
-  test("solo administradores modifican el catálogo", async () => {
+  test("administradores y vendedores modifican el catálogo; mecánicos y clientes no", async () => {
     for (const user of [seed.mechanic, seed.clientA]) {
       expect((await admin(user, "POST", "/api/admin/catalog", product)).status).toBe(403);
       expect((await admin(user, "GET", "/api/admin/catalog")).status).toBe(403);
     }
     expect((await fetch(`${server.url}/api/admin/catalog`, { method: "POST" })).status).toBe(401);
+  });
+
+  test("el vendedor gestiona el catálogo pero no el resto de la administración", async () => {
+    const created = await admin(seed.seller, "POST", "/api/admin/catalog", product);
+    expect(created.status).toBe(201);
+    const { id } = ((await created.json()) as any).product;
+    expect((await admin(seed.seller, "PATCH", `/api/admin/catalog/${id}`, { price: 1000, stock: 2 })).status).toBe(200);
+    expect((await admin(seed.seller, "GET", "/api/admin/catalog")).status).toBe(200);
+    expect((await admin(seed.seller, "DELETE", `/api/admin/catalog/${id}`)).status).toBe(200);
+    for (const path of ["/api/admin/metrics", "/api/admin/users", "/api/admin/audit-logs", "/api/admin/blocked-dates"]) {
+      expect((await admin(seed.seller, "GET", path)).status).toBe(403);
+    }
+    expect((await admin(seed.seller, "PUT", "/api/admin/content", { values: { "shop.top.hidden": "1" } })).status).toBe(403);
   });
 });

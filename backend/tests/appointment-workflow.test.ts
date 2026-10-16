@@ -25,9 +25,9 @@ async function createAppointment(status: string, over: { notes?: string; vehicle
   return row.id as string;
 }
 
-const patchStatus = (id: string, user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" }, body: unknown) =>
+const patchStatus = (id: string, user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" }, body: unknown) =>
   fetch(`${server.url}/api/mechanic/appointments/${id}/status`, { method: "PATCH", headers: cookieFor(user), body: JSON.stringify(body) });
-const postReport = (id: string, user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" }, body: unknown) =>
+const postReport = (id: string, user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" }, body: unknown) =>
   fetch(`${server.url}/api/mechanic/appointments/${id}/report`, { method: "POST", headers: cookieFor(user), body: JSON.stringify(body) });
 const statusOf = async (id: string) => (await sql`select status from appointments where id = ${id}`)[0].status as string;
 
@@ -147,7 +147,7 @@ describe.skipIf(!dbReady)("BUG-4: informe técnico", () => {
 });
 
 describe.skipIf(!dbReady)("BUG-4: cancelación", () => {
-  const cancel = (id: string, user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" }) =>
+  const cancel = (id: string, user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" }) =>
     fetch(`${server.url}/api/appointments/${id}/cancel`, { method: "PATCH", headers: cookieFor(user) });
 
   test("el cliente cancela su cita solicitada o confirmada", async () => {
@@ -180,7 +180,7 @@ describe.skipIf(!dbReady)("BUG-4: cancelación", () => {
 });
 
 describe.skipIf(!dbReady)("INT-8: agenda del mecánico", () => {
-  const agenda = async (user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" }, query = "") => {
+  const agenda = async (user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" }, query = "") => {
     const res = await fetch(`${server.url}/api/mechanic/agenda${query}`, { headers: cookieFor(user) });
     return { status: res.status, body: (await res.json()) as any };
   };

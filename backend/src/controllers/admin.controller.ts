@@ -98,6 +98,7 @@ export async function getAdminMetrics(_req: Request, res: Response) {
       admin: 0,
       mecanico: 0,
       usuario: 0,
+      vendedor: 0,
     };
     let totalUsers = 0;
 

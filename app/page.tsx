@@ -1,17 +1,17 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import CartLink from "./components/CartLink";
+import NavUser from "./components/NavUser";
 import SocialLinks from "./components/SocialLinks";
 import { useSiteContent } from "./components/SiteContentProvider";
 import { RichText } from "./components/RichText";
-import { DEFAULTS } from "./lib/site-content";
-import { HOME_FOR_ROLE, firstName, useAuth } from "./lib/auth";
+import { DEFAULTS, telHref } from "./lib/site-content";
 
 const SLIDE_NUMBERS = [1, 2, 3, 4];
 const SERVICE_NUMBERS = [1, 2, 3];
 
 export default function Home() {
-  const { user } = useAuth();
   const t = useSiteContent();
   const logo = t("site.logo.image");
   const slides = SLIDE_NUMBERS.map((n) => ({ image: t(`hero.slide${n}.image`), label: t(`hero.slide${n}.label`), detail: t(`hero.slide${n}.detail`) }));
@@ -55,9 +55,10 @@ export default function Home() {
           <a href="#nosotros" onClick={() => setMenuOpen(false)}>Nosotros</a>
           <a href="#servicios" onClick={() => setMenuOpen(false)}>Servicios</a>
           <a href="/catalogo" onClick={() => setMenuOpen(false)}>Catálogo</a>
-          <a className={user ? "nav-user" : undefined} href={user ? HOME_FOR_ROLE[user.role] : "/login"} title={user ? "Ir a mi portal" : undefined} onClick={() => setMenuOpen(false)}>{user ? <><i aria-hidden="true" />{firstName(user.name)}</> : "Portal"}</a>
           <a href="#contacto" onClick={() => setMenuOpen(false)}>Contacto</a>
         </div>
+        <CartLink />
+        <NavUser />
         <a className="nav-cta" href="/agendar">Agendar servicio <span>↗</span></a>
         <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menú">☰</button>
       </nav>
@@ -107,7 +108,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer id="contacto"><div className="wrap footer-main"><a className="brand footer-brand" href="#inicio"><img src={logo} alt="Grúas Cares" /></a><div><p className="footer-title">Contacto emergencia</p><a href="tel:+56991627809">+56 9 9162 7809</a><a href="tel:+56968327329">+56 9 6832 7329</a><a href="tel:+56968574677">+56 9 6857 4677</a></div><div><p className="footer-title">Síguenos</p><SocialLinks /></div></div><div className="wrap footer-bottom"><span>{t("footer.bottom1")}</span><span>{t("footer.bottom2")}</span></div></footer>
+      <footer id="contacto"><div className="wrap footer-main"><a className="brand footer-brand" href="#inicio"><img src={logo} alt="Grúas Cares" /></a><div><p className="footer-title">{t("footer.contact.title")}</p><a href={telHref(t("footer.phone1"))}>{t("footer.phone1")}</a><a href={telHref(t("footer.phone2"))}>{t("footer.phone2")}</a><a href={telHref(t("footer.phone3"))}>{t("footer.phone3")}</a></div><div><p className="footer-title">{t("footer.social.title")}</p><SocialLinks /></div></div><div className="wrap footer-bottom"><span>{t("footer.bottom1")}</span><span>{t("footer.bottom2")}</span></div></footer>
     </main>
   );
 }

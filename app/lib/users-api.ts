@@ -17,7 +17,7 @@ export async function listUsers(query: UserListQuery, signal?: AbortSignal): Pro
   return { users: data.users.map(toAdminUser), total: data.total, page: data.page, limit: data.limit };
 }
 
-export type NewStaff = { name: string; email: string; phone: string; role: "mecanico" | "admin"; password: string };
+export type NewStaff = { name: string; email: string; phone: string; role: "mecanico" | "vendedor" | "admin"; password: string };
 
 export async function createStaff(input: NewStaff): Promise<SessionUser> {
   const { user } = await apiPost<{ user: ApiAdminUser }>("/api/admin/users", { ...input, phone: input.phone.trim() || undefined });

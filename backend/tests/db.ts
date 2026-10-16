@@ -18,6 +18,7 @@ export interface Seed {
   clientB: typeof users.$inferSelect;
   serviceGrua: typeof services.$inferSelect;
   serviceAceite: typeof services.$inferSelect;
+  seller: typeof users.$inferSelect;
   vehicleA: typeof vehicles.$inferSelect;
   vehicleB: typeof vehicles.$inferSelect;
 }
@@ -25,13 +26,14 @@ export interface Seed {
 /** Datos mínimos y deterministas para las pruebas de integración. */
 export async function seedBasics(): Promise<Seed> {
   const hash = await hashPassword("password123");
-  const [admin, mechanic, clientA, clientB] = await db
+  const [admin, mechanic, clientA, clientB, seller] = await db
     .insert(users)
     .values([
       { name: "Admin Test", email: "admin@test.local", passwordHash: hash, role: "admin" },
       { name: "Mecanico Test", email: "mecanico@test.local", passwordHash: hash, role: "mecanico" },
       { name: "Cliente A", email: "a@test.local", passwordHash: hash, role: "usuario" },
       { name: "Cliente B", email: "b@test.local", passwordHash: hash, role: "usuario" },
+      { name: "Vendedor Test", email: "vendedor@test.local", passwordHash: hash, role: "vendedor" },
     ])
     .returning();
   const [serviceGrua, serviceAceite] = await db
@@ -48,10 +50,10 @@ export async function seedBasics(): Promise<Seed> {
       { userId: clientB.id, plate: "WXYZ99", brand: "Ford", model: "Ranger", year: 2020, mileage: 2000 },
     ])
     .returning();
-  return { admin, mechanic, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
+  return { admin, mechanic, seller, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
 }
 
-export function cookieFor(user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario"; tokenVersion?: number }): Record<string, string> {
+export function cookieFor(user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number }): Record<string, string> {
   const token = generateToken({ userId: user.id, email: user.email, name: user.name, role: user.role, tokenVersion: user.tokenVersion ?? 0 });
   return { Cookie: `gc_token=${token}`, "Content-Type": "application/json" };
 }
