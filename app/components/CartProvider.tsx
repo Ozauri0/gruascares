@@ -2,7 +2,7 @@
 
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
-export type CartProduct = { id: string; name: string; price: string; type?: string; quantity: number };
+export type CartProduct = { id: string; name: string; price: string; type?: string; image?: string | null; quantity: number };
 type CartContextValue = { items: CartProduct[]; count: number; add: (product: Omit<CartProduct, "quantity">) => void; remove: (id: string) => void; clear: () => void };
 const CartContext = createContext<CartContextValue | null>(null);
 

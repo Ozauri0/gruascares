@@ -16,7 +16,7 @@ export async function listAdminCatalog(signal?: AbortSignal): Promise<Product[]>
   return products.map(toProduct);
 }
 
-export type NewProduct = { name: string; description: string; category: string; price: number; stock: number; art: ProductArt; featured: boolean };
+export type NewProduct = { name: string; description: string; category: string; price: number; stock: number; art: ProductArt; featured: boolean; image?: string };
 
 export async function createProduct(input: NewProduct): Promise<Product> {
   const { product } = await apiPost<{ product: ApiProduct }>("/api/admin/catalog", input);

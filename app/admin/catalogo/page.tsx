@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
 import AdminNav from "../components/AdminNav";
 import { formatPrice } from "../../lib/catalog";
-import type { Product, ProductArt } from "../../lib/catalog";
+import type { Product } from "../../lib/catalog";
+import { uploadImage } from "../../lib/admin-api";
 import { useAdminCatalog } from "../../lib/use-catalog";
 
-type ProductForm = { name: string; text: string; category: string; price: string; stock: string; art: ProductArt; featured: boolean };
+type ProductForm = { name: string; text: string; category: string; price: string; stock: string; image: string; featured: boolean };
 
-const EMPTY_FORM: ProductForm = { name: "", text: "", category: "MANTENCIÓN", price: "", stock: "", art: "oil", featured: false };
+const EMPTY_FORM: ProductForm = { name: "", text: "", category: "MANTENCIÓN", price: "", stock: "", image: "", featured: false };
 
 /** Número editable: se guarda al salir del campo (o con Enter), no en cada tecla. */
 function NumberCell({ label, value, onCommit }: { label: string; value: number; onCommit: (value: number) => Promise<void> }) {
@@ -59,6 +60,42 @@ function Thumb({ item }: { item: Product }) {
   return <div className={`admin-thumb product-art ${item.art}`}>{item.image ? <img src={item.image} alt="" loading="lazy" /> : <i />}</div>;
 }
 
+/** Sube la foto del producto desde el dispositivo (PNG, JPG o WebP, máx. 5 MB) y entrega su ruta. */
+function ImageUpload({ value, onChange, error }: { value: string; onChange: (url: string) => void; error?: string }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploadError("");
+    setUploading(true);
+    try {
+      onChange(await uploadImage(file));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "No se pudo subir la imagen.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const message = uploadError || error;
+  return (
+    <div className="cf-image">
+      <span className="field-label">Imagen del producto{value === "" ? " *" : ""}</span>
+      {value !== "" && <div className="image-preview"><img src={value} alt="Vista previa del producto" /></div>}
+      <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={onFile} />
+      <button type="button" className="toggle-btn active" disabled={uploading} onClick={() => fileRef.current?.click()}>
+        {uploading ? "Subiendo…" : value === "" ? "Subir imagen desde mi dispositivo" : "Cambiar imagen"}
+      </button>
+      <small className="cf-hint">PNG, JPG o WebP de hasta 5 MB.</small>
+      {message && <small className="field-error" role="alert">{message}</small>}
+    </div>
+  );
+}
+
 export default function CatalogAdminPage() {
   const [view, setView] = useState<AdminView>("list");
   useEffect(() => {
@@ -81,7 +118,7 @@ export default function CatalogAdminPage() {
   const { products, loading, error, reload, add, patch, remove: removeProduct } = useAdminCatalog();
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
-  const [errors, setErrors] = useState<{ name?: string; price?: string; stock?: string; form?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; price?: string; stock?: string; image?: string; form?: string }>({});
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [imageModal, setImageModal] = useState<{ id: string; url: string; error: string } | null>(null);
@@ -120,6 +157,7 @@ export default function CatalogAdminPage() {
     const stock = Number(form.stock);
     if (form.price.trim() === "" || !Number.isInteger(price) || price < 0) next.price = "Precio inválido.";
     if (form.stock.trim() === "" || !Number.isInteger(stock) || stock < 0) next.stock = "Stock inválido.";
+    if (form.image === "") next.image = "Sube una imagen del producto.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     setSaving(true);
@@ -130,7 +168,8 @@ export default function CatalogAdminPage() {
         category: form.category.trim() === "" ? "GENERAL" : form.category.trim(),
         price,
         stock,
-        art: form.art,
+        art: "oil", // solo respaldo interno; la tienda siempre muestra la foto
+        image: form.image,
         featured: form.featured,
       });
       setModal(false);
@@ -153,8 +192,9 @@ export default function CatalogAdminPage() {
   async function saveImage() {
     if (!imageModal) return;
     const url = imageModal.url.trim();
+    if (url === "") return;
     try {
-      await patch(imageModal.id, { image: url === "" ? null : url });
+      await patch(imageModal.id, { image: url });
       setImageModal(null);
     } catch (err) {
       setImageModal((current) => (current ? { ...current, error: err instanceof Error ? err.message : "No se pudo guardar la imagen." } : current));
@@ -256,7 +296,7 @@ export default function CatalogAdminPage() {
                           <Thumb item={item} />
                           <div>
                             <strong>{item.name}</strong>
-                            <span className="cell-sub">{item.category}{item.featured ? " · Destacado" : ""}{item.image ? " · Con imagen" : " · Arte automático"}</span>
+                            <span className="cell-sub">{item.category}{item.featured ? " · Destacado" : ""}{item.image ? "" : " · Sin imagen"}</span>
                           </div>
                         </div>
                       </td>
@@ -299,8 +339,9 @@ export default function CatalogAdminPage() {
               <label>Descripción<textarea rows={2} value={form.text} onChange={(e) => set("text", e.target.value)} placeholder="Descripción breve" /></label>
               <div className="form-row">
                 <label>Categoría<input value={form.category} onChange={(e) => set("category", e.target.value)} placeholder="MANTENCIÓN" autoComplete="off" /></label>
-                <label>Visual<select value={form.art} onChange={(e) => set("art", e.target.value)}><option value="oil">Aceite</option><option value="tyre">Neumático</option><option value="battery">Batería</option></select></label>
+
               </div>
+              <ImageUpload value={form.image} onChange={(url) => { set("image", url); setErrors((cur) => ({ ...cur, image: undefined })); }} error={errors.image} />
               <div className="form-row">
                 <label>Precio *<input type="number" min={0} step={1} value={form.price} onChange={(e) => set("price", e.target.value)} placeholder="19990" inputMode="numeric" />{errors.price && <small className="field-error">{errors.price}</small>}</label>
                 <label>Stock *<input type="number" min={0} step={1} value={form.stock} onChange={(e) => set("stock", e.target.value)} placeholder="10" inputMode="numeric" />{errors.stock && <small className="field-error">{errors.stock}</small>}</label>
@@ -329,16 +370,10 @@ export default function CatalogAdminPage() {
               <h2>Imagen del producto</h2>
               <button type="button" className="modal-close" aria-label="Cerrar" onClick={() => setImageModal(null)}>×</button>
             </div>
-            <label>URL de imagen<input value={imageModal.url} onChange={(e) => setImageModal({ ...imageModal, url: e.target.value, error: "" })} placeholder="https://… o /images/archivo.jpg" autoComplete="off" /></label>
-            <small className="service-hint">Usa una URL https o una ruta local de la carpeta /images. Las imágenes no se guardan en la base de datos.</small>
-            <div className="image-row">
-              <button type="button" className="modal-cancel" onClick={() => setImageModal({ ...imageModal, url: "" })}>Usar arte automático</button>
-            </div>
-            {imageModal.error !== "" && <small className="field-error">{imageModal.error}</small>}
-            {imageModal.url.trim() !== "" && <div className="image-preview"><img src={imageModal.url} alt="Vista previa del producto" /></div>}
+            <ImageUpload value={imageModal.url} onChange={(url) => setImageModal((cur) => (cur ? { ...cur, url, error: "" } : cur))} error={imageModal.error} />
             <div className="modal-actions">
               <button type="button" className="modal-cancel" onClick={() => setImageModal(null)}>Cancelar</button>
-              <button type="button" className="button" onClick={() => void saveImage()}>Guardar imagen <span>↗</span></button>
+              <button type="button" className="button" disabled={imageModal.url === ""} onClick={() => void saveImage()}>Guardar imagen <span>↗</span></button>
             </div>
           </div>
         </div>
