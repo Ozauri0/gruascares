@@ -81,3 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
+/** Primer nombre para mostrar en el menú ("Christian Ferrer" → "Christian"). */
+export function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}

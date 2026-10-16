@@ -5,7 +5,7 @@ import SocialLinks from "./components/SocialLinks";
 import { useSiteContent } from "./components/SiteContentProvider";
 import { RichText } from "./components/RichText";
 import { DEFAULTS } from "./lib/site-content";
-import { HOME_FOR_ROLE, useAuth } from "./lib/auth";
+import { HOME_FOR_ROLE, firstName, useAuth } from "./lib/auth";
 
 const SLIDE_NUMBERS = [1, 2, 3, 4];
 const SERVICE_NUMBERS = [1, 2, 3];
@@ -55,7 +55,7 @@ export default function Home() {
           <a href="#nosotros" onClick={() => setMenuOpen(false)}>Nosotros</a>
           <a href="#servicios" onClick={() => setMenuOpen(false)}>Servicios</a>
           <a href="/catalogo" onClick={() => setMenuOpen(false)}>Catálogo</a>
-          <a href={user ? HOME_FOR_ROLE[user.role] : "/login"} onClick={() => setMenuOpen(false)}>Portal</a>
+          <a className={user ? "nav-user" : undefined} href={user ? HOME_FOR_ROLE[user.role] : "/login"} title={user ? "Ir a mi portal" : undefined} onClick={() => setMenuOpen(false)}>{user ? <><i aria-hidden="true" />{firstName(user.name)}</> : "Portal"}</a>
           <a href="#contacto" onClick={() => setMenuOpen(false)}>Contacto</a>
         </div>
         <a className="nav-cta" href="/agendar">Agendar servicio <span>↗</span></a>

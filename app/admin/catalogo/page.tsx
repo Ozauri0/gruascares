@@ -6,7 +6,10 @@ import InnerHeader from "../../components/InnerHeader";
 import AdminNav from "../components/AdminNav";
 import { formatPrice } from "../../lib/catalog";
 import type { Product } from "../../lib/catalog";
-import { uploadImage } from "../../lib/admin-api";
+import { saveContent, uploadImage } from "../../lib/admin-api";
+import { SHOP_TOP_HIDDEN_KEY } from "../../lib/site-content";
+import { useSiteContent } from "../../components/SiteContentProvider";
+import { useRouter } from "next/navigation";
 import { useAdminCatalog } from "../../lib/use-catalog";
 
 type ProductForm = { name: string; text: string; category: string; price: string; stock: string; image: string; featured: boolean };
@@ -98,6 +101,23 @@ function ImageUpload({ value, onChange, error }: { value: string; onChange: (url
 
 export default function CatalogAdminPage() {
   const [view, setView] = useState<AdminView>("list");
+  const router = useRouter();
+  const t = useSiteContent();
+  const topHidden = t(SHOP_TOP_HIDDEN_KEY) === "1";
+  const [topSaving, setTopSaving] = useState(false);
+  const [topError, setTopError] = useState("");
+  async function setTopVisible(visible: boolean) {
+    setTopSaving(true);
+    setTopError("");
+    try {
+      await saveContent({ [SHOP_TOP_HIDDEN_KEY]: visible ? null : "1" });
+      router.refresh(); // vuelve a leer el contenido publicado
+    } catch {
+      setTopError("No se pudo guardar el cambio. Intenta de nuevo.");
+    } finally {
+      setTopSaving(false);
+    }
+  }
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(ADMIN_VIEW_KEY);
@@ -238,6 +258,14 @@ export default function CatalogAdminPage() {
           <AdminNav current="catalogo" />
 
           <section aria-label="Gestión del catálogo">
+            <div className="top-section-toggle">
+              <label>
+                <input type="checkbox" checked={!topHidden} disabled={topSaving} onChange={(e) => void setTopVisible(e.target.checked)} />
+                Mostrar la sección «Top ventas» en la tienda
+              </label>
+              <small>{topHidden ? "Oculta: los productos destacados se ven igual en el catálogo completo." : "Muestra arriba los productos marcados como destacados (también aparecen en el catálogo completo si se oculta)."}</small>
+              {topError && <span role="alert" className="field-error">{topError}</span>}
+            </div>
             <div className="portal-toolbar">
               <div className="portal-toolbar-left">
                 <span className="portal-badge-counter">{products.length} productos registrados</span>
