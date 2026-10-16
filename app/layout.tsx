@@ -3,6 +3,7 @@ import "./globals.css";
 import { CartProvider } from "./components/CartProvider";
 import WhatsAppButton from "./components/WhatsAppButton";
 import { AuthProvider } from "./lib/auth";
+import ContentEditor from "./components/ContentEditor";
 import { SiteContentProvider } from "./components/SiteContentProvider";
 import { fetchSiteContent } from "./lib/site-content-server";
 
@@ -14,5 +15,5 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const content = await fetchSiteContent();
-  return <html lang="es"><body><SiteContentProvider overrides={content}><AuthProvider><CartProvider>{children}<WhatsAppButton /></CartProvider></AuthProvider></SiteContentProvider></body></html>;
+  return <html lang="es"><body><SiteContentProvider overrides={content}><AuthProvider><CartProvider>{children}<WhatsAppButton /><ContentEditor /></CartProvider></AuthProvider></SiteContentProvider></body></html>;
 }

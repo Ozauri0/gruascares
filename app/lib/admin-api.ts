@@ -97,6 +97,28 @@ export async function saveContent(values: Record<string, string | null>): Promis
   await api("/api/admin/content", { method: "PUT", body: { values } });
 }
 
+export type ContentDraft = { published: Record<string, string>; draft: Record<string, string | null> };
+
+/** Lo publicado y el borrador pendiente de publicar. */
+export async function fetchDraft(signal?: AbortSignal): Promise<ContentDraft> {
+  return apiGet<ContentDraft>("/api/admin/content/draft", undefined, { signal });
+}
+
+/** Guarda cambios en el borrador (no se ven en el sitio hasta publicar); `null` restaura el original. */
+export async function saveDraft(values: Record<string, string | null>): Promise<void> {
+  await api("/api/admin/content/draft", { method: "PUT", body: { values } });
+}
+
+/** Publica todo el borrador en el sitio público. */
+export async function publishDraft(): Promise<void> {
+  await api("/api/admin/content/publish", { method: "POST" });
+}
+
+/** Descarta el borrador; el sitio público no cambia. */
+export async function discardDraft(): Promise<void> {
+  await api("/api/admin/content/draft", { method: "DELETE" });
+}
+
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const UPLOAD_TYPES = ["image/png", "image/jpeg", "image/webp"];
 

@@ -226,6 +226,15 @@ export const siteContent = pgTable("site_content", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// 7d. Borrador del contenido: cambios guardados por el admin que aún no se publican. Solo hay filas para las claves
+// cuyo borrador difiere de lo publicado; `value` null significa "volver al original" al publicar.
+export const siteContentDraft = pgTable("site_content_draft", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value"),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // 8. Tabla de Auditoría y Trazabilidad de Operaciones Críticas (T1.10)
 export const auditLogs = pgTable(
   "audit_logs",

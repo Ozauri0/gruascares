@@ -1,29 +1,26 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { resolve, type ContentOverrides } from "../lib/site-content";
-import { EditBridge, isEditFrame } from "./EditBridge";
 
-const SiteContentContext = createContext<{ overrides: ContentOverrides; editing: boolean }>({ overrides: {}, editing: false });
+type Ctx = { overrides: ContentOverrides; setPreview: (values: ContentOverrides | null) => void };
+const SiteContentContext = createContext<Ctx>({ overrides: {}, setPreview: () => {} });
 
-/** Entrega el contenido editado (leído en el servidor) a los componentes del sitio. */
+/** Entrega el contenido publicado (leído en el servidor) a los componentes del sitio. */
 export function SiteContentProvider({ overrides, children }: { overrides: ContentOverrides; children: React.ReactNode }) {
-  // Modo edición: solo dentro del editor visual de /admin/contenido (iframe del mismo origen con ?editar=1).
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<ContentOverrides | null>(null);
-  useEffect(() => setEditing(isEditFrame()), []);
-
-  const value = useMemo(() => ({ overrides: draft ?? overrides, editing }), [draft, overrides, editing]);
-  return (
-    <SiteContentContext.Provider value={value}>
-      {children}
-      {editing && <EditBridge values={value.overrides} onDraft={setDraft} />}
-    </SiteContentContext.Provider>
-  );
+  // Vista previa del editor: mientras el admin edita, se muestra su borrador en lugar de lo publicado (solo en su navegador).
+  const [preview, setPreview] = useState<ContentOverrides | null>(null);
+  const value = useMemo(() => ({ overrides: preview ?? overrides, setPreview }), [preview, overrides]);
+  return <SiteContentContext.Provider value={value}>{children}</SiteContentContext.Provider>;
 }
 
 /** `t("hero.title")` devuelve el texto o la imagen vigente del campo. */
 export function useSiteContent() {
   const { overrides } = useContext(SiteContentContext);
   return useCallback((key: string) => resolve(overrides, key), [overrides]);
+}
+
+/** Para el editor: fija (o quita con null) el borrador que se muestra en vez de lo publicado. */
+export function useContentPreview() {
+  return useContext(SiteContentContext).setPreview;
 }

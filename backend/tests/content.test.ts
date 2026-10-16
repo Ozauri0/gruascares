@@ -91,3 +91,44 @@ describe.skipIf(!dbReady)("contenido editable", () => {
     expect((await fetch(`${server.url}/api/uploads/../../.env`)).status).toBe(404);
   });
 });
+
+describe.skipIf(!dbReady)("borrador de contenido", () => {
+  test("el borrador no se ve en lo público hasta publicar", async () => {
+    const admin = seed.admin;
+    await call(admin, "PUT", "/api/admin/content", { values: { "hero.title": "Publicado" } });
+    const saved = await call(admin, "PUT", "/api/admin/content/draft", { values: { "hero.title": "Borrador", "about.title": "Nuevo" } });
+    expect(saved.status).toBe(200);
+    expect((await call(null, "GET", "/api/content")).body.content).toEqual({ "hero.title": "Publicado" });
+    const draft = (await call(admin, "GET", "/api/admin/content/draft")).body;
+    expect(draft.published).toEqual({ "hero.title": "Publicado" });
+    expect(draft.draft).toEqual({ "hero.title": "Borrador", "about.title": "Nuevo" });
+
+    expect((await call(admin, "POST", "/api/admin/content/publish")).body.published).toBe(2);
+    expect((await call(null, "GET", "/api/content")).body.content).toEqual({ "hero.title": "Borrador", "about.title": "Nuevo" });
+    expect((await call(admin, "GET", "/api/admin/content/draft")).body.draft).toEqual({});
+  });
+
+  test("restaurar el original en el borrador lo quita al publicar; igual a lo publicado no deja borrador", async () => {
+    const admin = seed.admin;
+    await call(admin, "PUT", "/api/admin/content", { values: { "hero.title": "Publicado" } });
+    await call(admin, "PUT", "/api/admin/content/draft", { values: { "hero.title": null, "about.title": null } });
+    expect((await call(admin, "GET", "/api/admin/content/draft")).body.draft).toEqual({ "hero.title": null });
+    await call(admin, "PUT", "/api/admin/content/draft", { values: { "hero.title": "Publicado" } });
+    expect((await call(admin, "GET", "/api/admin/content/draft")).body.draft).toEqual({});
+    await call(admin, "PUT", "/api/admin/content/draft", { values: { "hero.title": null } });
+    await call(admin, "POST", "/api/admin/content/publish");
+    expect((await call(null, "GET", "/api/content")).body.content).toEqual({});
+  });
+
+  test("descartar vacía el borrador sin tocar lo público; valida y exige admin", async () => {
+    const admin = seed.admin;
+    await call(admin, "PUT", "/api/admin/content/draft", { values: { "hero.title": "X" } });
+    expect((await call(admin, "DELETE", "/api/admin/content/draft")).body.discarded).toBe(1);
+    expect((await call(admin, "GET", "/api/admin/content/draft")).body.draft).toEqual({});
+    expect((await call(admin, "PUT", "/api/admin/content/draft", { values: { "hero.image": "https://x.test/a.png" } })).status).toBe(400);
+    for (const [m, p] of [["GET", "/api/admin/content/draft"], ["PUT", "/api/admin/content/draft"], ["POST", "/api/admin/content/publish"], ["DELETE", "/api/admin/content/draft"]] as const) {
+      expect((await call(null, m, p, m === "GET" ? undefined : {})).status).toBe(401);
+      expect((await call(seed.clientA, m, p, m === "GET" ? undefined : {})).status).toBe(403);
+    }
+  });
+});
