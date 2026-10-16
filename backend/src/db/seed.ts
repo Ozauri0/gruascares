@@ -26,17 +26,17 @@ const BASE_SERVICES = [
 
 // Productos de la tienda visual (precios y stock referenciales; no hay pagos online).
 const BASE_PRODUCTS = [
-  { name: "Neumáticos para camión", description: "Opciones para trabajo pesado y recorridos exigentes.", price: 189990, stock: 8, category: "TOP VENTAS", tag: "TOP VENTA 01", art: "tyre" as const, featured: true },
-  { name: "Aceite de motor", description: "Lubricación para mantener tu vehículo en movimiento.", price: 32990, stock: 24, category: "TOP VENTAS", tag: "TOP VENTA 02", art: "oil" as const, featured: true },
-  { name: "Baterías", description: "Energía confiable para autos, camiones y maquinaria.", price: 89990, stock: 6, category: "TOP VENTAS", tag: "TOP VENTA 03", art: "battery" as const, featured: true },
-  { name: "Filtros de aceite y aire", description: "Insumos para el mantenimiento periódico de tu vehículo.", price: 12990, stock: 18, category: "MANTENCIÓN", tag: null, art: "oil" as const, featured: false },
-  { name: "Pastillas de freno", description: "Componentes para una conducción más segura.", price: 46990, stock: 12, category: "SEGURIDAD", tag: null, art: "tyre" as const, featured: false },
-  { name: "Refrigerante", description: "Protección para el sistema de enfriamiento.", price: 9990, stock: 15, category: "MANTENCIÓN", tag: null, art: "battery" as const, featured: false },
-  { name: "Kit de emergencia", description: "Elementos esenciales para llevar siempre contigo.", price: 24990, stock: 9, category: "SEGURIDAD", tag: null, art: "oil" as const, featured: false },
-  { name: "Accesorios para carga", description: "Implementos para organizar y asegurar tu carga.", price: 39990, stock: 7, category: "TRANSPORTE", tag: null, art: "tyre" as const, featured: false },
-  { name: "Luces de trabajo LED", description: "Iluminación auxiliar para trabajo y carretera.", price: 54990, stock: 11, category: "EQUIPAMIENTO", tag: null, art: "battery" as const, featured: false },
-  { name: "Plumillas limpiaparabrisas", description: "Repuestos para una mejor visibilidad en ruta.", price: 8990, stock: 20, category: "MANTENCIÓN", tag: null, art: "oil" as const, featured: false },
-  { name: "Cables de batería", description: "Apoyo de arranque para llevar siempre en tu vehículo.", price: 17990, stock: 5, category: "EMERGENCIA", tag: null, art: "tyre" as const, featured: false },
+  { name: "Neumáticos para camión", image: "/images/products/neumaticos-camion.webp", description: "Opciones para trabajo pesado y recorridos exigentes.", price: 189990, stock: 8, category: "TOP VENTAS", tag: "TOP VENTA 01", art: "tyre" as const, featured: true },
+  { name: "Aceite de motor", image: "/images/products/aceite-motor.webp", description: "Lubricación para mantener tu vehículo en movimiento.", price: 32990, stock: 24, category: "TOP VENTAS", tag: "TOP VENTA 02", art: "oil" as const, featured: true },
+  { name: "Baterías", image: "/images/products/baterias.webp", description: "Energía confiable para autos, camiones y maquinaria.", price: 89990, stock: 6, category: "TOP VENTAS", tag: "TOP VENTA 03", art: "battery" as const, featured: true },
+  { name: "Filtros de aceite y aire", image: "/images/products/filtros.webp", description: "Insumos para el mantenimiento periódico de tu vehículo.", price: 12990, stock: 18, category: "MANTENCIÓN", tag: null, art: "oil" as const, featured: false },
+  { name: "Pastillas de freno", image: "/images/products/pastillas-freno.webp", description: "Componentes para una conducción más segura.", price: 46990, stock: 12, category: "SEGURIDAD", tag: null, art: "tyre" as const, featured: false },
+  { name: "Refrigerante", image: "/images/products/refrigerante.webp", description: "Protección para el sistema de enfriamiento.", price: 9990, stock: 15, category: "MANTENCIÓN", tag: null, art: "battery" as const, featured: false },
+  { name: "Kit de emergencia", image: "/images/products/kit-emergencia.webp", description: "Elementos esenciales para llevar siempre contigo.", price: 24990, stock: 9, category: "SEGURIDAD", tag: null, art: "oil" as const, featured: false },
+  { name: "Accesorios para carga", image: "/images/products/accesorios-carga.webp", description: "Implementos para organizar y asegurar tu carga.", price: 39990, stock: 7, category: "TRANSPORTE", tag: null, art: "tyre" as const, featured: false },
+  { name: "Luces de trabajo LED", image: "/images/products/luces-led.webp", description: "Iluminación auxiliar para trabajo y carretera.", price: 54990, stock: 11, category: "EQUIPAMIENTO", tag: null, art: "battery" as const, featured: false },
+  { name: "Plumillas limpiaparabrisas", image: "/images/products/plumillas.webp", description: "Repuestos para una mejor visibilidad en ruta.", price: 8990, stock: 20, category: "MANTENCIÓN", tag: null, art: "oil" as const, featured: false },
+  { name: "Cables de batería", image: "/images/products/cables-bateria.webp", description: "Apoyo de arranque para llevar siempre en tu vehículo.", price: 17990, stock: 5, category: "EMERGENCIA", tag: null, art: "tyre" as const, featured: false },
 ];
 
 async function seed() {

@@ -106,7 +106,8 @@ El catálogo vive en la base de datos (`GET /api/catalog` público; el admin lo 
 - Productos adicionales: filtros, pastillas de freno, refrigerante, kit de emergencia, accesorios para carga, luces LED, plumillas y cables de batería.
 - Cada producto muestra visual, nombre, descripción, precio referencial y stock referencial.
 - Los precios y stocks son datos referenciales, no inventario real.
-- Las imágenes de producto son una URL https o una ruta `/images/…` (no se guardan archivos en la base).
+- Las imágenes de producto son una URL https o una ruta `/images/…` (no se guardan archivos en la base). Los productos de ejemplo usan fotos de referencia de Wikimedia Commons en `public/images/products/` (licencias libres; créditos en `/creditos`, datos en `app/creditos/credits.json`): no son fotos del stock real.
+- `/catalogo` permite elegir entre cuadrícula y filas (se recuerda en `localStorage`).
 - El botón principal es `Agregar al carro`.
 - El carro conserva productos en `localStorage` usando la clave `gruas-cares-cart`.
 
