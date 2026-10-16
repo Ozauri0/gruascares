@@ -103,7 +103,7 @@ export type ApiMetrics = {
     clientName: string;
     vehiclePlate: string | null;
   }[];
-  users: { total: number; byRole: { admin: number; mecanico: number; usuario: number }; newClientsLast30Days: number };
+  users: { total: number; byRole: { admin: number; mecanico: number; usuario: number; vendedor?: number }; newClientsLast30Days: number };
 };
 
 /** GET /api/admin/blocked-dates */
@@ -128,7 +128,7 @@ export type ApiAdminUser = {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "mecanico" | "usuario";
+  role: "admin" | "mecanico" | "usuario" | "vendedor";
   phone: string | null;
   isActive: boolean;
   createdAt: string;

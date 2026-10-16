@@ -8,6 +8,7 @@ import type { UserRole } from "../lib/portal-types";
 const DEMO_ACCOUNTS: { role: UserRole; label: string }[] = [
   { role: "usuario", label: "Cliente" },
   { role: "mecanico", label: "Mecánico" },
+  { role: "vendedor", label: "Vendedor" },
   { role: "admin", label: "Admin" },
 ];
 

@@ -5,26 +5,28 @@
 // httpOnly `gc_token`: así respeta al instante desactivaciones y cambios de rol, y el frontend no necesita
 // conocer JWT_SECRET.
 
-export type Role = "admin" | "mecanico" | "usuario";
+export type Role = "admin" | "mecanico" | "usuario" | "vendedor";
 
 export const HOME_FOR_ROLE: Record<Role, string> = {
   usuario: "/portal",
   mecanico: "/mecanico",
   admin: "/admin",
+  vendedor: "/vendedor",
 };
 
 export function isRole(value: unknown): value is Role {
-  return value === "admin" || value === "mecanico" || value === "usuario";
+  return value === "admin" || value === "mecanico" || value === "usuario" || value === "vendedor";
 }
 
 export type GuardDecision = { type: "allow" } | { type: "login" } | { type: "redirect"; to: string };
 
-/** /admin → solo admin; /mecanico → mecánico o admin; /portal → cualquier sesión. */
+/** /admin → solo admin; /mecanico → mecánico o admin; /vendedor → vendedor o admin; /portal → cualquier sesión. */
 export function guardDecision(pathname: string, role: Role | null): GuardDecision {
   if (!role) return { type: "login" };
   const isUnder = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
   if (isUnder("/admin") && role !== "admin") return { type: "redirect", to: HOME_FOR_ROLE[role] };
   if (isUnder("/mecanico") && role !== "mecanico" && role !== "admin") return { type: "redirect", to: HOME_FOR_ROLE[role] };
+  if (isUnder("/vendedor") && role !== "vendedor" && role !== "admin") return { type: "redirect", to: HOME_FOR_ROLE[role] };
   return { type: "allow" };
 }
 

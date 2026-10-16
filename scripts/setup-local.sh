@@ -65,5 +65,5 @@ cat <<'MSG'
    Con ambos arriba:        bun run smoke      # prueba de punta a punta
 
 Acceso demo (sin credenciales): botones "Entrar como…" en /login.
-Cuentas sembradas: cliente@ / mecanico@ / admin@demo.test (claves en docs/DEVELOPMENT.md).
+Cuentas sembradas: cliente@ / mecanico@ / vendedor@ / admin@demo.test (claves en docs/DEVELOPMENT.md).
 MSG

@@ -21,8 +21,18 @@ import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js"
 
 const router = Router();
 
-// Todas las rutas de administración requieren autenticación y rol 'admin'
+// Todas las rutas de administración requieren autenticación; cada grupo define sus roles.
 router.use(authenticate);
+
+// Catálogo de productos (la lectura pública está en GET /api/catalog). También lo gestiona el vendedor.
+const catalogAccess = authorizeRoles("admin", "vendedor");
+router.get("/catalog", catalogAccess, getAdminCatalog);
+router.post("/catalog", catalogAccess, createProduct);
+router.patch("/catalog/:id", catalogAccess, updateProduct);
+router.delete("/catalog/:id", catalogAccess, deleteProduct);
+router.post("/uploads", catalogAccess, express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "5mb" }), uploadImage);
+
+// El resto de la administración es solo del admin
 router.use(authorizeRoles("admin"));
 
 // 1. [T1.8] Métricas y Reportes
@@ -45,19 +55,12 @@ router.get("/users", listUsers);
 router.post("/users", createStaffUser);
 router.patch("/users/:id", updateUser);
 
-// Catálogo de productos (la lectura pública está en GET /api/catalog)
-router.get("/catalog", getAdminCatalog);
-router.post("/catalog", createProduct);
-router.patch("/catalog/:id", updateProduct);
-router.delete("/catalog/:id", deleteProduct);
-
 // Contenido editable de la web pública (la lectura pública está en GET /api/content)
 router.put("/content", updateContent);
 router.get("/content/draft", getDraft);
 router.put("/content/draft", saveDraft);
 router.delete("/content/draft", discardDraft);
 router.post("/content/publish", publishDraft);
-router.post("/uploads", express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "5mb" }), uploadImage);
 
 // 3. [T1.10] Auditoría y Respaldo de Datos
 router.get("/audit-logs", getAuditLogs);

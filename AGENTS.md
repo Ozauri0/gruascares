@@ -40,6 +40,7 @@ Antes de considerar terminada una modificación deben pasar `bun run build`, `bu
 - `/catalogo`: Tienda visual de productos para autos, camiones y maquinaria.
 - `/agendar`: Solicitud de servicios y productos. En desktop está diseñada para entrar en un viewport sin scroll.
 - `/carro`: Lista de solicitud de productos. No procesa pagos ni compras online.
+- `/vendedor`: Panel del rol **vendedor** (gestiona el catálogo: precios, stock, visibilidad e imágenes; sin acceso al resto de la administración). El catálogo público solo muestra productos con stock.
 - `/login`: Mockup de portal de clientes, sin autenticación real.
 
 ## Components
@@ -121,7 +122,7 @@ El carro no debe transformarse en checkout:
 
 ## Editable Content
 
-Los textos e imágenes de la web pública los edita el administrador sobre la propia página (botón "✏️ Editar página" al iniciar sesión como admin; también con `?editar=1`; ya no existe un módulo aparte en el panel). Los cambios se guardan como borrador y el público solo los ve al "Publicar". El catálogo de campos y sus valores originales está en `app/lib/site-content.ts`: para volver editable un texto nuevo, agrégalo ahí y úsalo con `useSiteContent()` (`t("clave")`) en lugar de escribirlo fijo. Las claves de imagen terminan en `.image`. No editables a propósito: teléfonos y enlaces a redes (datos verificados del sitio original).
+Los textos e imágenes de la web pública los edita el administrador sobre la propia página (botón "✏️ Editar página" al iniciar sesión como admin; también con `?editar=1`; ya no existe un módulo aparte en el panel). Los cambios se guardan como borrador y el público solo los ve al "Publicar". El catálogo de campos y sus valores originales está en `app/lib/site-content.ts`: para volver editable un texto nuevo, agrégalo ahí y úsalo con `useSiteContent()` (`t("clave")`) en lugar de escribirlo fijo. Las claves de imagen terminan en `.image`. Los teléfonos del pie de página sí se editan (formato `+56 9 XXXX XXXX`); no son editables a propósito el teléfono de la barra superior y los enlaces a redes (datos verificados del sitio original). El menú del modo edición se mueve arrastrando su asa (⠿).
 
 ## Forms
 

@@ -34,11 +34,12 @@ El navegador solo habla con `localhost:3000`; Next reenvía `/api/*` al backend 
 
 ## Acceso demo (sin credenciales)
 
-Con `DEMO_MODE=true` en `backend/.env`, los botones **Entrar como Cliente / Mecánico / Admin** de `/login` abren una sesión real sin pedir clave (`POST /api/auth/demo-login`). Cuentas sembradas por `db:seed` (solo desarrollo):
+Con `DEMO_MODE=true` en `backend/.env`, los botones **Entrar como Cliente / Mecánico / Vendedor / Admin** de `/login` abren una sesión real sin pedir clave (`POST /api/auth/demo-login`). Cuentas sembradas por `db:seed` (solo desarrollo):
 
 | Rol | Correo | Clave |
 | :--- | :--- | :--- |
 | Cliente | `cliente@demo.test` (también `cliente2@`) | `cliente1234` |
+| Vendedor | `vendedor@demo.test` | `vendedor1234` |
 | Mecánico | `mecanico@demo.test` (también `mecanico2@`) | `mecanico1234` |
 | Admin | `admin@demo.test` | `admin1234` |
 

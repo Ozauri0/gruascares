@@ -21,8 +21,17 @@ describe("INT-4: decisión de acceso por rol", () => {
     expect(guardDecision("/admin/calendario", "mecanico")).toEqual({ type: "redirect", to: "/mecanico" });
   });
 
+  test("vendedor: /vendedor y /portal sí; /admin y /mecanico lo devuelven a /vendedor", () => {
+    expect(guardDecision("/vendedor", "vendedor")).toEqual({ type: "allow" });
+    expect(guardDecision("/portal", "vendedor")).toEqual({ type: "allow" });
+    expect(guardDecision("/admin/catalogo", "vendedor")).toEqual({ type: "redirect", to: "/vendedor" });
+    expect(guardDecision("/mecanico", "vendedor")).toEqual({ type: "redirect", to: "/vendedor" });
+    expect(guardDecision("/vendedor", "mecanico")).toEqual({ type: "redirect", to: "/mecanico" });
+    expect(guardDecision("/vendedor", "usuario")).toEqual({ type: "redirect", to: "/portal" });
+  });
+
   test("admin accede a todo", () => {
-    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/portal"]) {
+    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/portal", "/vendedor"]) {
       expect(guardDecision(path, "admin")).toEqual({ type: "allow" });
     }
   });

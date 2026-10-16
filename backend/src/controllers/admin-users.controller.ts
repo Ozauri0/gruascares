@@ -8,9 +8,9 @@ import { parsePagination } from "../utils/pagination.js";
 import { hashPassword, validatePassword } from "../utils/password.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 
-const ROLES = ["admin", "mecanico", "usuario"] as const;
+const ROLES = ["admin", "mecanico", "usuario", "vendedor"] as const;
 type Role = (typeof ROLES)[number];
-const STAFF_ROLES = ["mecanico", "admin"] as const;
+const STAFF_ROLES = ["mecanico", "vendedor", "admin"] as const;
 
 const isRole = (value: unknown): value is Role => typeof value === "string" && (ROLES as readonly string[]).includes(value);
 

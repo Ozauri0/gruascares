@@ -57,7 +57,7 @@ describe.skipIf(!dbReady)("INT-2: POST /api/auth/demo-login", () => {
     expect(runSeed().exitCode).toBe(0);
     expect(await counts()).toBe(before);
     const row = (await sql`select count(*)::int as n from users where email like '%@demo.test'`)[0];
-    expect(row.n).toBe(5);
+    expect(row.n).toBe(6);
     expect((await sql`select count(*)::int as n from products`)[0].n).toBe(11);
   });
 

@@ -295,6 +295,7 @@ footer{padding:34px 0 16px}.inner-footer{padding:28px 0 30px}.footer-bottom{marg
 .role-badge{display:inline-block;padding:5px 12px;border-radius:999px;font:600 10px 'DM Mono',monospace;text-transform:uppercase;white-space:nowrap}
 .role-usuario{background:#eef2f7;color:#444}
 .role-mecanico{background:rgba(2,152,52,.14);color:var(--green-dark)}
+.role-vendedor{background:rgba(255,102,153,.18);color:#a3194b}
 .role-admin{background:var(--ink);color:#fff}
 .state-on{font:600 11px 'DM Mono',monospace;color:var(--green-dark)}
 .state-off{font:600 11px 'DM Mono',monospace;color:#b42318}
@@ -892,7 +893,7 @@ body>footer{flex-shrink:0}
 .ed-enter{position:fixed;left:16px;bottom:16px;z-index:60;display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border:0;border-radius:999px;padding:12px 18px;font:700 13px 'Fira Sans';cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 .ed-enter:hover{background:var(--green)}
 .ed-outline{display:none;position:fixed;z-index:2147483000;pointer-events:none;outline:2px solid #029834;outline-offset:2px;background:rgba(2,152,52,.12);border-radius:4px}
-.ed-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:2147483100;width:min(1100px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;background:var(--ink);color:#fff;border-radius:16px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:13px}
+.ed-bar{position:fixed;left:50%;transform:translate(calc(-50% + var(--dx,0px)),var(--dy,0px));bottom:14px;z-index:2147483100;width:min(1100px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:space-between;background:var(--ink);color:#fff;border-radius:16px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:13px}
 .ed-badge{display:inline-flex;align-items:center;gap:8px;font:700 12px 'DM Mono',monospace;text-transform:uppercase;white-space:nowrap}
 .ed-badge i{width:8px;height:8px;border-radius:50%;background:var(--green)}
 .ed-status{flex:1;min-width:180px;color:#ddd}
@@ -902,7 +903,7 @@ body>footer{flex-shrink:0}
 .ed-bar .toggle-btn.active{background:var(--green);border-color:var(--green)}
 .ed-bar .toggle-btn.danger.confirm{background:#b3261e;border-color:#b3261e}
 .ed-bar .toggle-btn:disabled{opacity:.4;cursor:not-allowed}
-.ed-panel{position:fixed;right:14px;top:14px;max-height:calc(100vh - 100px);z-index:2147483050;width:340px;max-width:calc(100vw - 28px);overflow:auto;background:#fff;color:var(--ink);border:1px solid #d9d9d9;border-radius:16px;padding:12px;box-shadow:0 12px 36px rgba(0,0,0,.28);display:grid;gap:12px;align-content:start}
+.ed-panel{position:fixed;right:14px;top:14px;transform:translate(var(--dx,0px),var(--dy,0px));max-height:calc(100vh - 100px);z-index:2147483050;width:340px;max-width:calc(100vw - 28px);overflow:auto;background:#fff;color:var(--ink);border:1px solid #d9d9d9;border-radius:16px;padding:12px;box-shadow:0 12px 36px rgba(0,0,0,.28);display:grid;gap:12px;align-content:start}
 .ed-panel-head{display:flex;align-items:center;gap:8px}
 .ed-panel-head .cms-tabs{flex:1}
 .ed-pending{margin:0;padding-left:18px;color:#333;display:grid;gap:4px}
@@ -973,8 +974,13 @@ body>footer{flex-shrink:0}
 .admin-card-actions{display:flex;gap:6px;flex-wrap:wrap}
 .portal-toolbar .view-toggle{margin-left:auto;margin-right:10px}
 
-.nav-links a.nav-user{display:inline-flex;align-items:center;gap:7px;font-weight:700;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nav-user i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(2,152,52,.2)}
+.nav-user{display:inline-block;font-size:13px;font-weight:700;max-width:140px;margin-right:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color .2s}.nav-user:hover{color:var(--green)}
+@media(max-width:760px){.nav-user{margin-right:12px;font-size:12px;max-width:90px}}
 .top-section-toggle{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;background:#fff;border:1px solid #e2e2e2;border-radius:12px;font-size:14px}
 .top-section-toggle label{display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer}
 .top-section-toggle small{color:#666;flex:1 1 220px}
+.ed-grip{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.ed-grip:active{cursor:grabbing}
+.ed-grip b{font-weight:400;opacity:.7;margin-right:4px;font-size:16px;line-height:1}
+.ed-panel-grip{display:grid;place-items:center;width:30px;height:34px;border-radius:8px;background:#f0f0f0;color:#555}
+.ed-panel-grip b{margin:0}

@@ -10,6 +10,7 @@ import { saveContent, uploadImage } from "../../lib/admin-api";
 import { SHOP_TOP_HIDDEN_KEY } from "../../lib/site-content";
 import { useSiteContent } from "../../components/SiteContentProvider";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../../lib/auth";
 import { useAdminCatalog } from "../../lib/use-catalog";
 
 type ProductForm = { name: string; text: string; category: string; price: string; stock: string; image: string; featured: boolean };
@@ -102,6 +103,8 @@ function ImageUpload({ value, onChange, error }: { value: string; onChange: (url
 export default function CatalogAdminPage() {
   const [view, setView] = useState<AdminView>("list");
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin"; // el vendedor gestiona el catálogo, sin el resto de la administración
   const t = useSiteContent();
   const topHidden = t(SHOP_TOP_HIDDEN_KEY) === "1";
   const [topSaving, setTopSaving] = useState(false);
@@ -246,7 +249,7 @@ export default function CatalogAdminPage() {
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
-            <p className="eyebrow">Administración</p>
+            <p className="eyebrow">{isAdmin ? "Administración" : "Ventas"}</p>
             <h1>Catálogo y <em>precios.</em></h1>
           </div>
           <div>
@@ -255,17 +258,17 @@ export default function CatalogAdminPage() {
         </section>
 
         <div className="portal-stack wrap">
-          <AdminNav current="catalogo" />
+          {isAdmin && <AdminNav current="catalogo" />}
 
           <section aria-label="Gestión del catálogo">
-            <div className="top-section-toggle">
+            {isAdmin && <div className="top-section-toggle">
               <label>
                 <input type="checkbox" checked={!topHidden} disabled={topSaving} onChange={(e) => void setTopVisible(e.target.checked)} />
                 Mostrar la sección «Top ventas» en la tienda
               </label>
               <small>{topHidden ? "Oculta: los productos destacados se ven igual en el catálogo completo." : "Muestra arriba los productos marcados como destacados (también aparecen en el catálogo completo si se oculta)."}</small>
               {topError && <span role="alert" className="field-error">{topError}</span>}
-            </div>
+            </div>}
             <div className="portal-toolbar">
               <div className="portal-toolbar-left">
                 <span className="portal-badge-counter">{products.length} productos registrados</span>
