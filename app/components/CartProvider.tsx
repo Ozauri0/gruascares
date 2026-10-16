@@ -1,9 +1,10 @@
 "use client";
 
+import { clampQuantity } from "../lib/cart";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
 export type CartProduct = { id: string; name: string; price: string; type?: string; image?: string | null; quantity: number };
-type CartContextValue = { items: CartProduct[]; count: number; add: (product: Omit<CartProduct, "quantity">) => void; remove: (id: string) => void; clear: () => void };
+type CartContextValue = { items: CartProduct[]; count: number; add: (product: Omit<CartProduct, "quantity">) => void; remove: (id: string) => void; setQuantity: (id: string, quantity: number, stock?: number) => void; clear: () => void };
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -22,6 +23,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const found = current.find((item) => item.id === product.id);
       return found ? current.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { ...product, quantity: 1 }];
     }),
+    setQuantity: (id: string, quantity: number, stock?: number) => setItems((current) => current.map((item) => item.id === id ? { ...item, quantity: clampQuantity(quantity, stock) } : item)),
     remove: (id: string) => setItems((current) => current.filter((item) => item.id !== id)),
     clear: () => setItems([]),
   }), [items]);
