@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { HOME_FOR_ROLE, fetchSessionRole, guardDecision, isRole } from "./route-guard";
+import { HOME_FOR_ROLE, areasFor, fetchSession, fetchSessionRole, guardDecision, isRole } from "./route-guard";
 
 describe("INT-4: decisión de acceso por rol", () => {
   test("sin sesión todo va a /login", () => {
@@ -30,6 +30,21 @@ describe("INT-4: decisión de acceso por rol", () => {
     expect(guardDecision("/vendedor", "usuario")).toEqual({ type: "redirect", to: "/portal" });
   });
 
+  test("varios roles: basta con uno; si no, vuelve al inicio del rol principal", () => {
+    expect(guardDecision("/vendedor", "mecanico", ["mecanico", "vendedor"])).toEqual({ type: "allow" });
+    expect(guardDecision("/mecanico", "mecanico", ["mecanico", "vendedor"])).toEqual({ type: "allow" });
+    expect(guardDecision("/admin", "mecanico", ["mecanico", "vendedor"])).toEqual({ type: "redirect", to: "/mecanico" });
+    expect(guardDecision("/mecanico", "vendedor", ["vendedor", "mecanico"])).toEqual({ type: "allow" });
+    expect(guardDecision("/admin/usuarios", "vendedor", ["vendedor", "admin"])).toEqual({ type: "allow" });
+  });
+
+  test("áreas disponibles: el portal de cliente es de todos; admin entra a todas", () => {
+    expect(areasFor({ role: "usuario" })).toEqual(["usuario"]);
+    expect(areasFor({ role: "vendedor" })).toEqual(["vendedor", "usuario"]);
+    expect(areasFor({ role: "mecanico", roles: ["mecanico", "vendedor"] })).toEqual(["mecanico", "vendedor", "usuario"]);
+    expect(areasFor({ role: "admin" })).toEqual(["admin", "mecanico", "vendedor", "usuario"]);
+  });
+
   test("admin accede a todo", () => {
     for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/portal", "/vendedor"]) {
       expect(guardDecision(path, "admin")).toEqual({ type: "allow" });
@@ -50,6 +65,12 @@ describe("INT-4: decisión de acceso por rol", () => {
 describe("INT-4: rol de la sesión según el backend", () => {
   const respond = (status: number, body?: unknown) =>
     (async () => new Response(body === undefined ? null : JSON.stringify(body), { status })) as unknown as typeof fetch;
+
+  test("fetchSession entrega el rol principal y todos los roles", async () => {
+    expect(await fetchSession("t", "http://b", respond(200, { user: { role: "mecanico", roles: ["mecanico", "vendedor", "x"] } }))).toEqual({ role: "mecanico", roles: ["mecanico", "vendedor"] });
+    expect(await fetchSession("t", "http://b", respond(200, { user: { role: "usuario" } }))).toEqual({ role: "usuario", roles: ["usuario"] });
+    expect(await fetchSession("t", "http://b", respond(401))).toBeNull();
+  });
 
   test("sin cookie no consulta al backend", async () => {
     let called = false;

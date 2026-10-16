@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import InnerFooter from "../components/InnerFooter";
-import InnerHeader from "../components/InnerHeader";
+import AreaNav from "../components/AreaNav";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { todayInSantiago } from "../lib/dates";
@@ -10,6 +10,7 @@ import { useAgenda } from "../lib/use-agenda";
 import { changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
 import type { AgendaItem } from "../lib/workshop-types";
 import type { AppointmentStatus } from "../lib/portal-types";
+import Skeleton from "../components/Skeleton";
 
 const FILTERS: { value: AppointmentStatus | "todas"; label: string }[] = [
   { value: "todas", label: "Todas" },
@@ -113,7 +114,6 @@ export default function MechanicPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
@@ -127,6 +127,7 @@ export default function MechanicPage() {
         </section>
 
         <div className="portal-stack wrap">
+          <AreaNav />
           <section aria-label="Agenda diaria" className="workshop-layout">
             <aside className="workshop-side">
               <div className="workshop-bar">
@@ -159,7 +160,7 @@ export default function MechanicPage() {
 
             <div className="workshop-main">
             {loading ? (
-              <div className="portal-empty-card" aria-busy="true"><p>Cargando la agenda del taller…</p></div>
+              <Skeleton label="Cargando la agenda del taller…" />
             ) : error ? (
               <div className="portal-empty-card" role="alert">
                 <p>{error}</p>

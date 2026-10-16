@@ -93,14 +93,15 @@ describe.skipIf(!dbReady)("INT-10: POST /api/admin/users", () => {
 });
 
 describe.skipIf(!dbReady)("INT-10: PATCH /api/admin/users/:id", () => {
-  test("cambia el rol e invalida las sesiones abiertas del usuario", async () => {
+  test("cambia el rol sin cerrar la sesión: los permisos nuevos rigen de inmediato", async () => {
     const mechanicSession = cookieFor(seed.mechanic);
     expect((await fetch(`${server.url}/api/mechanic/agenda`, { headers: mechanicSession })).status).toBe(200);
 
     const { status, body } = await call(seed.admin, "PATCH", `/api/admin/users/${seed.mechanic.id}`, { role: "usuario" });
     expect(status).toBe(200);
     expect(body.user.role).toBe("usuario");
-    expect((await fetch(`${server.url}/api/mechanic/agenda`, { headers: mechanicSession })).status).toBe(401); // sesión cerrada
+    expect((await fetch(`${server.url}/api/mechanic/agenda`, { headers: mechanicSession })).status).toBe(403); // sigue con sesión, pero ya sin permiso de mecánico
+    expect((await fetch(`${server.url}/api/auth/me`, { headers: mechanicSession })).status).toBe(200);
   });
 
   test("desactivar y reactivar", async () => {

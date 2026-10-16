@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
-import InnerHeader from "../../components/InnerHeader";
+import AreaNav from "../../components/AreaNav";
 import { ApiError } from "../../lib/api";
 import type { PortalVehicle } from "../../lib/portal-types";
 import { formatPlate, isValidChileanPlate, normalizePlate } from "../../lib/plate";
 import { useVehicles } from "../../lib/use-vehicles";
+import Skeleton from "../../components/Skeleton";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -119,7 +120,6 @@ export default function VehiclesPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
@@ -132,6 +132,7 @@ export default function VehiclesPage() {
         </section>
 
         <div className="portal-stack wrap">
+          <AreaNav />
           {/* Navegación del portal */}
           <nav className="portal-nav-tabs" aria-label="Secciones del portal">
             <a href="/portal" className="portal-nav-tab">
@@ -166,7 +167,7 @@ export default function VehiclesPage() {
             {actionError && <p className="field-error" role="alert">{actionError}</p>}
 
             {loading ? (
-              <div className="portal-empty-card" aria-busy="true"><p>Cargando tus vehículos…</p></div>
+              <Skeleton label="Cargando tus vehículos…" />
             ) : loadError ? (
               <div className="portal-empty-card" role="alert">
                 <p>{loadError}</p>

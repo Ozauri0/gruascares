@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
-import InnerHeader from "../../components/InnerHeader";
 import AdminNav from "../components/AdminNav";
 import BulkBlockPanel from "../components/BulkBlockPanel";
 import DayPanel from "../components/DayPanel";
@@ -45,7 +44,6 @@ export default function CalendarPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>

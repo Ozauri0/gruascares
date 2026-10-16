@@ -41,6 +41,7 @@ Con `DEMO_MODE=true` en `backend/.env`, los botones **Entrar como Cliente / Mec�
 | Cliente | `cliente@demo.test` (también `cliente2@`) | `cliente1234` |
 | Vendedor | `vendedor@demo.test` | `vendedor1234` |
 | Mecánico | `mecanico@demo.test` (también `mecanico2@`) | `mecanico1234` |
+| Mecánico + vendedor (dos roles) | `mecanico2@demo.test` | `mecanico1234` |
 | Admin | `admin@demo.test` | `admin1234` |
 
 El formulario de `/login` y `/registro` funcionan con credenciales reales. **Antes de producción** hay que retirar el modo demo (issue #47): el servidor se niega a arrancar con `NODE_ENV=production` y `DEMO_MODE=true`.

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import InnerFooter from "../components/InnerFooter";
-import InnerHeader from "../components/InnerHeader";
+import AreaNav from "../components/AreaNav";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { useAuth } from "../lib/auth";
@@ -10,6 +10,7 @@ import { splitAppointments } from "../lib/my-appointments-api";
 import { useMyAppointments } from "../lib/use-my-appointments";
 import { formatPlate } from "../lib/plate";
 import { useVehicles } from "../lib/use-vehicles";
+import Skeleton from "../components/Skeleton";
 
 // Portal del cliente (T2.4). Usa datos demostrativos hasta conectar
 // AuthContext + GET /api/auth/me, /api/appointments y /api/vehicles (T2.2).
@@ -43,7 +44,7 @@ function longDate(iso: string): string {
 
 export default function PortalPage() {
   const { vehicles, loading: vehiclesLoading, error: vehiclesError, reload: reloadVehicles } = useVehicles();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const firstName = user ? user.name.split(" ")[0] : "";
   const { items, loading: appointmentsLoading, error: appointmentsError, reload: reloadAppointments } = useMyAppointments();
   const active = useMemo(() => splitAppointments(items).active.map((item) => item.appointment), [items]);
@@ -52,12 +53,11 @@ export default function PortalPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
             <p className="eyebrow">Mi Cuenta</p>
-            <h1>Hola{firstName ? ", " : ""}<em>{firstName ? `${firstName}.` : "."}</em></h1>
+            <h1>Hola{firstName ? ", " : authLoading ? <>, <span className="skeleton skeleton-inline" aria-hidden="true" /></> : ""}<em>{firstName ? `${firstName}.` : "."}</em></h1>
           </div>
           <div>
             <p className="portal-contact">{user ? `${user.email}${user.phone ? ` · ${user.phone}` : ""}` : "\u00a0"}</p>
@@ -66,6 +66,7 @@ export default function PortalPage() {
         </section>
 
         <div className="portal-stack wrap">
+          <AreaNav />
           {/* Accesos rápidos de navegación para el cliente */}
           <nav className="portal-nav-tabs" aria-label="Secciones del portal">
             <a href="/portal" className="portal-nav-tab active">
@@ -92,7 +93,7 @@ export default function PortalPage() {
             <div className="portal-main">
           {appointmentsLoading ? (
             <section className="next-hero next-empty" aria-busy="true" aria-label="Cargando citas">
-              <div className="next-info"><h2>Cargando tus citas…</h2></div>
+              <div className="next-info"><Skeleton label="Cargando tus citas…" rows={1} /></div>
             </section>
           ) : appointmentsError ? (
             <section className="next-hero next-empty" role="alert" aria-label="Error al cargar citas">
@@ -164,7 +165,7 @@ export default function PortalPage() {
               <a href="/portal/vehiculos">Administrar vehículos <span>→</span></a>
             </div>
             {vehiclesLoading ? (
-              <div className="portal-empty-card" aria-busy="true"><p>Cargando tus vehículos…</p></div>
+              <Skeleton label="Cargando tus vehículos…" />
             ) : vehiclesError ? (
               <div className="portal-empty-card" role="alert">
                 <p>{vehiclesError}</p>

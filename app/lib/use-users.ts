@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { SessionUser, UserRole } from "./portal-types";
-import { createStaff, listUsers, setUserActive, type NewStaff } from "./users-api";
+import { createStaff, listUsers, setUserActive, setUserRoles, type NewStaff } from "./users-api";
 
 /** Directorio de usuarios con búsqueda (con espera al escribir), filtro por rol y "ver más". */
 export function useUsers(search: string, role: UserRole | "todos") {
@@ -58,6 +58,11 @@ export function useUsers(search: string, role: UserRole | "todos") {
     setUsers((current) => current.map((user) => (user.id === id ? updated : user)));
   }, []);
 
+  const changeRoles = useCallback(async (id: string, roles: UserRole[]) => {
+    const updated = await setUserRoles(id, roles);
+    setUsers((current) => current.map((user) => (user.id === id ? updated : user)));
+  }, []);
+
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  return { users, total, loading, error, reload, loadMore, add, toggleActive, hasMore: users.length < total };
+  return { users, total, loading, error, reload, loadMore, add, toggleActive, changeRoles, hasMore: users.length < total };
 }

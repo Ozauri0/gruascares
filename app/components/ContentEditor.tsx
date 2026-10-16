@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ContentField from "../admin/components/ContentField";
 import { discardDraft, fetchDraft, publishDraft, saveDraft } from "../lib/admin-api";
-import { useAuth } from "../lib/auth";
+import { useAuth, userHasRole } from "../lib/auth";
 import { KEY_ATTR, editableAt, tagElements } from "../lib/edit-dom";
 import { ALL_FIELDS, DEFAULTS, SECTIONS, resolve } from "../lib/site-content";
 import { useContentPreview } from "./SiteContentProvider";
@@ -68,7 +68,7 @@ export default function ContentEditor() {
   const setPreview = useContentPreview();
   const barDrag = useDrag<HTMLDivElement>();
   const panelDrag = useDrag<HTMLElement>();
-  const allowed = user?.role === "admin" && EDITABLE_PATHS.includes(pathname);
+  const allowed = userHasRole(user, "admin") && EDITABLE_PATHS.includes(pathname);
 
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);

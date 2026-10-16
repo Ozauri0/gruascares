@@ -4,6 +4,7 @@ import { db } from "../db/connection.js";
 import { users } from "../db/schema.js";
 import { verifyToken } from "../utils/jwt.js";
 import { JWTPayload, UserRole } from "../types/auth.js";
+import { hasRole, rolesOf } from "../utils/roles.js";
 
 function extractToken(req: Request): string | undefined {
   // 1. Cookie HTTP-only; 2. cabecera Authorization: Bearer <token>
@@ -28,6 +29,7 @@ async function resolveUser(token: string): Promise<JWTPayload | null> {
       email: users.email,
       name: users.name,
       role: users.role,
+      extraRoles: users.extraRoles,
       isActive: users.isActive,
       tokenVersion: users.tokenVersion,
     })
@@ -43,6 +45,7 @@ async function resolveUser(token: string): Promise<JWTPayload | null> {
     email: user.email,
     name: user.name,
     role: user.role,
+    roles: rolesOf(user),
     tokenVersion: user.tokenVersion,
   };
 }
@@ -93,7 +96,7 @@ export function authorizeRoles(...allowedRoles: UserRole[]) {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!hasRole(req.user, ...allowedRoles)) {
       return res.status(403).json({
         error: "Forbidden",
         message: `Acceso denegado: se requiere uno de los roles [${allowedRoles.join(", ")}]`,

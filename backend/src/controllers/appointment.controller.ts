@@ -1,3 +1,4 @@
+import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, ne, sql, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -526,7 +527,7 @@ export async function getAppointmentById(req: Request, res: Response) {
     }
 
     // Validar autorización: si es cliente, debe ser el dueño de la cita
-    if (req.user?.role === "usuario" && item.userId !== req.user.userId) {
+    if (!hasRole(req.user!, "admin", "mecanico") && item.userId !== req.user!.userId) {
       return res.status(403).json({ error: "Forbidden", message: "Acceso no autorizado a esta cita" });
     }
 
@@ -561,7 +562,7 @@ export async function cancelAppointment(req: Request, res: Response) {
       return res.status(404).json({ error: "Not Found", message: "Cita no encontrada" });
     }
 
-    if (req.user?.role === "usuario" && item.userId !== req.user.userId) {
+    if (!hasRole(req.user!, "admin", "mecanico") && item.userId !== req.user!.userId) {
       return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para cancelar esta cita" });
     }
 

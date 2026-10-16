@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import InnerFooter from "../components/InnerFooter";
-import InnerHeader from "../components/InnerHeader";
+import AreaNav from "../components/AreaNav";
 import LogoutButton from "../components/LogoutButton";
 import { firstName, useAuth } from "../lib/auth";
 import { formatPrice } from "../lib/catalog";
 import { useAdminCatalog } from "../lib/use-catalog";
+import Skeleton from "../components/Skeleton";
 
 const LOW_STOCK = 5;
 
 // Inicio del vendedor: resumen del catálogo y accesos a lo que gestiona.
 export default function SellerHomePage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { products, loading, error, reload } = useAdminCatalog();
   const active = products.filter((p) => p.active);
   const outOfStock = active.filter((p) => p.stock === 0);
@@ -21,12 +22,11 @@ export default function SellerHomePage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
             <p className="eyebrow">Ventas</p>
-            <h1>Hola{user ? `, ${firstName(user.name)}` : ""}<em>.</em></h1>
+            <h1>Hola{user ? `, ${firstName(user.name)}` : authLoading ? <>, <span className="skeleton skeleton-inline" aria-hidden="true" /></> : ""}<em>.</em></h1>
           </div>
           <div>
             <p className="portal-subtext">Tu resumen del catálogo: qué está a la venta, qué se está acabando y a dónde ir para actualizarlo.</p>
@@ -35,8 +35,9 @@ export default function SellerHomePage() {
         </section>
 
         <div className="portal-stack wrap">
+          <AreaNav />
           {loading ? (
-            <div className="portal-empty-card" aria-busy="true"><p>Cargando el catálogo…</p></div>
+            <Skeleton label="Cargando el catálogo…" kpis />
           ) : error ? (
             <div className="portal-empty-card" role="alert">
               <p>{error}</p>

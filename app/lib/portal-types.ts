@@ -11,6 +11,8 @@ export type SessionUser = {
   name: string;
   email: string;
   role: UserRole;
+  /** Todos sus roles (el principal primero). */
+  roles: UserRole[];
   phone: string | null;
   isActive: boolean;
   createdAt: string;

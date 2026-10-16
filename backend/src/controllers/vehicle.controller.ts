@@ -1,3 +1,4 @@
+import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
@@ -24,10 +25,10 @@ export async function getVehicles(req: Request, res: Response) {
       });
     }
 
-    const { userId: filterUserId, plate: filterPlate } = req.query;
+    const { userId: filterUserId, plate: filterPlate, mine } = req.query;
 
-    // Si es usuario estándar, solo puede consultar sus propios vehículos
-    if (currentUser.role === "usuario") {
+    // Un cliente solo ve sus vehículos; el personal también puede pedir solo los suyos (?mine=true), p. ej. en su portal de cliente
+    if (mine === "true" || !hasRole(currentUser, "admin", "mecanico")) {
       const userVehicles = await db
         .select()
         .from(vehicles)
@@ -139,7 +140,7 @@ export async function getVehicleById(req: Request, res: Response) {
     }
 
     // Verificar permisos: el dueño o personal técnico/admin
-    if (currentUser.role === "usuario" && vehicle.userId !== currentUser.userId) {
+    if (!hasRole(currentUser, "admin", "mecanico") && vehicle.userId !== currentUser.userId) {
       return res.status(403).json({
         error: "Forbidden",
         message: "No tienes permiso para ver este vehículo",
@@ -174,7 +175,7 @@ export async function createVehicle(req: Request, res: Response) {
 
     // Si es admin y envía userId, puede registrar vehículos a nombre de un cliente
     let ownerUserId = currentUser.userId;
-    if (targetUserId && (currentUser.role === "admin" || currentUser.role === "mecanico")) {
+    if (targetUserId && hasRole(currentUser, "admin", "mecanico")) {
       if (!UUID_REGEX.test(targetUserId)) {
         return res.status(400).json({
           error: "Bad Request",
@@ -325,7 +326,7 @@ export async function updateVehicle(req: Request, res: Response) {
     }
 
     // Verificar permisos
-    if (currentUser.role === "usuario" && existing.userId !== currentUser.userId) {
+    if (!hasRole(currentUser, "admin", "mecanico") && existing.userId !== currentUser.userId) {
       return res.status(403).json({
         error: "Forbidden",
         message: "No tienes permiso para modificar este vehículo",
@@ -493,7 +494,7 @@ export async function deleteVehicle(req: Request, res: Response) {
     }
 
     // Verificar permisos
-    if (currentUser.role === "usuario" && existing.userId !== currentUser.userId) {
+    if (!hasRole(currentUser, "admin", "mecanico") && existing.userId !== currentUser.userId) {
       return res.status(403).json({
         error: "Forbidden",
         message: "No tienes permiso para eliminar este vehículo",
