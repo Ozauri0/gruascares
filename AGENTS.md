@@ -118,6 +118,10 @@ El carro no debe transformarse en checkout:
 - La acción final debe ser solicitar disponibilidad por teléfono o WhatsApp.
 - La compra se coordina presencialmente o directamente con la tienda.
 
+## Editable Content
+
+Los textos e imágenes de la web pública se editan en `/admin/contenido`. El catálogo de campos y sus valores originales está en `app/lib/site-content.ts`: para volver editable un texto nuevo, agrégalo ahí y úsalo con `useSiteContent()` (`t("clave")`) en lugar de escribirlo fijo. Las claves de imagen terminan en `.image`. No editables a propósito: teléfonos y enlaces a redes (datos verificados del sitio original).
+
 ## Forms
 
 Los formularios envían datos reales a la API:

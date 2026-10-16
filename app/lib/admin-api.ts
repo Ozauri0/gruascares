@@ -1,6 +1,6 @@
 // Panel de administración contra el backend (rutas /api/admin/* y /api/mechanic/*; solo admin).
 
-import { apiDelete, apiGet, apiPatch, apiPost } from "./api";
+import { apiDelete, apiGet, apiPatch, apiPost, api } from "./api";
 import { toAdminMetrics, toAgendaItem } from "./api-adapters";
 import type { AdminMetrics, BlockedDay, DaySchedule, StaffMember } from "./admin-types";
 import type { ApiAgendaItem, ApiBlockedDate, ApiMetrics } from "./api-types";
@@ -84,4 +84,26 @@ export async function listStaff(signal?: AbortSignal): Promise<StaffMember[]> {
 
 export async function assignMechanic(appointmentId: string, mechanicId: string): Promise<void> {
   await apiPatch(`/api/admin/appointments/${encodeURIComponent(appointmentId)}/assign`, { mechanicId });
+}
+
+/** Contenido editado de la web (solo lo que difiere de los textos originales). */
+export async function fetchContent(signal?: AbortSignal): Promise<Record<string, string>> {
+  const { content } = await apiGet<{ content: Record<string, string> }>("/api/content", undefined, { signal });
+  return content;
+}
+
+/** Guarda varios campos; un valor `null` restaura el original. */
+export async function saveContent(values: Record<string, string | null>): Promise<void> {
+  await api("/api/admin/content", { method: "PUT", body: { values } });
+}
+
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const UPLOAD_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+/** Sube una imagen (PNG, JPG o WebP, máx. 5 MB) y devuelve su ruta pública. */
+export async function uploadImage(file: File): Promise<string> {
+  if (!UPLOAD_TYPES.includes(file.type)) throw new Error("La imagen debe ser PNG, JPG o WebP.");
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error("La imagen supera los 5 MB.");
+  const { url } = await api<{ url: string }>("/api/admin/uploads", { method: "POST", body: file });
+  return url;
 }

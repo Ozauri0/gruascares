@@ -26,6 +26,8 @@ export interface AppConfig {
   demoMode: boolean;
   /** URL pública del frontend (enlaces de los correos). */
   appUrl: string;
+  /** Carpeta donde se guardan las imágenes que sube el administrador. */
+  uploadsDir: string;
   jwt: { secret: string; expiresIn: string };
   email: { host: string; port: number; user: string; pass: string; from: string };
 }
@@ -81,6 +83,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     trustProxy: parseTrustProxy(env.TRUST_PROXY),
     demoMode,
     appUrl: (env.APP_URL || (isProduction ? "https://gruascares.cl" : "http://localhost:3000")).replace(/\/$/, ""),
+    uploadsDir: path.resolve(
+      env.UPLOADS_DIR || path.resolve(process.cwd(), path.basename(process.cwd()) === "backend" ? "uploads" : "backend/uploads")
+    ),
     jwt: { secret, expiresIn: env.JWT_EXPIRES_IN || "7d" },
     email: {
       host: env.SMTP_HOST || "",

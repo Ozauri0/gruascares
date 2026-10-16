@@ -2,6 +2,8 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import fs from "fs";
+import os from "os";
 import path from "path";
 
 process.env.BCRYPT_ROUNDS = "4";
@@ -10,6 +12,8 @@ process.env.SMTP_USER = "";
 process.env.SMTP_PASS = "";
 process.env.JWT_SECRET = "test_secret_test_secret_test_secret_123456";
 process.env.CORS_ORIGIN = "http://localhost:3000";
+// Las imágenes subidas en pruebas van a una carpeta temporal (nunca a backend/uploads).
+process.env.UPLOADS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "gc-uploads-"));
 
 const baseUrl = process.env.DATABASE_URL || "postgresql://postgres:postgrespassword@localhost:5432/gruas_cares";
 const TEST_DB = "gruas_cares_test";
