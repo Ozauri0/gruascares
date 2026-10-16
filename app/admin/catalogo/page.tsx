@@ -9,6 +9,7 @@ import type { Product } from "../../lib/catalog";
 import { saveContent, uploadImage } from "../../lib/admin-api";
 import { SHOP_TOP_HIDDEN_KEY } from "../../lib/site-content";
 import { useSiteContent } from "../../components/SiteContentProvider";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/auth";
 import { useAdminCatalog } from "../../lib/use-catalog";
@@ -249,7 +250,7 @@ export default function CatalogAdminPage() {
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
-            <p className="eyebrow">{isAdmin ? "Administración" : "Ventas"}</p>
+            <p className="eyebrow">{isAdmin ? "Administración" : <Link href="/vendedor">← Ventas · Inicio</Link>}</p>
             <h1>Catálogo y <em>precios.</em></h1>
           </div>
           <div>

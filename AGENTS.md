@@ -40,7 +40,7 @@ Antes de considerar terminada una modificación deben pasar `bun run build`, `bu
 - `/catalogo`: Tienda visual de productos para autos, camiones y maquinaria.
 - `/agendar`: Solicitud de servicios y productos. En desktop está diseñada para entrar en un viewport sin scroll.
 - `/carro`: Lista de solicitud de productos. No procesa pagos ni compras online.
-- `/vendedor`: Panel del rol **vendedor** (gestiona el catálogo: precios, stock, visibilidad e imágenes; sin acceso al resto de la administración). El catálogo público solo muestra productos con stock.
+- `/vendedor`: Inicio del rol **vendedor** (resumen y productos por reponer; el catálogo está en `/vendedor/catalogo`). Gestiona el catálogo: precios, stock, visibilidad e imágenes; sin acceso al resto de la administración). El catálogo público solo muestra productos con stock.
 - `/login`: Mockup de portal de clientes, sin autenticación real.
 
 ## Components
