@@ -24,15 +24,18 @@ const publicFields = {
   featured: products.featured,
 };
 
+const UPLOAD_URL_REGEX = /^\/api\/uploads\/[0-9a-f-]{36}\.(png|jpg|webp)$/;
+
 const orderBy = [desc(products.featured), asc(products.sortOrder), asc(products.name), asc(products.id)];
 
 /**
- * Imagen permitida: nada (arte automático), una ruta local /images/... o una URL https.
+ * Imagen permitida: una ruta local /images/..., una imagen subida por el admin (/api/uploads/<uuid>.png|jpg|webp) o una URL https.
  * No se aceptan data: URLs ni otros esquemas (javascript:, http:, etc.): evita inflar la base y vectores de abuso.
  */
 export function isAllowedImage(value: unknown): value is string {
   if (typeof value !== "string" || value.length === 0 || value.length > 500) return false;
   if (value.startsWith("/images/")) return !value.includes("..") && !/[\s"'<>\\]/.test(value);
+  if (UPLOAD_URL_REGEX.test(value)) return true;
   try {
     const url = new URL(value);
     return url.protocol === "https:" && !/[\s"'<>\\]/.test(value);
@@ -94,7 +97,7 @@ function parseProduct(body: Record<string, unknown>, mode: "create" | "update"):
   }
   if (has("image")) {
     if (body.image !== null && !isAllowedImage(body.image)) {
-      return { ok: false, message: "La imagen debe ser null, una ruta /images/... o una URL https (máx. 500 caracteres)" };
+      return { ok: false, message: "La imagen debe ser null, una ruta /images/..., una imagen subida o una URL https (máx. 500 caracteres)" };
     }
     values.image = (body.image as string | null) ?? null;
   }

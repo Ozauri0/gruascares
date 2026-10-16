@@ -6,7 +6,7 @@ import { startServer, type TestServer } from "./helpers.js";
 
 describe("INT-10: política de imágenes del catálogo", () => {
   test("acepta rutas locales y URLs https; rechaza el resto", () => {
-    for (const ok of ["/images/service-grua.jpg", "https://cdn.example.com/a/b.png?v=1"]) expect(isAllowedImage(ok)).toBe(true);
+    for (const ok of ["/images/service-grua.jpg", "/api/uploads/123e4567-e89b-12d3-a456-426614174000.webp", "https://cdn.example.com/a/b.png?v=1"]) expect(isAllowedImage(ok)).toBe(true);
     for (const bad of [
       "http://example.com/a.png",
       "javascript:alert(1)",
