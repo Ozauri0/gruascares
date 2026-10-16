@@ -13,6 +13,7 @@ import adminRouter from "./routes/admin.routes.js";
 import { getPublicContent } from "./controllers/content.controller.js";
 import { getPublicCatalog } from "./controllers/catalog.controller.js";
 import { createRateLimiters, RATE_LIMITS } from "./middlewares/rate-limit.js";
+import { logAudit } from "./services/audit/audit.service.js";
 import { demoLogin } from "./controllers/auth.controller.js";
 
 const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
@@ -65,6 +66,21 @@ export function createApp(options: AppOptions = {}): Express {
   // Logging básico de peticiones en consola
   app.use((req: Request, _res: Response, next: NextFunction) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Toda respuesta 5xx queda en el registro de actividad para controlar errores (sin cuerpo ni cabeceras).
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.on("finish", () => {
+      if (res.statusCode < 500) return;
+      logAudit({
+        action: "SERVER_ERROR",
+        entityType: "http",
+        entityId: `${req.method} ${req.path}`.slice(0, 100),
+        details: { method: req.method, path: req.originalUrl.split("?")[0], status: res.statusCode, message: res.locals.errorMessage },
+        req,
+      });
+    });
     next();
   });
 
@@ -121,6 +137,7 @@ export function createApp(options: AppOptions = {}): Express {
       return res.status(413).json({ error: "Payload Too Large", message: "El archivo supera el tamaño máximo permitido" });
     }
     console.error("Unhandled error:", err);
+    res.locals.errorMessage = String(err.message || err).slice(0, 300);
     res.status(500).json({
       error: "Internal Server Error",
       message: config.isProduction ? "Ha ocurrido un error inesperado" : err.message,
