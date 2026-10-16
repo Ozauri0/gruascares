@@ -1,6 +1,6 @@
 import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
-import { eq, and, desc, asc, gte, lte, ne, sql } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, ne, sql, or, ilike } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import {
   appointments,
@@ -13,6 +13,7 @@ import {
   auditLogs,
 } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
+import { AUDIT_AREAS, AUDIT_LEVELS, areaCondition, areaOf, labelOf, levelCondition, levelOf, type AuditArea, type AuditLevel } from "../services/audit/areas.js";
 import { isValidIsoDate, todayInSantiago, weekRange } from "../utils/dates.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { escapeCsvCell } from "../utils/csv.js";
@@ -911,7 +912,7 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
  */
 export async function getAuditLogs(req: Request, res: Response) {
   try {
-    const { action, entityType, userId, startDate, endDate, page = "1", limit = "50" } = req.query;
+    const { action, entityType, userId, startDate, endDate, area, level, q, page = "1", limit = "50" } = req.query;
 
     const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 50));
@@ -927,6 +928,25 @@ export async function getAuditLogs(req: Request, res: Response) {
     }
     if (userId && typeof userId === "string" && UUID_REGEX.test(userId)) {
       conditions.push(eq(auditLogs.userId, userId));
+    }
+    if (area !== undefined) {
+      if (typeof area !== "string" || !AUDIT_AREAS.includes(area as AuditArea)) {
+        return res.status(400).json({ error: "Bad Request", message: `area debe ser una de: ${AUDIT_AREAS.join(", ")}` });
+      }
+      const cond = areaCondition(area as AuditArea);
+      if (cond) conditions.push(cond);
+    }
+    if (level !== undefined) {
+      if (typeof level !== "string" || !AUDIT_LEVELS.includes(level as AuditLevel)) {
+        return res.status(400).json({ error: "Bad Request", message: `level debe ser una de: ${AUDIT_LEVELS.join(", ")}` });
+      }
+      const cond = levelCondition(level as AuditLevel);
+      if (cond) conditions.push(cond);
+      else conditions.push(sql`${auditLogs.action} NOT IN ('SERVER_ERROR', 'LOGIN_FAILED', 'LOGIN_BLOCKED')`);
+    }
+    if (typeof q === "string" && q.trim()) {
+      const term = `%${q.trim().replace(/[\\%_]/g, "\\$&")}%`;
+      conditions.push(or(ilike(auditLogs.userEmail, term), ilike(users.name, term), ilike(auditLogs.details, term), ilike(auditLogs.entityId, term))!);
     }
     if (startDate !== undefined) {
       const from = typeof startDate === "string" ? new Date(startDate) : new Date(NaN);
@@ -948,15 +968,26 @@ export async function getAuditLogs(req: Request, res: Response) {
     const [totalCountRaw] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    const logs = await db
-      .select()
+    const rows = await db
+      .select({ log: auditLogs, userName: users.name, userRole: users.role, userExtraRoles: users.extraRoles })
       .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(auditLogs.createdAt))
       .limit(limitNum)
       .offset(offset);
+
+    const logs = rows.map(({ log, userName, userRole, userExtraRoles }) => ({
+      ...log,
+      area: areaOf(log.action),
+      level: levelOf(log.action),
+      label: labelOf(log.action),
+      userName,
+      userRoles: userRole ? [userRole, ...(userExtraRoles ?? [])] : [],
+    }));
 
     return res.json({
       total: totalCountRaw?.count || 0,

@@ -42,6 +42,7 @@ Antes de considerar terminada una modificación deben pasar `bun run build`, `bu
 - `/carro`: Lista de solicitud de productos. No procesa pagos ni compras online.
 - `/vendedor`: Inicio del rol **vendedor** (resumen y productos por reponer; el catálogo está en `/vendedor/catalogo`). Gestiona el catálogo: precios, stock, visibilidad e imágenes; sin acceso al resto de la administración). El catálogo público solo muestra productos con stock.
 - Roles: un usuario puede tener varios (p. ej. mecánico + vendedor). El primero es el principal y define su página de inicio; quien trabaja en la empresa ve la barra «Mis áreas» (Administración, Taller, Ventas y Mi cuenta) para moverse entre sus módulos; el portal de cliente es de todos, así el personal también trae su auto. El admin los asigna en "Usuarios y equipo" (botón Roles). Cliente (`usuario`) no se combina con roles de personal.
+- `/admin/registro`: Registro de actividad (solo admin): quién hizo qué en taller, ventas y administración, intentos de ingreso y errores 5xx del servidor; filtros por área, nivel, texto y fechas. Sale de `audit_logs` (`GET /api/admin/audit-logs`; el área y nivel se derivan de la acción en `backend/src/services/audit/areas.ts`: para registrar una acción nueva, llama a `logAudit` y agrégala allí).
 - `/login`: Mockup de portal de clientes, sin autenticación real.
 
 ## Components

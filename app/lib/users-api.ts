@@ -24,7 +24,7 @@ export async function createStaff(input: NewStaff): Promise<SessionUser> {
   return toAdminUser(user);
 }
 
-/** Cambia los roles de un usuario (el primero es el principal). Cierra sus sesiones abiertas. */
+/** Cambia los roles de un usuario (el primero es el principal). Rige de inmediato (no cierra su sesión). */
 export async function setUserRoles(id: string, roles: UserRole[]): Promise<SessionUser> {
   const { user } = await apiPatch<{ user: ApiAdminUser }>(`/api/admin/users/${encodeURIComponent(id)}`, { roles });
   return toAdminUser(user);
