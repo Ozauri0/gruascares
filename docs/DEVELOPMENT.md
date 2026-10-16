@@ -59,7 +59,7 @@ Backend (`backend/.env`, plantilla en `backend/.env.example`):
 | `SMTP_*`, `EMAIL_FROM` | Correo | Sin `SMTP_HOST/USER/PASS` los correos se **simulan** y se muestran en la consola del backend. |
 | `TRUST_PROXY` | Proxies de confianza | Para `req.ip` y límites de tasa detrás de nginx. |
 | `BCRYPT_ROUNDS` | Costo de contraseñas | 12 por defecto. |
-| `UPLOADS_DIR` | Imágenes subidas desde `/admin/contenido` | Por defecto `backend/uploads` (ignorada por git). En producción debe ser una carpeta persistente. |
+| `UPLOADS_DIR` | Imágenes subidas desde `/admin/contenido` | Por defecto `backend/uploads` (ignorada por git). En producción debe ser una carpeta persistente. Con Docker (`docker compose --profile app up -d --build`) es el volumen `uploads_data`, montado en `/data/uploads`. |
 
 Frontend (`.env`, plantilla en `.env.example`): `BACKEND_URL` (por defecto `http://localhost:4000`).
 
