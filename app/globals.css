@@ -984,3 +984,4 @@ body>footer{flex-shrink:0}
 .ed-grip b{font-weight:400;opacity:.7;margin-right:4px;font-size:16px;line-height:1}
 .ed-panel-grip{display:grid;place-items:center;width:30px;height:34px;border-radius:8px;background:#f0f0f0;color:#555}
 .ed-panel-grip b{margin:0}
+.seller-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.seller-actions .toggle-btn{text-decoration:none}
