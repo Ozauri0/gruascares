@@ -923,3 +923,6 @@ body>footer{flex-shrink:0}
   .ed-panel{left:10px;right:10px;top:auto;bottom:auto;width:auto;max-height:46vh;bottom:calc(var(--ed-bar,150px) + 8px)}
   .ed-actions .toggle-btn{flex:1 1 auto}
 }
+
+.reason-field{display:grid;gap:8px}
+.reason-chips{display:flex;flex-wrap:wrap;gap:6px}
