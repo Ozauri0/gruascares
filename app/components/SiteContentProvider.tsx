@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { resolve, type ContentOverrides } from "../lib/site-content";
-import { EDIT_IMAGE_TAG, encodeKey, EditBridge, isEditFrame } from "./EditBridge";
+import { EditBridge, isEditFrame } from "./EditBridge";
 
 const SiteContentContext = createContext<{ overrides: ContentOverrides; editing: boolean }>({ overrides: {}, editing: false });
 
@@ -17,21 +17,13 @@ export function SiteContentProvider({ overrides, children }: { overrides: Conten
   return (
     <SiteContentContext.Provider value={value}>
       {children}
-      {editing && <EditBridge onDraft={setDraft} />}
+      {editing && <EditBridge values={value.overrides} onDraft={setDraft} />}
     </SiteContentContext.Provider>
   );
 }
 
 /** `t("hero.title")` devuelve el texto o la imagen vigente del campo. */
 export function useSiteContent() {
-  const { overrides, editing } = useContext(SiteContentContext);
-  return useCallback(
-    (key: string) => {
-      const value = resolve(overrides, key);
-      if (!editing) return value;
-      // En el editor visual se marca el valor con su clave para saber qué elemento se toca.
-      return key.endsWith(".image") ? `${value}${EDIT_IMAGE_TAG}${key}` : `${encodeKey(key)}${value}`;
-    },
-    [overrides, editing]
-  );
+  const { overrides } = useContext(SiteContentContext);
+  return useCallback((key: string) => resolve(overrides, key), [overrides]);
 }
