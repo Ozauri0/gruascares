@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import InnerHeader from "../../components/InnerHeader";
 import AdminNav from "../components/AdminNav";
@@ -8,7 +8,13 @@ import ContentField from "../components/ContentField";
 import { fetchContent, saveContent } from "../../lib/admin-api";
 import { ALL_FIELDS, DEFAULTS, SECTIONS, resolve } from "../../lib/site-content";
 
-type View = "editar" | "vista";
+type Panel = "elemento" | "campos";
+type Device = "escritorio" | "movil";
+
+const PAGES = [
+  { path: "/", label: "Inicio" },
+  { path: "/catalogo", label: "Tienda" },
+];
 
 export default function ContentAdminPage() {
   const [saved, setSaved] = useState<Record<string, string> | null>(null);
@@ -16,9 +22,12 @@ export default function ContentAdminPage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
-  const [view, setView] = useState<View>("editar");
-  const [previewKey, setPreviewKey] = useState(0);
+  const [panel, setPanel] = useState<Panel>("elemento");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [device, setDevice] = useState<Device>("escritorio");
   const [previewPath, setPreviewPath] = useState("/");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null);
 
   const load = useCallback(() => {
     setError("");
@@ -37,6 +46,33 @@ export default function ContentAdminPage() {
     [saved, draft]
   );
 
+  // Envía el borrador a la página de la vista previa para que se vea al instante.
+  const push = useCallback(() => {
+    frame.current?.contentWindow?.postMessage({ type: "gc-draft", values: draft }, window.location.origin);
+  }, [draft]);
+  useEffect(push, [push]);
+
+  // Mensajes de la página: lista para recibir el borrador / se tocó un elemento.
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
+      if (event.data?.type === "gc-ready") push();
+      if (event.data?.type === "gc-select" && typeof event.data.key === "string" && ALL_FIELDS.some((f) => f.key === event.data.key)) {
+        setSelected(event.data.key);
+        setPanel("elemento");
+        setMenuOpen(true);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [push]);
+
+  function pick(key: string) {
+    setSelected(key);
+    setPanel("elemento");
+    frame.current?.contentWindow?.postMessage({ type: "gc-focus", key }, window.location.origin);
+  }
+
   async function save() {
     if (!saved || changes.length === 0 || saving) return;
     setSaving(true);
@@ -47,7 +83,6 @@ export default function ContentAdminPage() {
       const values = Object.fromEntries(changes.map((f) => [f.key, draft[f.key] === DEFAULTS[f.key] ? null : draft[f.key]]));
       await saveContent(values);
       setSaved(await fetchContent());
-      setPreviewKey((n) => n + 1);
       setNotice(`Se guardaron ${changes.length} cambio(s). Ya se ven en el sitio.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudieron guardar los cambios.");
@@ -57,6 +92,17 @@ export default function ContentAdminPage() {
   }
 
   const discard = () => saved && setDraft(Object.fromEntries(ALL_FIELDS.map((f) => [f.key, resolve(saved, f.key)])));
+  const field = ALL_FIELDS.find((f) => f.key === selected);
+  const renderField = (f: (typeof ALL_FIELDS)[number]) => (
+    <ContentField
+      key={f.key}
+      field={f}
+      value={draft[f.key] ?? ""}
+      customized={saved?.[f.key] !== undefined}
+      dirty={changes.includes(f)}
+      onChange={(value) => setDraft((current) => ({ ...current, [f.key]: value }))}
+    />
+  );
 
   return (
     <>
@@ -68,7 +114,7 @@ export default function ContentAdminPage() {
             <h1>Contenido del <em>sitio.</em></h1>
           </div>
           <div>
-            <p className="portal-subtext">Edita los textos e imágenes de la web pública. Los cambios se ven en la vista previa al guardar; lo que no edites conserva su contenido original.</p>
+            <p className="portal-subtext">Toca cualquier texto o imagen de la vista previa para editarlo ahí mismo. Los cambios se ven al instante y se publican al guardar; lo que no edites conserva su contenido original.</p>
           </div>
         </section>
 
@@ -84,49 +130,62 @@ export default function ContentAdminPage() {
 
           {saved && (
             <>
-              <div className="cms-tabs" role="tablist" aria-label="Vista">
-                <button type="button" role="tab" aria-selected={view === "editar"} className={view === "editar" ? "on" : ""} onClick={() => setView("editar")}>Editar</button>
-                <button type="button" role="tab" aria-selected={view === "vista"} className={view === "vista" ? "on" : ""} onClick={() => setView("vista")}>Vista previa</button>
-              </div>
-
-              <div className={`cms-layout view-${view}`}>
-                <div className="cms-editor">
-                  {SECTIONS.map((section, index) => {
-                    const sectionChanges = section.fields.filter((f) => changes.includes(f)).length;
-                    return (
-                      <details className="cms-section" key={section.id} open={index < 2}>
-                        <summary>
-                          <span>{section.title}</span>
-                          {sectionChanges > 0 && <span className="cf-flag dirty">{sectionChanges} sin guardar</span>}
-                        </summary>
-                        <div className="cms-fields">
-                          {section.description && <p className="cms-desc">{section.description}</p>}
-                          {section.fields.map((field) => (
-                            <ContentField
-                              key={field.key}
-                              field={field}
-                              value={draft[field.key] ?? ""}
-                              customized={saved[field.key] !== undefined}
-                              dirty={changes.includes(field)}
-                              onChange={(value) => setDraft((current) => ({ ...current, [field.key]: value }))}
-                            />
-                          ))}
-                        </div>
-                      </details>
-                    );
-                  })}
-                </div>
-
-                <aside className="cms-preview" aria-label="Vista previa del sitio">
+              <div className="ve-layout">
+                <section className="ve-stage" aria-label="Vista previa editable del sitio">
                   <div className="cms-preview-bar">
-                    <select value={previewPath} onChange={(e) => setPreviewPath(e.target.value)} aria-label="Página de la vista previa">
-                      <option value="/">Inicio</option>
-                      <option value="/catalogo">Tienda</option>
+                    <select value={previewPath} onChange={(e) => setPreviewPath(e.target.value)} aria-label="Página que se edita">
+                      {PAGES.map((p) => <option key={p.path} value={p.path}>{p.label}</option>)}
                     </select>
-                    <button type="button" className="toggle-btn" onClick={() => setPreviewKey((n) => n + 1)}>Recargar</button>
-                    <a className="toggle-btn" href={previewPath} target="_blank" rel="noreferrer">Abrir ↗</a>
+                    <span className="ve-device" role="group" aria-label="Tamaño de pantalla">
+                      <button type="button" className={device === "escritorio" ? "on" : ""} aria-pressed={device === "escritorio"} onClick={() => setDevice("escritorio")}>Escritorio</button>
+                      <button type="button" className={device === "movil" ? "on" : ""} aria-pressed={device === "movil"} onClick={() => setDevice("movil")}>Móvil</button>
+                    </span>
+                    <button type="button" className="toggle-btn ve-open-menu" onClick={() => setMenuOpen((o) => !o)}>{menuOpen ? "Cerrar editor" : "Abrir editor"}</button>
+                    <a className="toggle-btn" href={previewPath} target="_blank" rel="noreferrer">Abrir sitio ↗</a>
                   </div>
-                  <iframe key={`${previewPath}-${previewKey}`} src={previewPath} title="Vista previa del sitio" />
+                  <div className={`ve-frame-wrap ${device}`}>
+                    <iframe ref={frame} key={previewPath} src={`${previewPath}?editar=1`} title="Vista previa editable del sitio" onLoad={push} />
+                  </div>
+                </section>
+
+                <aside className={`ve-menu${menuOpen ? " open" : ""}`} aria-label="Editor de contenido">
+                  <div className="cms-tabs ve-tabs" role="tablist" aria-label="Editor">
+                    <button type="button" role="tab" aria-selected={panel === "elemento"} className={panel === "elemento" ? "on" : ""} onClick={() => setPanel("elemento")}>Elemento</button>
+                    <button type="button" role="tab" aria-selected={panel === "campos"} className={panel === "campos" ? "on" : ""} onClick={() => setPanel("campos")}>Todos los campos</button>
+                  </div>
+
+                  {panel === "elemento" ? (
+                    field ? (
+                      <div className="cms-fields">
+                        {renderField(field)}
+                        <button type="button" className="toggle-btn" onClick={() => setSelected(null)}>Listo</button>
+                      </div>
+                    ) : (
+                      <p className="cms-desc ve-empty">Toca un texto o una imagen de la vista previa para editarlo aquí. También puedes buscarlo en “Todos los campos”.</p>
+                    )
+                  ) : (
+                    <div className="ve-all">
+                      {SECTIONS.map((section) => {
+                        const sectionChanges = section.fields.filter((f) => changes.includes(f)).length;
+                        return (
+                          <details className="cms-section" key={section.id}>
+                            <summary>
+                              <span>{section.title}</span>
+                              {sectionChanges > 0 && <span className="cf-flag dirty">{sectionChanges} sin guardar</span>}
+                            </summary>
+                            <div className="cms-fields">
+                              {section.fields.map((f) => (
+                                <button type="button" key={f.key} className={`ve-field-link${changes.includes(f) ? " dirty" : ""}`} onClick={() => pick(f.key)}>
+                                  <span>{f.label}</span>
+                                  <small>{f.kind === "image" ? "Imagen" : (draft[f.key] ?? "").replace(/\n/g, " ").slice(0, 60)}</small>
+                                </button>
+                              ))}
+                            </div>
+                          </details>
+                        );
+                      })}
+                    </div>
+                  )}
                 </aside>
               </div>
 
