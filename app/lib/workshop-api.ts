@@ -29,6 +29,11 @@ export async function fetchPendingRequests(signal?: AbortSignal): Promise<Agenda
   return agenda.map(toAgendaItem);
 }
 
+/** Cambia el mecánico a cargo de una cita que sigue activa (solicitada, confirmada o en taller). */
+export async function assignAppointmentMechanic(id: string, mechanicId: string): Promise<void> {
+  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/assign`, { mechanicId });
+}
+
 export async function changeAppointmentStatus(id: string, status: AppointmentStatus): Promise<void> {
   await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/status`, { status });
 }

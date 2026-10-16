@@ -44,6 +44,23 @@ describe("BUG-4: tabla de transiciones", () => {
   });
 });
 
+describe.skipIf(!dbReady)("cambiar el mecánico a cargo desde el taller", () => {
+  const assign = (id: string, user: Parameters<typeof patchStatus>[1], mechanicId: string) =>
+    fetch(`${server.url}/api/mechanic/appointments/${id}/assign`, { method: "PATCH", headers: cookieFor(user), body: JSON.stringify({ mechanicId }) });
+
+  test("un mecánico reasigna una cita solicitada o confirmada; no una finalizada ni a un cliente", async () => {
+    const id = await createAppointment("solicitada");
+    expect((await assign(id, seed.mechanic, seed.admin.id)).status).toBe(200);
+    expect((await sql`select mechanic_id from appointments where id = ${id}`)[0].mechanic_id).toBe(seed.admin.id);
+
+    expect((await assign(id, seed.mechanic, seed.clientA.id)).status).toBe(400); // un cliente no puede ser mecánico
+    expect((await assign(id, seed.clientA, seed.mechanic.id)).status).toBe(403); // ni un cliente reasignar
+
+    const done = await createAppointment("finalizada");
+    expect((await assign(done, seed.mechanic, seed.mechanic.id)).status).toBe(409);
+  });
+});
+
 describe.skipIf(!dbReady)("avisos al cliente al confirmar o cancelar", () => {
   test("confirmar una solicitud le envía el correo; avanzar a en_proceso no", async () => {
     const id = await createAppointment("solicitada");

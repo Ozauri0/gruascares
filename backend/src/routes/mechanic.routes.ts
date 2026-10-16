@@ -1,3 +1,4 @@
+import { reassignAppointmentMechanic } from "../controllers/admin.controller.js";
 import { Router } from "express";
 import {
   getMechanicAgenda,
@@ -21,6 +22,9 @@ router.get("/agenda", authorizeRoles("mecanico", "admin"), getMechanicAgenda);
 
 // 2. Transición de estado de cita desde la vista de taller
 router.patch("/appointments/:id/status", authorizeRoles("mecanico", "admin"), updateAppointmentStatus);
+
+// 2b. Cambiar el mecánico a cargo (mecánicos y administradores; solo citas que siguen activas)
+router.patch("/appointments/:id/assign", authorizeRoles("mecanico", "admin"), reassignAppointmentMechanic);
 
 // 3. Registrar o actualizar hoja de atención técnica
 router.post("/appointments/:id/report", authorizeRoles("mecanico", "admin"), saveTechnicalReport);
