@@ -5,6 +5,7 @@ import StatusBadge from "../../components/StatusBadge";
 import type { BlockedDay, StaffMember } from "../../lib/admin-types";
 import { useDaySchedule } from "../../lib/use-day-schedule";
 import type { AgendaItem } from "../../lib/workshop-types";
+import ReasonField from "./ReasonField";
 import RescheduleForm from "./RescheduleForm";
 
 type Props = {
@@ -80,10 +81,7 @@ export default function DayPanel({ date, dayBlock, items, staff, onBlockDay, onU
         </button>
       </div>
 
-      <label className="calendar-reason">
-        Motivo (para bloquear el día o un horario)
-        <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder="Ej: Feriado, capacitación, mantención…" />
-      </label>
+      <ReasonField label="Motivo (para bloquear el día o un horario)" value={reason} onChange={setReason} />
       {error && <p className="field-error" role="alert">{error}</p>}
 
       <div className="day-tabs" role="tablist">

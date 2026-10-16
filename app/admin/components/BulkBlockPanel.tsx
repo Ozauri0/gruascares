@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { bulkBlockDays, bulkUnblockDays } from "../../lib/admin-api";
 import { todayInSantiago } from "../../lib/dates";
+import ReasonField from "./ReasonField";
 
 // Lunes a domingo; el valor es el día de la semana de JavaScript (0 = domingo).
 const WEEKDAYS = [
@@ -70,7 +71,7 @@ export default function BulkBlockPanel({ onDone }: { onDone: () => void }) {
           <button type="button" className="link-btn" onClick={() => { setWeekdays([0]); setReason("Domingo no laboral"); }}>Solo domingos</button>
           <button type="button" className="link-btn" onClick={() => setWeekdays([1, 2, 3, 4, 5, 6, 0])}>Todos</button>
         </div>
-        <label>Motivo<input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} /></label>
+        <ReasonField label="Motivo" value={reason} onChange={setReason} />
         <div className="bulk-actions">
           <button type="button" className="toggle-btn active" disabled={busy} onClick={() => void run("block")}>Bloquear días</button>
           <button type="button" className="toggle-btn" disabled={busy} onClick={() => void run("unblock")}>Desbloquear días</button>
