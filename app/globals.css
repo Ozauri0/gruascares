@@ -985,3 +985,20 @@ body>footer{flex-shrink:0}
 .ed-panel-grip{display:grid;place-items:center;width:30px;height:34px;border-radius:8px;background:#f0f0f0;color:#555}
 .ed-panel-grip b{margin:0}
 .seller-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.seller-actions .toggle-btn{text-decoration:none}
+.role-badges{display:inline-flex;gap:6px;flex-wrap:wrap}.role-picker{border:1px solid #e2e2e2;border-radius:12px;padding:12px 14px;display:grid;gap:10px;margin:6px 0}.role-picker legend{font:11px "DM Mono";text-transform:uppercase;padding:0 6px;color:#555}.role-picker .check-row{display:flex;gap:10px;align-items:flex-start}.role-picker small{color:#666}
+.area-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 4px;padding:8px 10px;background:#fff;border:1px solid #e2e2e2;border-radius:999px;width:fit-content;max-width:100%}
+.area-nav-label{font:10px 'DM Mono',monospace;text-transform:uppercase;color:#666;padding:0 8px}
+.area-nav-link{padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;color:var(--ink);transition:background .2s,color .2s}
+.area-nav-link:hover{background:#f1f1f1}
+.area-nav-link.active{background:var(--ink);color:#fff}
+@media(max-width:760px){.area-nav{border-radius:18px;width:100%}.area-nav-label{width:100%}}
+
+/* Marcadores de carga (Skeleton) */
+.skeleton-wrap{display:grid;gap:16px}
+.skeleton-rows{display:grid;gap:12px}
+.skeleton{border-radius:14px;background:linear-gradient(90deg,#ececec 25%,#f6f6f6 50%,#ececec 75%);background-size:200% 100%;animation:skeleton-shimmer 1.3s ease-in-out infinite}
+.skeleton-row{height:72px}
+.skeleton-kpi{height:96px}
+.skeleton-inline{display:inline-block;width:5.5ch;height:.8em;vertical-align:baseline;border-radius:8px}
+@keyframes skeleton-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skeleton{animation:none}}

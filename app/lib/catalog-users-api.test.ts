@@ -81,13 +81,13 @@ describe("INT-11: usuarios", () => {
 
   test("createStaff omite el teléfono vacío", async () => {
     respond(201, { user: apiUser });
-    await createStaff({ name: "Ana", email: "a@b.cl", phone: "  ", role: "mecanico", password: "clave-inicial-1" });
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "Ana", email: "a@b.cl", role: "mecanico", password: "clave-inicial-1" });
+    await createStaff({ name: "Ana", email: "a@b.cl", phone: "  ", roles: ["mecanico"], password: "clave-inicial-1" });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "Ana", email: "a@b.cl", roles: ["mecanico"], password: "clave-inicial-1" });
   });
 
   test("correo repetido llega como 409", async () => {
     respond(409, { error: "Conflict", message: "Ya existe una cuenta registrada con este correo electrónico" });
-    const error = (await createStaff({ name: "Ana", email: "a@b.cl", phone: "", role: "admin", password: "clave-inicial-1" }).catch((e) => e)) as ApiError;
+    const error = (await createStaff({ name: "Ana", email: "a@b.cl", phone: "", roles: ["admin"], password: "clave-inicial-1" }).catch((e) => e)) as ApiError;
     expect(error.status).toBe(409);
   });
 

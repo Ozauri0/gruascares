@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
-import InnerHeader from "../../components/InnerHeader";
 import AdminNav from "../components/AdminNav";
+import AreaNav from "../../components/AreaNav";
 import { formatPrice } from "../../lib/catalog";
 import type { Product } from "../../lib/catalog";
 import { saveContent, uploadImage } from "../../lib/admin-api";
@@ -11,8 +11,9 @@ import { SHOP_TOP_HIDDEN_KEY } from "../../lib/site-content";
 import { useSiteContent } from "../../components/SiteContentProvider";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../lib/auth";
+import { useAuth, userHasRole } from "../../lib/auth";
 import { useAdminCatalog } from "../../lib/use-catalog";
+import Skeleton from "../../components/Skeleton";
 
 type ProductForm = { name: string; text: string; category: string; price: string; stock: string; image: string; featured: boolean };
 
@@ -105,7 +106,7 @@ export default function CatalogAdminPage() {
   const [view, setView] = useState<AdminView>("list");
   const router = useRouter();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin"; // el vendedor gestiona el catálogo, sin el resto de la administración
+  const isAdmin = userHasRole(user, "admin"); // el vendedor gestiona el catálogo, sin el resto de la administración
   const t = useSiteContent();
   const topHidden = t(SHOP_TOP_HIDDEN_KEY) === "1";
   const [topSaving, setTopSaving] = useState(false);
@@ -246,7 +247,6 @@ export default function CatalogAdminPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
@@ -259,7 +259,7 @@ export default function CatalogAdminPage() {
         </section>
 
         <div className="portal-stack wrap">
-          {isAdmin && <AdminNav current="catalogo" />}
+          {isAdmin ? <AdminNav current="catalogo" /> : <AreaNav />}
 
           <section aria-label="Gestión del catálogo">
             {isAdmin && <div className="top-section-toggle">
@@ -287,7 +287,7 @@ export default function CatalogAdminPage() {
             {actionError && <p className="field-error" role="alert">{actionError}</p>}
 
             {loading ? (
-              <div className="portal-empty-card" aria-busy="true"><p>Cargando el catálogo…</p></div>
+              <Skeleton label="Cargando el catálogo…" />
             ) : error ? (
               <div className="portal-empty-card" role="alert">
                 <p>{error}</p>

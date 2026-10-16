@@ -20,6 +20,8 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").default("usuario").notNull(),
+  // Roles adicionales (p. ej. un mecánico que también vende). El rol principal define su página de inicio.
+  extraRoles: userRoleEnum("extra_roles").array().default(sql`'{}'::user_role[]`).notNull(),
   phone: varchar("phone", { length: 50 }),
   isActive: boolean("is_active").default(true).notNull(),
   // Se incrementa para invalidar todas las sesiones activas del usuario (cambio de rol, baja, cierre global).

@@ -71,6 +71,13 @@
       "when": 1792164594532,
       "tag": "0009_nervous_cassandra_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792165503170,
+      "tag": "0010_narrow_quasar",
+      "breakpoints": true
     }
   ]
 }

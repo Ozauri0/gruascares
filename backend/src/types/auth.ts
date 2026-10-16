@@ -6,6 +6,8 @@ export interface JWTPayload {
   userId: string;
   email: string;
   role: UserRole;
+  /** Todos sus roles (principal + adicionales); lo completa `authenticate` con el estado actual de la BD. */
+  roles?: UserRole[];
   name: string;
   /** Versión de sesión: si no coincide con la de la BD, el token queda invalidado. */
   tokenVersion?: number;

@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import InnerHeader from "../components/InnerHeader";
 import InnerFooter from "../components/InnerFooter";
 import { ApiError } from "../lib/api";
 import type { ApiService } from "../lib/api-types";
@@ -140,7 +139,6 @@ export default function AgendarPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page booking-page">
         <section className="booking-intro wrap">
           <div>

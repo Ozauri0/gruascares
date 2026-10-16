@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AreaNav from "../../components/AreaNav";
 
 interface AdminNavProps {
   current: "resumen" | "usuarios" | "calendario" | "catalogo";
@@ -13,6 +14,8 @@ export default function AdminNav({ current }: AdminNavProps) {
   ] as const;
 
   return (
+    <>
+    <AreaNav />
     <nav className="admin-nav-tabs" aria-label="Navegación de administración">
       {tabs.map((tab) => {
         const isActive = current === tab.id;
@@ -29,5 +32,6 @@ export default function AdminNav({ current }: AdminNavProps) {
         );
       })}
     </nav>
+    </>
   );
 }

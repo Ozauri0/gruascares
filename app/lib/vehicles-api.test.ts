@@ -23,7 +23,7 @@ describe("INT-5: vehículos contra la API", () => {
   test("listVehicles adapta la respuesta", async () => {
     respond(200, { count: 2, vehicles: [apiVehicle, { ...apiVehicle, id: "v2", year: null, mileage: null }] });
     const list = await listVehicles();
-    expect(calls[0].url).toBe("/api/vehicles");
+    expect(calls[0].url).toBe("/api/vehicles?mine=true");
     expect(list).toHaveLength(2);
     expect(list[0]).toEqual({ id: "v1", plate: "ABCD12", brand: "Toyota", model: "Hilux", year: 2021, mileage: 84500 });
     expect(list[1].year).toBeNull();

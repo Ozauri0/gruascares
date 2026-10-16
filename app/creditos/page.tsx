@@ -1,5 +1,4 @@
 import InnerFooter from "../components/InnerFooter";
-import InnerHeader from "../components/InnerHeader";
 import credits from "./credits.json";
 
 export const metadata = { title: "Créditos de imágenes | Grúas Cares" };
@@ -7,7 +6,6 @@ export const metadata = { title: "Créditos de imágenes | Grúas Cares" };
 export default function CreditosPage() {
   return (
     <>
-      <InnerHeader />
       <main className="inner-page">
         <section className="page-intro wrap">
           <div>

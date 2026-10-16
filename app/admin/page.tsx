@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import InnerFooter from "../components/InnerFooter";
-import InnerHeader from "../components/InnerHeader";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { useAdminMetrics } from "../lib/use-admin-metrics";
 import { formatPlate } from "../lib/plate";
 
 import AdminNav from "./components/AdminNav";
+import Skeleton from "../components/Skeleton";
 
 // Panel de administración (T2.10): métricas reales de GET /api/admin/metrics.
 export default function AdminPage() {
@@ -24,7 +24,6 @@ export default function AdminPage() {
   const maxCategory = metrics ? Math.max(1, ...metrics.byCategory.map((item) => item.count)) : 1;
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
@@ -41,7 +40,7 @@ export default function AdminPage() {
           <AdminNav current="resumen" />
 
           {loading ? (
-            <div className="portal-empty-card" aria-busy="true"><p>Cargando métricas del taller…</p></div>
+            <Skeleton label="Cargando métricas del taller…" kpis />
           ) : error || !metrics ? (
             <div className="portal-empty-card" role="alert">
               <p>{error || "No se pudieron cargar las métricas."}</p>

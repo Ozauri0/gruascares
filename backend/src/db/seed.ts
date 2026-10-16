@@ -54,7 +54,7 @@ async function seed() {
     { name: "Administrador Demo", email: DEMO_ACCOUNTS.admin, role: "admin" as const, phone: "+56 9 9162 7809", password: "admin1234" },
     { name: "Juan Paredes (Mecánico Demo)", email: DEMO_ACCOUNTS.mecanico, role: "mecanico" as const, phone: "+56 9 6832 7329", password: "mecanico1234" },
     { name: "Valeria Soto (Vendedora Demo)", email: DEMO_ACCOUNTS.vendedor, role: "vendedor" as const, phone: "+56 9 9162 7809", password: "vendedor1234" },
-    { name: "Diego Fuentes (Mecánico Demo)", email: `mecanico2${DEMO_EMAIL_DOMAIN}`, role: "mecanico" as const, phone: "+56 9 6857 4677", password: "mecanico1234" },
+    { name: "Diego Fuentes (Mecánico Demo)", email: `mecanico2${DEMO_EMAIL_DOMAIN}`, role: "mecanico" as const, extraRoles: ["vendedor" as const], phone: "+56 9 6857 4677", password: "mecanico1234" },
     { name: "María González (Cliente Demo)", email: DEMO_ACCOUNTS.usuario, role: "usuario" as const, phone: "+56 9 1234 5678", password: "cliente1234" },
     { name: "Pedro Soto (Cliente Demo)", email: `cliente2${DEMO_EMAIL_DOMAIN}`, role: "usuario" as const, phone: "+56 9 8765 4321", password: "cliente1234" },
   ];
@@ -130,6 +130,7 @@ async function seed() {
   console.log(`   - Admin:    ${DEMO_ACCOUNTS.admin} (clave: admin1234)`);
   console.log(`   - Vendedor: ${DEMO_ACCOUNTS.vendedor} (clave: vendedor1234)`);
   console.log(`   - Mecánico: ${DEMO_ACCOUNTS.mecanico} (clave: mecanico1234)`);
+  console.log(`   - Mecánico + vendedor (dos roles): mecanico2${DEMO_EMAIL_DOMAIN} (clave: mecanico1234)`);
   console.log(`   - Cliente:  ${DEMO_ACCOUNTS.usuario} (clave: cliente1234)`);
 
   await sql.end();

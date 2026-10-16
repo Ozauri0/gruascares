@@ -1,3 +1,4 @@
+import { rolesOf, withRoles } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { createHash, randomBytes } from "crypto";
 import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
@@ -208,6 +209,7 @@ export async function login(req: Request, res: Response) {
         name: user.name,
         email: user.email,
         role: user.role,
+        roles: rolesOf(user),
         phone: user.phone,
       },
     });
@@ -235,6 +237,7 @@ export async function getMe(req: Request, res: Response) {
         name: users.name,
         email: users.email,
         role: users.role,
+        extraRoles: users.extraRoles,
         phone: users.phone,
         isActive: users.isActive,
         createdAt: users.createdAt,
@@ -250,7 +253,7 @@ export async function getMe(req: Request, res: Response) {
       });
     }
 
-    return res.status(200).json({ user });
+    return res.status(200).json({ user: withRoles(user) });
   } catch (error) {
     console.error("Error en getMe:", error);
     return res.status(500).json({
@@ -345,7 +348,7 @@ export async function demoLogin(req: Request, res: Response) {
     return res.status(200).json({
       message: "Sesión demo iniciada",
       demo: true,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, phone: user.phone },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, roles: rolesOf(user), phone: user.phone },
     });
   } catch (error) {
     console.error("Error en demoLogin:", error);
@@ -385,10 +388,10 @@ export async function updateProfile(req: Request, res: Response) {
       .update(users)
       .set(updates)
       .where(eq(users.id, req.user!.userId))
-      .returning({ id: users.id, name: users.name, email: users.email, role: users.role, phone: users.phone, isActive: users.isActive, createdAt: users.createdAt });
+      .returning({ id: users.id, name: users.name, email: users.email, role: users.role, extraRoles: users.extraRoles, phone: users.phone, isActive: users.isActive, createdAt: users.createdAt });
 
     logAudit({ action: "PROFILE_UPDATED", entityType: "user", entityId: req.user!.userId, details: { fields: Object.keys(updates).filter((k) => k !== "updatedAt") }, req });
-    return res.status(200).json({ message: "Perfil actualizado exitosamente", user });
+    return res.status(200).json({ message: "Perfil actualizado exitosamente", user: withRoles(user) });
   } catch (error) {
     console.error("Error en updateProfile:", error);
     return res.status(500).json({ error: "Internal Server Error", message: "Error al actualizar el perfil" });

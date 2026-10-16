@@ -8,7 +8,7 @@ import type { PortalVehicle } from "./portal-types";
 export type VehicleInput = { plate: string; brand: string; model: string; year: number | null; mileage: number };
 
 export async function listVehicles(): Promise<PortalVehicle[]> {
-  const { vehicles } = await apiGet<{ vehicles: ApiVehicle[] }>("/api/vehicles");
+  const { vehicles } = await apiGet<{ vehicles: ApiVehicle[] }>("/api/vehicles", { mine: "true" }) // solo los propios, también para el personal;
   return vehicles.map(toPortalVehicle);
 }
 

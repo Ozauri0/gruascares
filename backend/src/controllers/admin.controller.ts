@@ -1,3 +1,4 @@
+import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
@@ -818,6 +819,7 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
         name: users.name,
         email: users.email,
         role: users.role,
+        extraRoles: users.extraRoles,
         isActive: users.isActive,
       })
       .from(users)
@@ -831,7 +833,7 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
       });
     }
 
-    if (mechanic.role !== "mecanico" && mechanic.role !== "admin") {
+    if (!hasRole(mechanic, "mecanico", "admin")) {
       return res.status(400).json({
         error: "Bad Request",
         message: "El usuario asignado debe tener rol de mecánico o administrador",

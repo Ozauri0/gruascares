@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { fetchSessionRole, guardDecision } from "./app/lib/route-guard";
+import { fetchSession, guardDecision } from "./app/lib/route-guard";
 
 // Protección de rutas por rol (T2.3 / issue #51): ver app/lib/route-guard.ts.
 const BACKEND_URL = (process.env.BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const role = await fetchSessionRole(request.cookies.get("gc_token")?.value, BACKEND_URL);
-  const decision = guardDecision(pathname, role);
+  const session = await fetchSession(request.cookies.get("gc_token")?.value, BACKEND_URL);
+  const decision = guardDecision(pathname, session?.role ?? null, session?.roles);
 
   if (decision.type === "login") {
     const url = new URL("/login", request.url);

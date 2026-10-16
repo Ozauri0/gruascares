@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
-import InnerHeader from "../../components/InnerHeader";
 import AdminNav from "../components/AdminNav";
 import { ApiError } from "../../lib/api";
+import RolePicker, { choiceFrom, toRoleList, type RoleChoice } from "../components/RolePicker";
+import type { SessionUser } from "../../lib/portal-types";
 import type { UserRole } from "../../lib/portal-types";
 import { useUsers } from "../../lib/use-users";
+import Skeleton from "../../components/Skeleton";
 
 const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
   { value: "todos", label: "Todos los roles" },
@@ -23,14 +25,19 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrador",
 };
 
-type StaffForm = { name: string; email: string; phone: string; role: "mecanico" | "vendedor" | "admin"; password: string };
+type StaffForm = { name: string; email: string; phone: string; password: string };
 
 export default function UsersPage() {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<UserRole | "todos">("todos");
-  const { users, total, loading, error, reload, loadMore, add, toggleActive, hasMore } = useUsers(query, role);
+  const { users, total, loading, error, reload, loadMore, add, toggleActive, changeRoles, hasMore } = useUsers(query, role);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<StaffForm>({ name: "", email: "", phone: "", role: "mecanico", password: "" });
+  const [form, setForm] = useState<StaffForm>({ name: "", email: "", phone: "", password: "" });
+  const [newRoles, setNewRoles] = useState<RoleChoice>({ roles: ["mecanico"], primary: "mecanico" });
+  const [editing, setEditing] = useState<SessionUser | null>(null);
+  const [editRoles, setEditRoles] = useState<RoleChoice>({ roles: [], primary: null });
+  const [editError, setEditError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof StaffForm | "form", string>>>({});
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -80,14 +87,40 @@ export default function UsersPage() {
     if (saving || !validate()) return;
     setSaving(true);
     try {
-      await add({ ...form, email: form.email.trim().toLowerCase() });
+      const roles = toRoleList(newRoles);
+      if (roles[0] === "usuario") {
+        setErrors({ form: "Marca al menos un rol (mecánico, vendedor o administrador)." });
+        return;
+      }
+      await add({ ...form, roles: roles as ("mecanico" | "vendedor" | "admin")[], email: form.email.trim().toLowerCase() });
       setModal(false);
-      setForm({ name: "", email: "", phone: "", role: "mecanico", password: "" });
+      setForm({ name: "", email: "", phone: "", password: "" });
+      setNewRoles({ roles: ["mecanico"], primary: "mecanico" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo crear la cuenta.";
       setErrors(err instanceof ApiError && err.status === 409 ? { email: message } : { form: message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openEdit(user: SessionUser) {
+    setEditing(user);
+    setEditRoles(choiceFrom(user.roles ?? [user.role]));
+    setEditError("");
+  }
+
+  async function saveRoles() {
+    if (!editing || editSaving) return;
+    setEditSaving(true);
+    setEditError("");
+    try {
+      await changeRoles(editing.id, toRoleList(editRoles));
+      setEditing(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "No se pudieron cambiar los roles.");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -97,7 +130,6 @@ export default function UsersPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
@@ -150,7 +182,7 @@ export default function UsersPage() {
             {actionError && <p className="field-error" role="alert">{actionError}</p>}
 
             {loading ? (
-              <div className="portal-empty-card" aria-busy="true"><p>Cargando usuarios…</p></div>
+              <Skeleton label="Cargando usuarios…" />
             ) : error ? (
               <div className="portal-empty-card" role="alert">
                 <p>{error}</p>
@@ -169,9 +201,10 @@ export default function UsersPage() {
                       <tr key={user.id} className={user.isActive ? "" : "row-inactive"}>
                         <td><strong>{user.name}</strong></td>
                         <td><span className="cell-sub">{user.email}{user.phone ? ` · ${user.phone}` : ""}</span></td>
-                        <td><span className={`role-badge role-${user.role}`}>{ROLE_LABELS[user.role]}</span></td>
+                        <td><span className="role-badges">{(user.roles?.length ? user.roles : [user.role]).map((r, i) => <span key={r} className={`role-badge role-${r}`} title={i === 0 && (user.roles?.length ?? 0) > 1 ? "Rol principal (su inicio)" : undefined}>{ROLE_LABELS[r]}</span>)}</span></td>
                         <td><span className={user.isActive ? "state-on" : "state-off"}>{user.isActive ? "Activo" : "Inactivo"}</span></td>
                         <td>
+                          <button type="button" className="toggle-btn" onClick={() => openEdit(user)}>Roles</button>{" "}
                           <button type="button" className="toggle-btn" onClick={() => void toggle(user.id, user.isActive)}>
                             {user.isActive ? "Desactivar" : "Activar"}
                           </button>
@@ -217,15 +250,33 @@ export default function UsersPage() {
                 <label>Teléfono<input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+56 9 ..." autoComplete="off" /></label>
               </div>
               <div className="form-row">
-                <label>Rol *<select value={form.role} onChange={(e) => set("role", e.target.value)}><option value="mecanico">Mecánico</option><option value="vendedor">Vendedor (catálogo)</option><option value="admin">Administrador</option></select></label>
-                <label>Contraseña inicial *<input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />{errors.password && <small className="field-error">{errors.password}</small>}</label>
+                                <label>Contraseña inicial *<input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />{errors.password && <small className="field-error">{errors.password}</small>}</label>
               </div>
+              <RolePicker value={newRoles} onChange={setNewRoles} />
               {errors.form && <small className="field-error" role="alert">{errors.form}</small>}
               <div className="modal-actions">
                 <button type="button" className="modal-cancel" onClick={() => setModal(false)}>Cancelar</button>
                 <button type="submit" className="button" disabled={saving}>{saving ? "Creando…" : <>Crear cuenta <span>↗</span></>}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="modal-overlay" onClick={() => setEditing(null)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={`Roles de ${editing.name}`} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <h2>Roles de {editing.name}</h2>
+              <button type="button" className="modal-close" aria-label="Cerrar" onClick={() => setEditing(null)}>×</button>
+            </div>
+            <RolePicker value={editRoles} onChange={setEditRoles} allowClient />
+            <small className="cell-sub">Los cambios rigen de inmediato; la persona no pierde su sesión.</small>
+            {editError && <small className="field-error" role="alert">{editError}</small>}
+            <div className="modal-actions">
+              <button type="button" className="modal-cancel" onClick={() => setEditing(null)}>Cancelar</button>
+              <button type="button" className="button" disabled={editSaving} onClick={() => void saveRoles()}>{editSaving ? "Guardando…" : "Guardar roles"}</button>
+            </div>
           </div>
         </div>
       )}

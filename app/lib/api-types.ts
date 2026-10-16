@@ -9,6 +9,7 @@ export type ApiUser = {
   name: string;
   email: string;
   role: UserRole;
+  roles?: UserRole[];
   phone: string | null;
   isActive?: boolean;
   createdAt?: string;
@@ -129,6 +130,7 @@ export type ApiAdminUser = {
   name: string;
   email: string;
   role: "admin" | "mecanico" | "usuario" | "vendedor";
+  roles?: ("admin" | "mecanico" | "usuario" | "vendedor")[];
   phone: string | null;
   isActive: boolean;
   createdAt: string;

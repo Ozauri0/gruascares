@@ -1,3 +1,4 @@
+import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -251,11 +252,11 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
     let assignedMechanicId = ctx.appointment.mechanicId;
     if (mechanicId) {
       const [mechanic] = await db
-        .select({ id: users.id, role: users.role, isActive: users.isActive })
+        .select({ id: users.id, role: users.role, extraRoles: users.extraRoles, isActive: users.isActive })
         .from(users)
         .where(eq(users.id, mechanicId))
         .limit(1);
-      if (!mechanic || !mechanic.isActive || (mechanic.role !== "mecanico" && mechanic.role !== "admin")) {
+      if (!mechanic || !mechanic.isActive || !hasRole({ role: mechanic.role, extraRoles: mechanic.extraRoles }, "mecanico", "admin")) {
         return res.status(400).json({
           error: "Bad Request",
           message: "El mecánico indicado no existe, está inactivo o no tiene rol de taller",
@@ -477,7 +478,7 @@ export async function getAppointmentReport(req: Request, res: Response) {
     }
 
     // Control de acceso: dueño de la cita o personal mecánico/admin
-    if (currentUser.role === "usuario" && appointment.userId !== currentUser.userId) {
+    if (!hasRole(currentUser, "admin", "mecanico") && appointment.userId !== currentUser.userId) {
       return res.status(403).json({
         error: "Forbidden",
         message: "No tienes permiso para ver esta hoja técnica",

@@ -22,6 +22,7 @@ export function toSessionUser(user: ApiUser): SessionUser {
     name: user.name,
     email: user.email,
     role: user.role,
+    roles: [...new Set([user.role, ...(user.roles ?? [])])],
     phone: user.phone ?? null,
     isActive: user.isActive ?? true,
     createdAt: user.createdAt ?? new Date().toISOString(),

@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
-import InnerHeader from "../../components/InnerHeader";
+import AreaNav from "../../components/AreaNav";
 import StatusBadge from "../../components/StatusBadge";
 import { CANCELLABLE_STATUSES, splitAppointments, type PortalItem } from "../../lib/my-appointments-api";
 import { formatPlate } from "../../lib/plate";
 import { useMyAppointments } from "../../lib/use-my-appointments";
+import Skeleton from "../../components/Skeleton";
 
 export default function AppointmentsPage() {
   const { items, loading, error, reload, cancel } = useMyAppointments();
@@ -44,7 +45,6 @@ export default function AppointmentsPage() {
 
   return (
     <>
-      <InnerHeader />
       <main className="inner-page portal-page">
         <section className="page-intro wrap portal-intro">
           <div>
@@ -57,6 +57,7 @@ export default function AppointmentsPage() {
         </section>
 
         <div className="portal-stack wrap">
+          <AreaNav />
           {/* Navegación del portal */}
           <nav className="portal-nav-tabs" aria-label="Secciones del portal">
             <a href="/portal" className="portal-nav-tab">
@@ -89,7 +90,7 @@ export default function AppointmentsPage() {
             </div>
             {actionError && <p className="field-error" role="alert">{actionError}</p>}
             {loading ? (
-              <div className="portal-empty-card" aria-busy="true"><p>Cargando tus citas…</p></div>
+              <Skeleton label="Cargando tus citas…" />
             ) : error ? (
               <div className="portal-empty-card" role="alert">
                 <p>{error}</p>
