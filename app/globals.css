@@ -905,10 +905,6 @@ body>footer{flex-shrink:0}
 .ed-panel{position:fixed;right:14px;top:14px;max-height:calc(100vh - 100px);z-index:2147483050;width:340px;max-width:calc(100vw - 28px);overflow:auto;background:#fff;color:var(--ink);border:1px solid #d9d9d9;border-radius:16px;padding:12px;box-shadow:0 12px 36px rgba(0,0,0,.28);display:grid;gap:12px;align-content:start}
 .ed-panel-head{display:flex;align-items:center;gap:8px}
 .ed-panel-head .cms-tabs{flex:1}
-.ed-launch{background:#fff;border:1px solid #e2e2e2;border-radius:16px;padding:20px;display:grid;gap:12px}
-.ed-launch h2{margin:0;font:600 20px 'Space Grotesk'}
-.ed-launch p{margin:0;color:#555;line-height:1.5}
-.ed-launch-actions{display:flex;gap:10px;flex-wrap:wrap}
 .ed-pending{margin:0;padding-left:18px;color:#333;display:grid;gap:4px}
 .ve-tabs{display:grid}
 .ve-empty{padding:6px 4px;line-height:1.5}
@@ -976,3 +972,9 @@ body>footer{flex-shrink:0}
 .admin-card-fields label{display:grid;gap:4px;font:10px 'DM Mono',monospace;color:#666;text-transform:uppercase}
 .admin-card-actions{display:flex;gap:6px;flex-wrap:wrap}
 .portal-toolbar .view-toggle{margin-left:auto;margin-right:10px}
+
+.nav-links a.nav-user{display:inline-flex;align-items:center;gap:7px;font-weight:700;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-user i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(2,152,52,.2)}
+.top-section-toggle{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;background:#fff;border:1px solid #e2e2e2;border-radius:12px;font-size:14px}
+.top-section-toggle label{display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer}
+.top-section-toggle small{color:#666;flex:1 1 220px}

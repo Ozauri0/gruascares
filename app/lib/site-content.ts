@@ -159,6 +159,9 @@ export const DEFAULTS: Record<string, string> = Object.fromEntries(ALL_FIELDS.ma
 
 export type ContentOverrides = Record<string, string>;
 
+/** Interruptor (no es un texto editable): "1" oculta la sección Top ventas de /catalogo. Se cambia desde /admin/catalogo. */
+export const SHOP_TOP_HIDDEN_KEY = "shop.top.hidden";
+
 /** Valor de un campo: lo editado por el admin o, si no hay, el original. */
 export function resolve(overrides: ContentOverrides, key: string): string {
   return overrides[key] ?? DEFAULTS[key] ?? "";
