@@ -51,7 +51,33 @@ function NumberCell({ label, value, onCommit }: { label: string; value: number; 
   );
 }
 
+type AdminView = "grid" | "list";
+const ADMIN_VIEW_KEY = "gruas-cares-admin-catalog-view";
+
+/** Foto del producto (o su arte automático si no tiene imagen). */
+function Thumb({ item }: { item: Product }) {
+  return <div className={`admin-thumb product-art ${item.art}`}>{item.image ? <img src={item.image} alt="" loading="lazy" /> : <i />}</div>;
+}
+
 export default function CatalogAdminPage() {
+  const [view, setView] = useState<AdminView>("list");
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(ADMIN_VIEW_KEY);
+      if (stored === "grid" || stored === "list") setView(stored);
+    } catch {
+      /* sin almacenamiento: queda la vista en filas */
+    }
+  }, []);
+  function changeView(next: AdminView) {
+    setView(next);
+    try {
+      window.localStorage.setItem(ADMIN_VIEW_KEY, next);
+    } catch {
+      /* preferencia no persistente */
+    }
+  }
+
   const { products, loading, error, reload, add, patch, remove: removeProduct } = useAdminCatalog();
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
@@ -135,6 +161,25 @@ export default function CatalogAdminPage() {
     }
   }
 
+  const actions = (item: Product) => (
+    <>
+      <button type="button" className="toggle-btn" onClick={() => openImage(item)}>Imagen</button>
+      <button
+        type="button"
+        className={confirmDelete === item.id ? "toggle-btn danger confirm" : "toggle-btn danger"}
+        onClick={() => void remove(item.id)}
+        onBlur={() => setConfirmDelete(null)}
+      >
+        {confirmDelete === item.id ? "Confirmar" : "Eliminar"}
+      </button>
+    </>
+  );
+  const visibility = (item: Product) => (
+    <button type="button" className="toggle-btn" onClick={() => void update(item.id, { active: !item.active }).catch(() => null)}>
+      {item.active ? "Ocultar" : "Mostrar"}
+    </button>
+  );
+
   return (
     <>
       <InnerHeader />
@@ -158,6 +203,10 @@ export default function CatalogAdminPage() {
                 <span className="portal-badge-counter">{products.length} productos registrados</span>
                 <span className="portal-badge-active">{products.filter((p) => p.active).length} activos en tienda</span>
               </div>
+              <div className="view-toggle" role="group" aria-label="Vista del catálogo">
+                <button type="button" aria-pressed={view === "grid"} className={view === "grid" ? "on" : ""} onClick={() => changeView("grid")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 2h7v7H2zM11 2h7v7h-7zM2 11h7v7H2zM11 11h7v7h-7z" fill="currentColor" /></svg> Cuadrícula</button>
+                <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => changeView("list")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 3h16v4H2zM2 9h16v4H2zM2 15h16v3H2z" fill="currentColor" /></svg> Filas</button>
+              </div>
               <button type="button" className="portal-add" onClick={() => { setErrors({}); setForm(EMPTY_FORM); setModal(true); }}>
                 + Nuevo producto
               </button>
@@ -175,6 +224,25 @@ export default function CatalogAdminPage() {
             ) : products.length === 0 ? (
               <div className="portal-empty-card"><p>Aún no hay productos. Agrega el primero con “+ Nuevo producto”.</p></div>
             ) : (
+            view === "grid" ? (
+              <div className="admin-grid">
+                {products.map((item) => (
+                  <article className={`admin-card${item.active ? "" : " row-inactive"}`} key={item.id}>
+                    <Thumb item={item} />
+                    <div className="admin-card-body">
+                      <strong>{item.name}</strong>
+                      <span className="cell-sub">{item.category}{item.featured ? " · Destacado" : ""}</span>
+                      <div className="admin-card-fields">
+                        <label>Precio ref.<NumberCell label={`Precio de ${item.name}`} value={item.price} onCommit={(value) => update(item.id, { price: value })} /></label>
+                        <label>Stock ref.<NumberCell label={`Stock de ${item.name}`} value={item.stock} onCommit={(value) => update(item.id, { stock: value })} /></label>
+                      </div>
+                      <span className="cell-sub">{formatPrice(item.price)}</span>
+                      <div className="admin-card-actions">{visibility(item)}{actions(item)}</div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
             <div className="table-scroll">
               <table className="data-table catalog-table">
                 <thead>
@@ -184,8 +252,13 @@ export default function CatalogAdminPage() {
                   {products.map((item) => (
                     <tr key={item.id} className={item.active ? "" : "row-inactive"}>
                       <td>
-                        <strong>{item.name}</strong>
-                        <span className="cell-sub">{item.category}{item.featured ? " · Destacado" : ""}{item.image ? " · Con imagen" : " · Arte automático"}</span>
+                        <div className="admin-product-cell">
+                          <Thumb item={item} />
+                          <div>
+                            <strong>{item.name}</strong>
+                            <span className="cell-sub">{item.category}{item.featured ? " · Destacado" : ""}{item.image ? " · Con imagen" : " · Arte automático"}</span>
+                          </div>
+                        </div>
                       </td>
                       <td>
                         <NumberCell label={`Precio de ${item.name}`} value={item.price} onCommit={(value) => update(item.id, { price: value })} />
@@ -194,30 +267,14 @@ export default function CatalogAdminPage() {
                       <td>
                         <NumberCell label={`Stock de ${item.name}`} value={item.stock} onCommit={(value) => update(item.id, { stock: value })} />
                       </td>
-                      <td>
-                        <button type="button" className="toggle-btn" onClick={() => void update(item.id, { active: !item.active }).catch(() => null)}>
-                          {item.active ? "Ocultar" : "Mostrar"}
-                        </button>
-                      </td>
-                      <td>
-                        <button type="button" className="toggle-btn" onClick={() => openImage(item)}>
-                          Imagen
-                        </button>
-                        <button
-                          type="button"
-                          className={confirmDelete === item.id ? "toggle-btn danger confirm" : "toggle-btn danger"}
-                          onClick={() => void remove(item.id)}
-                          onBlur={() => setConfirmDelete(null)}
-                        >
-                          {confirmDelete === item.id ? "Confirmar" : "Eliminar"}
-                        </button>
-                      </td>
+                      <td>{visibility(item)}</td>
+                      <td>{actions(item)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            )}
+            ))}
             <p className="table-note">{products.filter((item) => item.active).length} de {products.length} visibles en la tienda · Precios y stock referenciales.</p>
           </section>
         </div>
