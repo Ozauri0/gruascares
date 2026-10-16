@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import {
   getAdminMetrics,
   getBlockedDates,
@@ -14,6 +14,7 @@ import {
   getAuditLogs,
   exportAppointments,
 } from "../controllers/admin.controller.js";
+import { updateContent, uploadImage } from "../controllers/content.controller.js";
 import { createProduct, deleteProduct, getAdminCatalog, updateProduct } from "../controllers/catalog.controller.js";
 import { createStaffUser, listUsers, updateUser } from "../controllers/admin-users.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
@@ -49,6 +50,10 @@ router.get("/catalog", getAdminCatalog);
 router.post("/catalog", createProduct);
 router.patch("/catalog/:id", updateProduct);
 router.delete("/catalog/:id", deleteProduct);
+
+// Contenido editable de la web pública (la lectura pública está en GET /api/content)
+router.put("/content", updateContent);
+router.post("/uploads", express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "5mb" }), uploadImage);
 
 // 3. [T1.10] Auditoría y Respaldo de Datos
 router.get("/audit-logs", getAuditLogs);

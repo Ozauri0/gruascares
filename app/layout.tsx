@@ -3,6 +3,8 @@ import "./globals.css";
 import { CartProvider } from "./components/CartProvider";
 import WhatsAppButton from "./components/WhatsAppButton";
 import { AuthProvider } from "./lib/auth";
+import { SiteContentProvider } from "./components/SiteContentProvider";
+import { fetchSiteContent } from "./lib/site-content-server";
 
 export const metadata: Metadata = {
   title: "Grúas Cares | Rescate y transporte 24/7",
@@ -10,6 +12,7 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.svg" },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es"><body><AuthProvider><CartProvider>{children}<WhatsAppButton /></CartProvider></AuthProvider></body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const content = await fetchSiteContent();
+  return <html lang="es"><body><SiteContentProvider overrides={content}><AuthProvider><CartProvider>{children}<WhatsAppButton /></CartProvider></AuthProvider></SiteContentProvider></body></html>;
 }

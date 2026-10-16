@@ -217,6 +217,15 @@ export const customTimeSlots = pgTable(
   ]
 );
 
+// 7c. Contenido editable de la web pública (textos e imágenes). Solo guarda lo que el admin cambió:
+// lo demás usa los valores por defecto del frontend. Las claves las define el frontend (app/lib/site-content.ts).
+export const siteContent = pgTable("site_content", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // 8. Tabla de Auditoría y Trazabilidad de Operaciones Críticas (T1.10)
 export const auditLogs = pgTable(
   "audit_logs",

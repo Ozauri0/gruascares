@@ -10,6 +10,7 @@ import appointmentRouter from "./routes/appointment.routes.js";
 import vehicleRouter from "./routes/vehicle.routes.js";
 import mechanicRouter from "./routes/mechanic.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import { getPublicContent } from "./controllers/content.controller.js";
 import { getPublicCatalog } from "./controllers/catalog.controller.js";
 import { createRateLimiters, RATE_LIMITS } from "./middlewares/rate-limit.js";
 import { demoLogin } from "./controllers/auth.controller.js";
@@ -92,6 +93,18 @@ export function createApp(options: AppOptions = {}): Express {
   app.use("/api/vehicles", vehicleRouter);
   app.use("/api/mechanic", mechanicRouter);
   app.get("/api/catalog", limiters.catalog, getPublicCatalog);
+  app.get("/api/content", limiters.content, getPublicContent);
+  // Imágenes subidas por el administrador (nombres aleatorios e inmutables).
+  app.use(
+    "/api/uploads",
+    express.static(config.uploadsDir, {
+      index: false,
+      dotfiles: "ignore",
+      immutable: true,
+      maxAge: "30d",
+      setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
+    })
+  );
   app.use("/api/admin", adminRouter);
 
   // Manejador de rutas no encontradas (404)
@@ -103,7 +116,10 @@ export function createApp(options: AppOptions = {}): Express {
   });
 
   // Manejador de errores global
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: Error & { status?: number; type?: string }, _req: Request, res: Response, _next: NextFunction) => {
+    if (err.type === "entity.too.large") {
+      return res.status(413).json({ error: "Payload Too Large", message: "El archivo supera el tamaño máximo permitido" });
+    }
     console.error("Unhandled error:", err);
     res.status(500).json({
       error: "Internal Server Error",

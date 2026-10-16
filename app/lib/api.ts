@@ -58,8 +58,10 @@ function redirectToLogin() {
 export async function api<T = unknown>(path: string, options: ApiOptions = {}): Promise<T> {
   const { method = "GET", body, query, signal, redirectOnUnauthorized = true } = options;
 
+  // Un File/Blob se envía tal cual (subida de imágenes); cualquier otro cuerpo va como JSON.
+  const isBlob = typeof Blob !== "undefined" && body instanceof Blob;
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (body !== undefined) headers["Content-Type"] = isBlob ? (body as Blob).type : "application/json";
 
   const url = buildUrl(path, query); // fuera del try: una ruta inválida es un error de programación, no de red
 
@@ -69,7 +71,7 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
       method,
       headers,
       credentials: "include",
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isBlob ? (body as Blob) : JSON.stringify(body),
       signal,
     });
   } catch (error) {
