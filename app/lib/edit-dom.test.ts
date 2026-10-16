@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { comparable } from "../components/EditBridge";
+import { comparable } from "./edit-dom";
 
 describe("comparación de textos del editor visual", () => {
   test("ignora espacios, saltos de línea y asteriscos de énfasis", () => {

@@ -120,7 +120,7 @@ El carro no debe transformarse en checkout:
 
 ## Editable Content
 
-Los textos e imágenes de la web pública se editan en `/admin/contenido`. El catálogo de campos y sus valores originales está en `app/lib/site-content.ts`: para volver editable un texto nuevo, agrégalo ahí y úsalo con `useSiteContent()` (`t("clave")`) en lugar de escribirlo fijo. Las claves de imagen terminan en `.image`. No editables a propósito: teléfonos y enlaces a redes (datos verificados del sitio original).
+Los textos e imágenes de la web pública los edita el administrador sobre la propia página (botón "✏️ Editar página" al iniciar sesión como admin; `/admin/contenido` es el acceso y el estado del borrador). Los cambios se guardan como borrador y el público solo los ve al "Publicar". El catálogo de campos y sus valores originales está en `app/lib/site-content.ts`: para volver editable un texto nuevo, agrégalo ahí y úsalo con `useSiteContent()` (`t("clave")`) en lugar de escribirlo fijo. Las claves de imagen terminan en `.image`. No editables a propósito: teléfonos y enlaces a redes (datos verificados del sitio original).
 
 ## Forms
 
