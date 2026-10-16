@@ -145,7 +145,7 @@ describe.skipIf(!dbReady)("bloqueo masivo y cambio de hora", () => {
     expect(blocked.body.message).toContain("bahía en mantención");
 
     await book(seed.clientA, other, "14:00");
-    await book(seed.clientA, other, "14:00");
+    await book(seed.clientB, other, "14:00"); // una misma persona no puede ocupar dos veces el horario
     expect((await patch({ scheduledDate: other, timeSlot: "14:00" })).status).toBe(409); // lleno
 
     const done = await patch({ scheduledDate: other, timeSlot: "15:00" });

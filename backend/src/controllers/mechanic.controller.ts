@@ -404,6 +404,9 @@ export async function saveTechnicalReport(req: Request, res: Response) {
     };
 
     const result = await db.transaction(async (tx) => {
+      // Bloquea la cita: dos envíos del mismo informe (doble clic, reintento) se procesan uno tras otro,
+      // así el segundo actualiza el informe en vez de chocar con el primero y no se repite el correo.
+      await tx.execute(sql`select 1 from ${appointments} where ${appointments.id} = ${id} for update`);
       const [existingRecord] = await tx.select().from(serviceRecords).where(eq(serviceRecords.appointmentId, id)).limit(1);
 
       let report: typeof serviceRecords.$inferSelect;

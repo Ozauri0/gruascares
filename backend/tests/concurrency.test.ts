@@ -111,3 +111,55 @@ describe.skipIf(!dbReady)("BUG-5: reservas simultáneas", () => {
     expect(statuses(responses)).toEqual([201, 409, 409, 409, 409]);
   });
 });
+
+describe.skipIf(!dbReady)("solicitudes repetidas de la misma persona", () => {
+  const book = (body: Record<string, unknown>, headers: Record<string, string> = { "Content-Type": "application/json" }) =>
+    fetch(`${server.url}/api/appointments`, { method: "POST", headers, body: JSON.stringify(body) });
+
+  test("un doble envío con sesión crea una sola cita", async () => {
+    const date = futureDate();
+    const body = { serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot: "10:30", vehicleId: seed.vehicleA.id };
+    const responses = await Promise.all(Array.from({ length: 4 }, () => book(body, cookieFor(seed.clientA))));
+    expect(statuses(responses)).toEqual([201, 409, 409, 409]);
+    const [{ n }] = await sql`select count(*)::int as n from appointments where user_id = ${seed.clientA.id}`;
+    expect(n).toBe(1);
+    // otro horario sí se permite
+    expect((await book({ ...body, timeSlot: "11:30" }, cookieFor(seed.clientA))).status).toBe(201);
+  });
+
+  test("un invitado no repite el mismo horario con el mismo correo (sin importar mayúsculas)", async () => {
+    const date = futureDate();
+    const base = { serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot: "10:30", name: "Invitado" };
+    expect((await book({ ...base, email: "rep@test.local" })).status).toBe(201);
+    expect((await book({ ...base, email: "REP@test.local" })).status).toBe(409);
+    expect((await book({ ...base, email: "otro@test.local" })).status).toBe(201);
+  });
+
+  test("tras cancelar, la persona puede volver a pedir ese horario", async () => {
+    const date = futureDate();
+    const body = { serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot: "10:30" };
+    const first = await book(body, cookieFor(seed.clientA));
+    const { appointment } = (await first.json()) as any;
+    await sql`update appointments set status = 'cancelada' where id = ${appointment.id}`;
+    expect((await book(body, cookieFor(seed.clientA))).status).toBe(201);
+  });
+});
+
+describe.skipIf(!dbReady)("informe técnico enviado dos veces a la vez", () => {
+  test("se guarda un solo informe, sin error 500 y con un solo cierre", async () => {
+    const [appt] = await sql`insert into appointments (user_id, vehicle_id, service_id, scheduled_date, time_slot, status, mechanic_id)
+      values (${seed.clientA.id}, ${seed.vehicleA.id}, ${seed.serviceAceite.id}, ${futureDate()}, '10:30', 'en_proceso', ${seed.mechanic.id}) returning id`;
+    const send = () =>
+      fetch(`${server.url}/api/mechanic/appointments/${appt.id}/report`, {
+        method: "POST",
+        headers: cookieFor(seed.mechanic),
+        body: JSON.stringify({ observations: "Cambio de aceite realizado", finalize: true }),
+      });
+    const responses = await Promise.all([send(), send(), send()]);
+    expect(responses.every((r) => r.status === 200 || r.status === 201)).toBe(true);
+    const bodies = (await Promise.all(responses.map((r) => r.json()))) as any[];
+    expect(bodies.filter((b) => b.finalized)).toHaveLength(1);
+    const [{ n }] = await sql`select count(*)::int as n from service_records where appointment_id = ${appt.id}`;
+    expect(n).toBe(1);
+  });
+});

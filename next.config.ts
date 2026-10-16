@@ -3,13 +3,14 @@ import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV === "development";
 
 // CSP sin nonces (las páginas son estáticas). Orígenes externos usados hoy:
-// Google Fonts (estilos y tipografías) y el mapa embebido de Google Maps.
+// Google Fonts (estilos y tipografías), el mapa embebido de Google Maps y las fotos de producto
+// que el catálogo admite como URL https (por eso img-src acepta https:).
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https:",
   "frame-src 'self' https://www.google.com",
   "connect-src 'self'",
   "object-src 'none'",

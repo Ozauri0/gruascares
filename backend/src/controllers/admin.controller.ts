@@ -1,6 +1,6 @@
 import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
-import { eq, and, desc, asc, gte, lte, ne, sql, or, ilike } from "drizzle-orm";
+import { eq, and, desc, asc, gte, lte, ne, sql, or, ilike, notInArray } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import {
   appointments,
@@ -529,28 +529,32 @@ export async function deleteTimeSlot(req: Request, res: Response) {
     if (!existing) {
       return res.status(404).json({ error: "Not Found", message: "El horario solicitado no existe" });
     }
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(appointments)
-      .where(
-        and(
-          eq(appointments.scheduledDate, existing.date),
-          eq(appointments.timeSlot, existing.timeSlot),
-          ne(appointments.status, "cancelada")
-        )
-      );
-    if (count > 0) {
-      return res.status(409).json({
-        error: "Conflict",
-        message: `El horario ${existing.timeSlot} tiene ${count} cita(s) activa(s). Cancélalas o reasígnalas antes de eliminarlo.`,
-      });
-    }
-    await db.transaction(async (tx) => {
+    // Con el mismo candado que usan las reservas de ese horario: nadie puede agendar entre el conteo y el borrado.
+    const outcome = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`appointment-slot:${existing.date}|${existing.timeSlot}`}))`);
+      const [{ count }] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.scheduledDate, existing.date),
+            eq(appointments.timeSlot, existing.timeSlot),
+            ne(appointments.status, "cancelada")
+          )
+        );
+      if (count > 0) return { kind: "busy" as const, count };
       await tx.delete(customTimeSlots).where(eq(customTimeSlots.id, id));
       await tx
         .delete(blockedDates)
         .where(and(eq(blockedDates.date, existing.date), eq(blockedDates.timeSlot, existing.timeSlot)));
+      return { kind: "ok" as const };
     });
+    if (outcome.kind === "busy") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `El horario ${existing.timeSlot} tiene ${outcome.count} cita(s) activa(s). Cancélalas o reasígnalas antes de eliminarlo.`,
+      });
+    }
     logAudit({
       action: "TIME_SLOT_DELETED",
       entityType: "custom_time_slot",
@@ -750,11 +754,20 @@ export async function rescheduleAppointment(req: Request, res: Response) {
           )
         );
       if (usage && usage.count >= MAX_CONCURRENT_APPOINTMENTS_PER_SLOT) return { kind: "full" as const };
+      // Condicionada a lo leído: si mientras tanto la cancelaron, entró a taller o ya la movieron, no se pisa.
       const [updated] = await tx
         .update(appointments)
         .set({ scheduledDate, timeSlot, updatedAt: new Date() })
-        .where(eq(appointments.id, id))
+        .where(
+          and(
+            eq(appointments.id, id),
+            eq(appointments.status, before.status),
+            eq(appointments.scheduledDate, before.scheduledDate),
+            eq(appointments.timeSlot, before.timeSlot)
+          )
+        )
         .returning();
+      if (!updated) return { kind: "changed" as const };
       return { kind: "ok" as const, appointment: updated };
     });
     if (outcome.kind === "blocked") {
@@ -762,6 +775,9 @@ export async function rescheduleAppointment(req: Request, res: Response) {
     }
     if (outcome.kind === "full") {
       return res.status(409).json({ error: "Conflict", message: `El horario de las ${timeSlot} hrs del ${scheduledDate} ya no tiene cupos` });
+    }
+    if (outcome.kind === "changed") {
+      return res.status(409).json({ error: "Conflict", message: "La cita cambió mientras la reprogramabas. Recárgala e inténtalo de nuevo." });
     }
 
     logAudit({
@@ -875,8 +891,15 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
         mechanicId,
         updatedAt: new Date(),
       })
-      .where(eq(appointments.id, id))
+      .where(and(eq(appointments.id, id), notInArray(appointments.status, ["finalizada", "cancelada"])))
       .returning();
+
+    if (!updatedAppointment) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "La cita se finalizó o canceló mientras la editabas: no se puede cambiar su mecánico",
+      });
+    }
 
     // Auditoría
     logAudit({

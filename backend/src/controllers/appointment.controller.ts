@@ -1,6 +1,6 @@
 import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
-import { eq, and, ne, sql, desc } from "drizzle-orm";
+import { eq, and, ne, sql, desc, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
 import { appointments, services, vehicles, users, serviceRecords, blockedDates } from "../db/schema.js";
@@ -312,6 +312,23 @@ export async function createAppointment(req: Request, res: Response) {
         .limit(1);
       if (blockedRecord) return { kind: "blocked" as const, reason: blockedRecord.reason };
 
+      // Una misma persona no puede ocupar dos veces el mismo horario (doble clic, reintento o reenvío del formulario).
+      const [duplicate] = await tx
+        .select({ id: appointments.id })
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.scheduledDate, scheduledDate),
+            eq(appointments.timeSlot, timeSlot),
+            ne(appointments.status, "cancelada"),
+            targetUserId
+              ? eq(appointments.userId, targetUserId)
+              : and(isNull(appointments.userId), eq(sql`lower(${appointments.guestEmail})`, guest!.email))
+          )
+        )
+        .limit(1);
+      if (duplicate) return { kind: "duplicate" as const };
+
       const [slotUsage] = await tx
         .select({ count: sql<number>`count(*)::int` })
         .from(appointments)
@@ -349,6 +366,12 @@ export async function createAppointment(req: Request, res: Response) {
       return res.status(409).json({
         error: "Conflict",
         message: `El horario de las ${timeSlot} hrs del ${scheduledDate} no se encuentra disponible: ${outcome.reason}`,
+      });
+    }
+    if (outcome.kind === "duplicate") {
+      return res.status(409).json({
+        error: "Conflict",
+        message: `Ya tienes una solicitud para el ${scheduledDate} a las ${timeSlot} hrs. Revisa tus citas o elige otro horario.`,
       });
     }
     if (outcome.kind === "full") {
