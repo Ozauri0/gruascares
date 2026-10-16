@@ -12,5 +12,26 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # API en contenedor (opcional): `docker compose --profile app up -d --build`.
+  # En desarrollo normal el backend corre en el host con `bun run backend:dev`.
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    container_name: gruas-cares-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/gruas_cares
+      UPLOADS_DIR: /data/uploads
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - uploads_data:/data/uploads # imágenes subidas: persisten aunque se recree el contenedor
+
 volumes:
   postgres_data:
+  uploads_data:
