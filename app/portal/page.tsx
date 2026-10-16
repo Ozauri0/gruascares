@@ -11,6 +11,7 @@ import { useMyAppointments } from "../lib/use-my-appointments";
 import { formatPlate } from "../lib/plate";
 import { useVehicles } from "../lib/use-vehicles";
 import Skeleton from "../components/Skeleton";
+import Icon from "../components/Icon";
 
 // Portal del cliente (T2.4). Usa datos demostrativos hasta conectar
 // AuthContext + GET /api/auth/me, /api/appointments y /api/vehicles (T2.2).
@@ -70,21 +71,21 @@ export default function PortalPage() {
           {/* Accesos rápidos de navegación para el cliente */}
           <nav className="portal-nav-tabs" aria-label="Secciones del portal">
             <a href="/portal" className="portal-nav-tab active">
-              <span className="tab-icon">🏠</span>
+              <span className="tab-icon"><Icon name="home" bare /></span>
               <span>Mi Resumen</span>
             </a>
             <a href="/portal/citas" className="portal-nav-tab">
-              <span className="tab-icon">📋</span>
+              <span className="tab-icon"><Icon name="clipboard" bare /></span>
               <span>Mis Citas</span>
               {!appointmentsLoading && !appointmentsError && active.length > 0 && <span className="tab-pill">{active.length}</span>}
             </a>
             <a href="/portal/vehiculos" className="portal-nav-tab">
-              <span className="tab-icon">🚗</span>
+              <span className="tab-icon"><Icon name="car" bare /></span>
               <span>Mis Vehículos</span>
               {!vehiclesLoading && !vehiclesError && <span className="tab-pill">{vehicles.length}</span>}
             </a>
             <a href="/agendar" className="portal-nav-tab portal-nav-cta">
-              <span className="tab-icon">➕</span>
+              <span className="tab-icon"><Icon name="plus" bare /></span>
               <span>Agendar Nuevo</span>
             </a>
           </nav>
@@ -113,9 +114,9 @@ export default function PortalPage() {
                 </div>
                 <h2>{next.serviceName}</h2>
                 <p>
-                  📅 {longDate(next.scheduledDate)} a las {next.timeSlot} hrs<br />
-                  🚗 {next.vehicleLabel} · Patente <b>{formatPlate(next.vehiclePlate)}</b>
-                  {next.location ? ` · 📍 ${next.location}` : ""}
+                  <Icon name="calendar" />{longDate(next.scheduledDate)} a las {next.timeSlot} hrs<br />
+                  <Icon name="car" />{next.vehicleLabel} · Patente <b>{formatPlate(next.vehiclePlate)}</b>
+                  {next.location ? <> · <Icon name="pin" />{next.location}</> : null}
                 </p>
                 <div className="next-actions">
                   <a className="button next-btn-details" href="/portal/citas">Ver detalle en Mis Citas <span>→</span></a>
@@ -125,7 +126,7 @@ export default function PortalPage() {
           ) : (
             <section className="next-hero next-empty" aria-label="Sin citas pendientes">
               <div className="next-info">
-                <div className="next-empty-icon">📅</div>
+                <div className="next-empty-icon"><Icon name="calendar" bare /></div>
                 <h2>No tienes atenciones pendientes</h2>
                 <p>Cuando solicites una grúa o mantención en taller, podrás seguir cada paso aquí en tiempo real.</p>
               </div>
@@ -191,10 +192,10 @@ export default function PortalPage() {
 
           <section className="quick-row" aria-label="Acciones rápidas">
             <a className="button quick-primary" href="/agendar">
-              <span>📅 Agendar nueva atención</span> <span>↗</span>
+              <span><Icon name="calendar" />Agendar nueva atención</span> <span>↗</span>
             </a>
             <a className="button quick-call" href="tel:+56991627809">
-              <span>🚨 Grúa de Emergencia 24/7 · Llamar</span>
+              <span><Icon name="truck" />Grúa de Emergencia 24/7 · Llamar</span>
             </a>
           </section>
             </aside>

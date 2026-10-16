@@ -7,6 +7,7 @@ import SocialLinks from "./components/SocialLinks";
 import { useSiteContent } from "./components/SiteContentProvider";
 import { RichText } from "./components/RichText";
 import { DEFAULTS, telHref } from "./lib/site-content";
+import Icon from "./components/Icon";
 
 const SLIDE_NUMBERS = [1, 2, 3, 4];
 const SERVICE_NUMBERS = [1, 2, 3];
@@ -60,7 +61,7 @@ export default function Home() {
         <CartLink />
         <NavUser />
         <a className="nav-cta" href="/agendar">Agendar servicio <span>↗</span></a>
-        <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menú">☰</button>
+        <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menú"><Icon name="menu" bare /></button>
       </nav>
 
       <section className="hero" id="inicio">
@@ -90,7 +91,7 @@ export default function Home() {
 
       <section className="catalog wrap" id="catalogo"><div className="catalog-image" style={{ backgroundImage: `url(${t("catalog.image")})` }}><div className="catalog-label">Flota<br /><strong>Cares</strong></div></div><div className="catalog-copy"><p className="eyebrow">{t("catalog.eyebrow")}</p><h2><RichText value={t("catalog.title")} /></h2><p>{t("catalog.text")}</p><a className="button dark" href="/catalogo">{t("catalog.button")} <span>↗</span></a><div className="stats">{[1, 2, 3].map((n) => <div key={n}><strong>{t(`catalog.stat${n}.value`)}</strong><span>{t(`catalog.stat${n}.label`)}</span></div>)}</div></div></section>
 
-      <section className="booking" id="agenda"><div className="wrap booking-layout"><div><p className="eyebrow light">{t("booking.eyebrow")}</p><h2><RichText value={t("booking.title")} /></h2><p className="booking-copy">{t("booking.copy")}</p><div className="contact-line"><span>{t("booking.urgent")}</span><a href="tel:+56991627809">{t("booking.urgent_link")} ↗</a></div></div><form onSubmit={submit}>{sent ? <div className="success"><span>✓</span><h3>Solicitud recibida</h3><p>Te contactaremos a la brevedad para coordinar tu servicio.</p><button type="button" className="button yellow" onClick={() => setSent(false)}>Enviar otra solicitud</button></div> : <><div className="form-row"><label>Nombre completo<input required placeholder="Tu nombre" /></label><label>Teléfono<input required type="tel" placeholder="+56 9 ..." /></label></div><label>¿Qué necesitas?<select value={service} onChange={(e) => setService(e.target.value)}><option>Grúa de plataforma hidráulica</option><option>Transporte de cargas pesadas</option><option>Camiones grúa</option></select></label><label>Cuéntanos brevemente<textarea placeholder="Lugar, fecha y detalles del servicio" rows={3} /></label><button className="button yellow" type="submit">Solicitar contacto <span>↗</span></button></>}</form></div></section>
+      <section className="booking" id="agenda"><div className="wrap booking-layout"><div><p className="eyebrow light">{t("booking.eyebrow")}</p><h2><RichText value={t("booking.title")} /></h2><p className="booking-copy">{t("booking.copy")}</p><div className="contact-line"><span>{t("booking.urgent")}</span><a href="tel:+56991627809">{t("booking.urgent_link")} ↗</a></div></div><form onSubmit={submit}>{sent ? <div className="success"><span><Icon name="check" bare /></span><h3>Solicitud recibida</h3><p>Te contactaremos a la brevedad para coordinar tu servicio.</p><button type="button" className="button yellow" onClick={() => setSent(false)}>Enviar otra solicitud</button></div> : <><div className="form-row"><label>Nombre completo<input required placeholder="Tu nombre" /></label><label>Teléfono<input required type="tel" placeholder="+56 9 ..." /></label></div><label>¿Qué necesitas?<select value={service} onChange={(e) => setService(e.target.value)}><option>Grúa de plataforma hidráulica</option><option>Transporte de cargas pesadas</option><option>Camiones grúa</option></select></label><label>Cuéntanos brevemente<textarea placeholder="Lugar, fecha y detalles del servicio" rows={3} /></label><button className="button yellow" type="submit">Solicitar contacto <span>↗</span></button></>}</form></div></section>
 
       <section className="map-section" id="ubicacion" aria-label="Ubicación de Grúas Cares">
         <div className="wrap map-head">

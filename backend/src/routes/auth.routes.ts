@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, getMe, logout, logoutAll, updateProfile, forgotPassword, resetPassword } from "../controllers/auth.controller.js";
+import { register, login, getMe, logout, logoutAll, updateProfile, forgotPassword, resetPassword, verifyEmail, resendVerification } from "../controllers/auth.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -10,6 +10,8 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/verify-email", verifyEmail);
+router.post("/resend-verification", resendVerification);
 
 // Rutas Protegidas
 router.get("/me", authenticate, getMe);

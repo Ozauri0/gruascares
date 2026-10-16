@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AreaNav from "../../components/AreaNav";
+import Icon from "../../components/Icon";
 
 interface AdminNavProps {
   current: "resumen" | "usuarios" | "calendario" | "catalogo" | "registro";
@@ -7,11 +8,11 @@ interface AdminNavProps {
 
 export default function AdminNav({ current }: AdminNavProps) {
   const tabs = [
-    { id: "resumen", label: "Resumen general", href: "/admin", icon: "📊" },
-    { id: "usuarios", label: "Usuarios y equipo", href: "/admin/usuarios", icon: "👥" },
-    { id: "calendario", label: "Calendario maestro", href: "/admin/calendario", icon: "📅" },
-    { id: "catalogo", label: "Catálogo y precios", href: "/admin/catalogo", icon: "📦" },
-    { id: "registro", label: "Registro de actividad", href: "/admin/registro", icon: "📋" },
+    { id: "resumen", label: "Resumen general", href: "/admin", icon: "chart" },
+    { id: "usuarios", label: "Usuarios y equipo", href: "/admin/usuarios", icon: "users" },
+    { id: "calendario", label: "Calendario maestro", href: "/admin/calendario", icon: "calendar" },
+    { id: "catalogo", label: "Catálogo y precios", href: "/admin/catalogo", icon: "box" },
+    { id: "registro", label: "Registro de actividad", href: "/admin/registro", icon: "clipboard" },
   ] as const;
 
   return (
@@ -27,7 +28,7 @@ export default function AdminNav({ current }: AdminNavProps) {
             className={`admin-nav-tab ${isActive ? "active" : ""}`}
             aria-current={isActive ? "page" : undefined}
           >
-            <span className="admin-tab-icon">{tab.icon}</span>
+            <span className="admin-tab-icon"><Icon name={tab.icon} bare /></span>
             <span className="admin-tab-text">{tab.label}</span>
           </Link>
         );

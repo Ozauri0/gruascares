@@ -174,3 +174,41 @@ describe.skipIf(!dbReady)("INT-10: GET /api/mechanic/list", () => {
     expect((await call(seed.clientA, "GET", "/api/mechanic/list")).status).toBe(403);
   });
 });
+
+describe.skipIf(!dbReady)("DELETE /api/admin/users/:id", () => {
+  test("elimina un cliente con sus vehículos y citas y lo deja auditado", async () => {
+    await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot) values (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-10', '10:30')`;
+    const { status, body } = await call(seed.admin, "DELETE", `/api/admin/users/${seed.clientA.id}`);
+    expect(status).toBe(200);
+    expect(body.deleted).toEqual({ vehicles: 1, appointments: 1 });
+    expect((await sql`select 1 from users where id = ${seed.clientA.id}`).length).toBe(0);
+    expect((await sql`select 1 from vehicles where user_id = ${seed.clientA.id}`).length).toBe(0);
+    expect((await call(seed.admin, "DELETE", `/api/admin/users/${seed.clientA.id}`)).status).toBe(404);
+    for (let i = 0; i < 30; i++) {
+      if ((await sql`select 1 from audit_logs where action = 'USER_DELETED'`).length) return;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    throw new Error("falta el evento USER_DELETED");
+  });
+
+  test("no puedes eliminarte, ni al último admin, y un mecánico con informes solo se desactiva", async () => {
+    expect((await call(seed.admin, "DELETE", `/api/admin/users/${seed.admin.id}`)).status).toBe(409);
+
+    await sql`insert into users (name, email, password_hash, role) values ('Otro Admin', 'otro@test.local', 'x', 'admin')`;
+    const [other] = await sql`select id from users where email = 'otro@test.local'`;
+    await sql`update users set is_active = false where id = ${other.id}`;
+    // el único admin activo es quien llama: otro admin inactivo sí se puede borrar, pero el último activo no
+    expect((await call(seed.admin, "DELETE", `/api/admin/users/${other.id}`)).status).toBe(200);
+
+    const [appt] = await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot, mechanic_id, status) values (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-11', '10:30', ${seed.mechanic.id}, 'finalizada') returning id`;
+    await sql`insert into service_records (appointment_id, mechanic_id, observations) values (${appt.id}, ${seed.mechanic.id}, 'Trabajo hecho')`;
+    const blocked = await call(seed.admin, "DELETE", `/api/admin/users/${seed.mechanic.id}`);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.message).toContain("informe");
+  });
+
+  test("solo el admin puede eliminar y el id debe ser válido", async () => {
+    expect((await call(seed.mechanic, "DELETE", `/api/admin/users/${seed.clientA.id}`)).status).toBe(403);
+    expect((await call(seed.admin, "DELETE", "/api/admin/users/no-es-uuid")).status).toBe(400);
+  });
+});

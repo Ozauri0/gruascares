@@ -60,7 +60,7 @@ async function seed() {
   ];
   for (const u of demoUsers) {
     const { password, ...values } = u;
-    await db.insert(users).values({ ...values, passwordHash: await hashPassword(password) }).onConflictDoNothing({ target: users.email });
+    await db.insert(users).values({ ...values, emailVerifiedAt: new Date(), passwordHash: await hashPassword(password) }).onConflictDoNothing({ target: users.email });
   }
   const byEmail = Object.fromEntries(
     (await db.select().from(users).where(inArray(users.email, demoUsers.map((u) => u.email)))).map((u) => [u.email, u])

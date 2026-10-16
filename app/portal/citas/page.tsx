@@ -8,6 +8,7 @@ import { CANCELLABLE_STATUSES, splitAppointments, type PortalItem } from "../../
 import { formatPlate } from "../../lib/plate";
 import { useMyAppointments } from "../../lib/use-my-appointments";
 import Skeleton from "../../components/Skeleton";
+import Icon from "../../components/Icon";
 
 export default function AppointmentsPage() {
   const { items, loading, error, reload, cancel } = useMyAppointments();
@@ -61,20 +62,20 @@ export default function AppointmentsPage() {
           {/* Navegación del portal */}
           <nav className="portal-nav-tabs" aria-label="Secciones del portal">
             <a href="/portal" className="portal-nav-tab">
-              <span className="tab-icon">🏠</span>
+              <span className="tab-icon"><Icon name="home" bare /></span>
               <span>Mi Resumen</span>
             </a>
             <a href="/portal/citas" className="portal-nav-tab active">
-              <span className="tab-icon">📋</span>
+              <span className="tab-icon"><Icon name="clipboard" bare /></span>
               <span>Mis Citas</span>
               {!loading && !error && active.length > 0 && <span className="tab-pill">{active.length}</span>}
             </a>
             <a href="/portal/vehiculos" className="portal-nav-tab">
-              <span className="tab-icon">🚗</span>
+              <span className="tab-icon"><Icon name="car" bare /></span>
               <span>Mis Vehículos</span>
             </a>
             <a href="/agendar" className="portal-nav-tab portal-nav-cta">
-              <span className="tab-icon">➕</span>
+              <span className="tab-icon"><Icon name="plus" bare /></span>
               <span>Agendar Nuevo</span>
             </a>
           </nav>

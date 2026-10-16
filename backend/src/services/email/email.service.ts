@@ -6,6 +6,9 @@ import {
   getAppointmentRescheduledTemplate,
   getServiceCompletedTemplate,
   getPasswordResetTemplate,
+  getEmailVerificationTemplate,
+  getAppointmentDecisionTemplate,
+  type AppointmentDecision,
   AppointmentEmailData,
   AppointmentRescheduledEmailData,
   ServiceCompletedEmailData,
@@ -157,4 +160,30 @@ export async function sendPasswordResetEmail(to: string, name: string, resetUrl:
     html: template.html,
     text: template.text,
   }).catch((err) => console.error("Error en sendPasswordResetEmail:", err));
+}
+
+/** Enlace para confirmar el correo al registrarse. */
+export async function sendEmailVerificationEmail(to: string, name: string, verifyUrl: string, validHours: number): Promise<void> {
+  const template = getEmailVerificationTemplate(name, verifyUrl, validHours);
+  sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  }).catch((err) => console.error("Error en sendEmailVerificationEmail:", err));
+}
+
+/** Aviso al cliente de que el taller confirmó o canceló su solicitud. */
+export async function sendAppointmentDecisionEmail(
+  to: string,
+  kind: AppointmentDecision,
+  data: Parameters<typeof getAppointmentDecisionTemplate>[1]
+): Promise<void> {
+  const template = getAppointmentDecisionTemplate(kind, data);
+  sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  }).catch((err) => console.error("Error en sendAppointmentDecisionEmail:", err));
 }

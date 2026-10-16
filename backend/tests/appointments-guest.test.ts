@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { testOutbox } from "../src/services/email/email.service.js";
 import { sql } from "../src/db/connection.js";
 import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
@@ -87,7 +88,17 @@ describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
     });
     expect(reg.status).toBe(201);
     const { user } = (await reg.json() as any);
-    const token = /gc_token=([^;]+)/.exec(reg.headers.get("set-cookie") ?? "")?.[1];
+
+    // Sin confirmar el correo no se vincula nada (nadie puede apropiarse de solicitudes ajenas).
+    const [pending] = await sql`select user_id from appointments`;
+    expect(pending.user_id).toBeNull();
+
+    const link = testOutbox.at(-1)!.html.match(/confirmar-correo\?token=([^"&\s<]+)/)![1];
+    const verify = await fetch(`${server.url}/api/auth/verify-email`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ token: decodeURIComponent(link) }) });
+    expect(verify.status).toBe(200);
+    const login = await fetch(`${server.url}/api/auth/login`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ email: "nuevo.cliente@test.cl", password: "clave1234" }) });
+    expect(login.status).toBe(200);
+    const token = /gc_token=([^;]+)/.exec(login.headers.get("set-cookie") ?? "")?.[1];
 
     const [row] = await sql`select user_id, guest_email, guest_name from appointments`;
     expect(row.user_id).toBe(user.id);

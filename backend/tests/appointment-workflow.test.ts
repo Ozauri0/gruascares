@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { sql } from "../src/db/connection.js";
+import { testOutbox } from "../src/services/email/email.service.js";
 import { ALLOWED_TRANSITIONS, canTransition } from "../src/domain/appointment-status.js";
 import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
@@ -40,6 +41,28 @@ describe("BUG-4: tabla de transiciones", () => {
     expect(canTransition("cancelada", "en_proceso")).toBe(false);
     expect(canTransition("en_proceso", "cancelada")).toBe(false);
     expect(ALLOWED_TRANSITIONS.finalizada).toHaveLength(0);
+  });
+});
+
+describe.skipIf(!dbReady)("avisos al cliente al confirmar o cancelar", () => {
+  test("confirmar una solicitud le envía el correo; avanzar a en_proceso no", async () => {
+    const id = await createAppointment("solicitada");
+    testOutbox.length = 0;
+    expect((await patchStatus(id, seed.mechanic, { status: "confirmada" })).status).toBe(200);
+    expect(testOutbox).toHaveLength(1);
+    expect(testOutbox[0].to).toBe(seed.clientA.email);
+    expect(testOutbox[0].subject).toContain("confirmada");
+    expect(testOutbox[0].html).toContain("confirmó");
+
+    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso" })).status).toBe(200);
+    expect(testOutbox).toHaveLength(1);
+  });
+
+  test("cancelar una solicitud también avisa", async () => {
+    const id = await createAppointment("solicitada");
+    testOutbox.length = 0;
+    expect((await patchStatus(id, seed.mechanic, { status: "cancelada" })).status).toBe(200);
+    expect(testOutbox[0]?.subject).toContain("cancelada");
   });
 });
 

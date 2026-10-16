@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { users } from "../db/schema.js";
+import { appointments, serviceRecords, users, vehicles } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { parsePagination } from "../utils/pagination.js";
@@ -124,6 +124,7 @@ export async function createStaffUser(req: Request, res: Response) {
         name: name.trim(),
         email: normalizedEmail,
         passwordHash: await hashPassword(password),
+        emailVerifiedAt: new Date(), // cuenta creada por el admin: no necesita confirmar el correo
         role: primaryRole,
         extraRoles,
         phone: typeof phone === "string" && phone.trim() ? phone.trim() : null,
@@ -281,5 +282,73 @@ export async function listWorkshopStaff(_req: Request, res: Response) {
   } catch (error) {
     console.error("Error al listar personal de taller:", error);
     return res.status(500).json({ error: "Internal Server Error", message: "Error al consultar el personal de taller" });
+  }
+}
+
+/**
+ * DELETE /api/admin/users/:id
+ * Elimina una cuenta de forma definitiva, con sus vehículos y citas (las atenciones pasadas de un mecánico
+ * se conservan: si tiene informes técnicos no se borra, hay que desactivarlo). Nunca a uno mismo ni al último admin.
+ */
+export async function deleteUser(req: Request, res: Response) {
+  try {
+    const currentUser = req.user!;
+    const { id } = req.params;
+    if (!isUuid(id)) {
+      return res.status(400).json({ error: "Bad Request", message: "ID de usuario inválido: debe ser un UUID" });
+    }
+    if (id === currentUser.userId) {
+      return res.status(409).json({ error: "Conflict", message: "No puedes eliminar tu propia cuenta" });
+    }
+
+    const result = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('admin-roster'))`);
+
+      const [target] = await tx.select().from(users).where(eq(users.id, id)).limit(1);
+      if (!target) return { kind: "not_found" as const };
+
+      if (rolesOf(target).includes("admin") && target.isActive) {
+        const [{ n }] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(users)
+          .where(and(or(eq(users.role, "admin"), sql`'admin' = ANY(${users.extraRoles})`), eq(users.isActive, true)));
+        if (n <= 1) return { kind: "conflict" as const, message: "Debe quedar al menos un administrador activo" };
+      }
+
+      const [{ reports }] = await tx.select({ reports: sql<number>`count(*)::int` }).from(serviceRecords).where(eq(serviceRecords.mechanicId, id));
+      if (reports > 0) {
+        return {
+          kind: "conflict" as const,
+          message: `${target.name} tiene ${reports} informe(s) técnico(s) a su nombre: no se puede eliminar. Desactívalo para quitarle el acceso.`,
+        };
+      }
+
+      const [{ vehicleCount }] = await tx.select({ vehicleCount: sql<number>`count(*)::int` }).from(vehicles).where(eq(vehicles.userId, id));
+      const [{ appointmentCount }] = await tx.select({ appointmentCount: sql<number>`count(*)::int` }).from(appointments).where(eq(appointments.userId, id));
+      await tx.delete(users).where(eq(users.id, id));
+      return { kind: "ok" as const, target, vehicleCount, appointmentCount };
+    });
+
+    if (result.kind === "not_found") {
+      return res.status(404).json({ error: "Not Found", message: "El usuario solicitado no existe" });
+    }
+    if (result.kind === "conflict") {
+      return res.status(409).json({ error: "Conflict", message: result.message });
+    }
+
+    logAudit({
+      action: "USER_DELETED",
+      entityType: "user",
+      entityId: id,
+      details: { email: result.target.email, name: result.target.name, roles: rolesOf(result.target), vehicles: result.vehicleCount, appointments: result.appointmentCount },
+      req,
+    });
+    return res.json({
+      message: "Usuario eliminado",
+      deleted: { vehicles: result.vehicleCount, appointments: result.appointmentCount },
+    });
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al eliminar el usuario" });
   }
 }
