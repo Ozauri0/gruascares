@@ -8,6 +8,7 @@ import { useAuth, userHasRole } from "../lib/auth";
 import { KEY_ATTR, editableAt, tagElements } from "../lib/edit-dom";
 import { ALL_FIELDS, DEFAULTS, SECTIONS, resolve } from "../lib/site-content";
 import { useContentPreview } from "./SiteContentProvider";
+import Icon from "./Icon";
 
 /** Páginas públicas que se pueden editar en el sitio. */
 export const EDITABLE_PATHS = ["/", "/catalogo"];
@@ -251,7 +252,7 @@ export default function ContentEditor() {
   if (!editing) {
     return (
       <button type="button" className="ed-enter" data-gc-ui onClick={() => setEditing(true)}>
-        <span aria-hidden="true">✏️</span> Editar página
+        <Icon name="edit" /> Editar página
       </button>
     );
   }

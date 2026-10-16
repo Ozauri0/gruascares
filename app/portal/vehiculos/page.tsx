@@ -8,6 +8,7 @@ import type { PortalVehicle } from "../../lib/portal-types";
 import { formatPlate, isValidChileanPlate, normalizePlate } from "../../lib/plate";
 import { useVehicles } from "../../lib/use-vehicles";
 import Skeleton from "../../components/Skeleton";
+import Icon from "../../components/Icon";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -136,20 +137,20 @@ export default function VehiclesPage() {
           {/* Navegación del portal */}
           <nav className="portal-nav-tabs" aria-label="Secciones del portal">
             <a href="/portal" className="portal-nav-tab">
-              <span className="tab-icon">🏠</span>
+              <span className="tab-icon"><Icon name="home" bare /></span>
               <span>Mi Resumen</span>
             </a>
             <a href="/portal/citas" className="portal-nav-tab">
-              <span className="tab-icon">📋</span>
+              <span className="tab-icon"><Icon name="clipboard" bare /></span>
               <span>Mis Citas</span>
             </a>
             <a href="/portal/vehiculos" className="portal-nav-tab active">
-              <span className="tab-icon">🚗</span>
+              <span className="tab-icon"><Icon name="car" bare /></span>
               <span>Mis Vehículos</span>
               {!loading && !loadError && <span className="tab-pill">{vehicles.length}</span>}
             </a>
             <a href="/agendar" className="portal-nav-tab portal-nav-cta">
-              <span className="tab-icon">➕</span>
+              <span className="tab-icon"><Icon name="plus" bare /></span>
               <span>Agendar Nuevo</span>
             </a>
           </nav>
@@ -188,7 +189,7 @@ export default function VehiclesPage() {
                       {vehicle.year ? `Año ${vehicle.year}` : "Año no informado"} · {vehicle.mileage.toLocaleString("es-CL")} km
                     </p>
                     <div className="vehicle-actions">
-                      <button type="button" onClick={() => openEdit(vehicle)}>✏️ Editar datos</button>
+                      <button type="button" onClick={() => openEdit(vehicle)}><Icon name="edit" />Editar datos</button>
                       <button
                         type="button"
                         className={confirmDelete === vehicle.id ? "danger confirm" : "danger"}

@@ -1,13 +1,14 @@
 // Reglas de presentación del agendamiento: agrupar servicios, buscar uno por nombre y etiquetar horarios.
 
 import type { ApiService } from "./api-types";
+import type { IconName } from "../components/Icon";
 import type { SlotAvailability } from "./availability";
 
-export type BookingCategory = "gruas" | "serviteca";
+export type BookingCategory = "serviteca" | "gruas";
 
-export const CATEGORY_INFO: Record<BookingCategory, { label: string; description: string; icon: string }> = {
-  gruas: { label: "Grúa y Asistencia", description: "Rescate en ruta, traslado de vehículos y maquinaria pesada.", icon: "🚨" },
-  serviteca: { label: "Serviteca y Taller", description: "Mantenciones preventivas, cambio de aceite y frenos.", icon: "🔧" },
+export const CATEGORY_INFO: Record<BookingCategory, { label: string; description: string; icon: IconName }> = {
+  serviteca: { label: "Serviteca y Taller", description: "Mantenciones preventivas, cambio de aceite y frenos.", icon: "wrench" },
+  gruas: { label: "Grúa y Asistencia", description: "Rescate en ruta, traslado de vehículos y maquinaria pesada.", icon: "truck" },
 };
 
 export function categoryKey(category: ApiService["category"]): BookingCategory {
@@ -15,7 +16,7 @@ export function categoryKey(category: ApiService["category"]): BookingCategory {
 }
 
 export function groupServices(services: ApiService[]): Record<BookingCategory, ApiService[]> {
-  const groups: Record<BookingCategory, ApiService[]> = { gruas: [], serviteca: [] };
+  const groups: Record<BookingCategory, ApiService[]> = { serviteca: [], gruas: [] };
   for (const service of services) groups[categoryKey(service.category)].push(service);
   return groups;
 }

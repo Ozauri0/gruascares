@@ -23,7 +23,8 @@ type AuthContextValue = {
   /** Entra como la cuenta demo del rol (sin credenciales). */
   loginAs: (role: UserRole) => Promise<SessionUser>;
   login: (email: string, password: string) => Promise<SessionUser>;
-  register: (input: RegisterInput) => Promise<SessionUser>;
+  /** Crea la cuenta pendiente de confirmar (no inicia sesión). */
+  register: (input: RegisterInput) => Promise<{ email: string }>;
   logout: () => Promise<void>;
 };
 
@@ -100,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginAs = useCallback(async (role: UserRole) => establish(await demoLoginRequest(role)), [establish]);
   const login = useCallback(async (email: string, password: string) => establish(await loginRequest(email, password)), [establish]);
-  const register = useCallback(async (input: RegisterInput) => establish(await registerRequest(input)), [establish]);
+  const register = useCallback((input: RegisterInput) => registerRequest(input), []);
   const logout = useCallback(async () => {
     try {
       await logoutRequest();

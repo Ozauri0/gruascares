@@ -84,14 +84,16 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
     expect((await me({ Cookie: `gc_token=${tokenFor("admin")}` })).status).toBe(401);
   });
 
-  test("registro no devuelve el token en el cuerpo", async () => {
+  test("registro no abre sesión ni devuelve token: hay que confirmar el correo", async () => {
     const res = await fetch(`${server.url}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Nuevo", email: "nuevo@test.local", password: "clave1234" }),
     });
     expect(res.status).toBe(201);
-    expect(((await res.json() as any)).token).toBeUndefined();
-    expect(res.headers.get("set-cookie")).toContain("HttpOnly");
+    const body = (await res.json()) as any;
+    expect(body.token).toBeUndefined();
+    expect(body.verificationRequired).toBe(true);
+    expect(res.headers.get("set-cookie")).toBeNull();
   });
 });

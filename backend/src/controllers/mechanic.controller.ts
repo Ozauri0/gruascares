@@ -4,7 +4,7 @@ import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
 import { appointments, users, vehicles, services, serviceRecords } from "../db/schema.js";
-import { sendServiceCompletedEmail } from "../services/email/email.service.js";
+import { sendAppointmentDecisionEmail, sendServiceCompletedEmail } from "../services/email/email.service.js";
 import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { parsePagination } from "../utils/pagination.js";
@@ -184,6 +184,21 @@ function notifyServiceCompleted(
   }).catch((err) => console.error("Error al enviar correo de atención finalizada:", err));
 }
 
+/** Avisa al cliente (cuenta o invitado) cuando el taller confirma o cancela su solicitud. */
+function notifyDecision(ctx: AppointmentContext, kind: "confirmada" | "cancelada") {
+  const to = ctx.client?.email ?? ctx.appointment.guestEmail;
+  if (!to) return;
+  const date = new Date(`${ctx.appointment.scheduledDate}T12:00:00Z`).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  sendAppointmentDecisionEmail(to, kind, {
+    name: ctx.client?.name ?? ctx.appointment.guestName ?? "Cliente",
+    serviceName: ctx.service?.name || "Servicio",
+    scheduledDate: date,
+    timeSlot: ctx.appointment.timeSlot,
+    vehiclePlate: ctx.vehicle?.plate,
+    vehicleBrandModel: ctx.vehicle ? `${ctx.vehicle.brand} ${ctx.vehicle.model}` : undefined,
+  }).catch((err) => console.error("Error al enviar correo de decisión de cita:", err));
+}
+
 const optionalText = (value: unknown): string | null =>
   value && typeof value === "string" && value.trim() ? value.trim() : null;
 
@@ -287,6 +302,9 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
 
     if (status === "finalizada" && existingRecord) {
       notifyServiceCompleted(ctx, currentUser.name, existingRecord);
+    }
+    if (previousStatus === "solicitada" && (status === "confirmada" || status === "cancelada")) {
+      notifyDecision(ctx, status);
     }
 
     logAudit({

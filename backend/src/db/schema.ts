@@ -24,6 +24,8 @@ export const users = pgTable("users", {
   extraRoles: userRoleEnum("extra_roles").array().default(sql`'{}'::user_role[]`).notNull(),
   phone: varchar("phone", { length: 50 }),
   isActive: boolean("is_active").default(true).notNull(),
+  // Confirmación del correo: null = aún no confirmó el enlace que se le envió al registrarse (no puede iniciar sesión).
+  emailVerifiedAt: timestamp("email_verified_at"),
   // Se incrementa para invalidar todas las sesiones activas del usuario (cambio de rol, baja, cierre global).
   tokenVersion: integer("token_version").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -303,4 +305,20 @@ export const passwordResetTokens = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("password_reset_tokens_user_id_idx").on(table.userId)]
+);
+
+// 11. Tokens de confirmación de correo al registrarse (de un solo uso; solo se guarda el hash SHA-256)
+export const emailVerificationTokens = pgTable(
+  "email_verification_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("email_verification_tokens_user_id_idx").on(table.userId)]
 );

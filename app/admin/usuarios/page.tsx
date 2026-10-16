@@ -9,6 +9,7 @@ import type { SessionUser } from "../../lib/portal-types";
 import type { UserRole } from "../../lib/portal-types";
 import { useUsers } from "../../lib/use-users";
 import Skeleton from "../../components/Skeleton";
+import { useAuth } from "../../lib/auth";
 
 const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
   { value: "todos", label: "Todos los roles" },
@@ -30,7 +31,11 @@ type StaffForm = { name: string; email: string; phone: string; password: string 
 export default function UsersPage() {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<UserRole | "todos">("todos");
-  const { users, total, loading, error, reload, loadMore, add, toggleActive, changeRoles, hasMore } = useUsers(query, role);
+  const { user: me } = useAuth();
+  const { users, total, loading, error, reload, loadMore, add, toggleActive, changeRoles, remove, hasMore } = useUsers(query, role);
+  const [deleting, setDeleting] = useState<SessionUser | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<StaffForm>({ name: "", email: "", phone: "", password: "" });
   const [newRoles, setNewRoles] = useState<RoleChoice>({ roles: ["mecanico"], primary: "mecanico" });
@@ -58,6 +63,20 @@ export default function UsersPage() {
       await toggleActive(id, !isActive);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "No se pudo cambiar el estado del usuario.");
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleting || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError("");
+    try {
+      await remove(deleting.id);
+      setDeleting(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "No se pudo eliminar el usuario.");
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -208,6 +227,9 @@ export default function UsersPage() {
                           <button type="button" className="toggle-btn" onClick={() => void toggle(user.id, user.isActive)}>
                             {user.isActive ? "Desactivar" : "Activar"}
                           </button>
+                          {user.id !== me?.id && (
+                            <>{" "}<button type="button" className="toggle-btn danger" onClick={() => { setDeleteError(""); setDeleting(user); }}>Eliminar</button></>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -276,6 +298,24 @@ export default function UsersPage() {
             <div className="modal-actions">
               <button type="button" className="modal-cancel" onClick={() => setEditing(null)}>Cancelar</button>
               <button type="button" className="button" disabled={editSaving} onClick={() => void saveRoles()}>{editSaving ? "Guardando…" : "Guardar roles"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleting && (
+        <div className="modal-overlay" onClick={() => !deleteBusy && setDeleting(null)}>
+          <div className="modal" role="alertdialog" aria-modal="true" aria-label={`Eliminar a ${deleting.name}`} onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <h2>Eliminar usuario</h2>
+              <button type="button" className="modal-close" aria-label="Cerrar" disabled={deleteBusy} onClick={() => setDeleting(null)}>×</button>
+            </div>
+            <p>¿Eliminar definitivamente a <b>{deleting.name}</b> ({deleting.email})?</p>
+            <p className="cell-sub">Se borrarán también sus vehículos y sus citas. No se puede deshacer. Si solo quieres quitarle el acceso, usa «Desactivar».</p>
+            {deleteError && <small className="field-error" role="alert">{deleteError}</small>}
+            <div className="modal-actions">
+              <button type="button" className="modal-cancel" disabled={deleteBusy} onClick={() => setDeleting(null)}>Cancelar</button>
+              <button type="button" className="button button-danger" disabled={deleteBusy} onClick={() => void confirmDelete()}>{deleteBusy ? "Eliminando…" : "Sí, eliminar"}</button>
             </div>
           </div>
         </div>

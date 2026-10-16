@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { ApiError } from "./api";
 import { toProduct } from "./api-adapters";
 import { createProduct, deleteProduct, listAdminCatalog, listPublicCatalog, updateProduct } from "./catalog-api";
-import { createStaff, listUsers, setUserActive } from "./users-api";
+import { createStaff, deleteUser, listUsers, setUserActive } from "./users-api";
 
 type Call = { url: string; init: RequestInit };
 const realFetch = globalThis.fetch;
@@ -100,5 +100,16 @@ describe("INT-11: usuarios", () => {
     const error = (await setUserActive("yo", false).catch((e) => e)) as ApiError;
     expect(error.status).toBe(409);
     expect(error.message).toContain("tu propia cuenta");
+  });
+
+  test("deleteUser hace DELETE y propaga el rechazo del backend", async () => {
+    respond(200, { message: "Usuario eliminado", deleted: { vehicles: 2, appointments: 3 } });
+    expect(await deleteUser("u1")).toEqual({ vehicles: 2, appointments: 3 });
+    expect(calls[0].url).toBe("/api/admin/users/u1");
+    expect(calls[0].init.method).toBe("DELETE");
+
+    respond(409, { error: "Conflict", message: "No puedes eliminar tu propia cuenta" });
+    const error = (await deleteUser("yo").catch((e) => e)) as ApiError;
+    expect(error.status).toBe(409);
   });
 });

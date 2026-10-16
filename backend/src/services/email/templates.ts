@@ -368,3 +368,103 @@ export function getPasswordResetTemplate(
     text: `Hola ${name},\n\nRecibimos una solicitud para restablecer la contraseña de tu cuenta de Grúas Cares. Usa este enlace (válido por ${validMinutes} minutos, un solo uso):\n${resetUrl}\n\nSi no lo solicitaste, ignora este correo.`,
   };
 }
+
+export function getEmailVerificationTemplate(
+  name: string,
+  verifyUrl: string,
+  validHours: number
+): { html: string; text: string; subject: string } {
+  const subject = "Confirma tu correo · Grúas Cares";
+  const safeName = escapeHtml(name);
+  const safeUrl = escapeHtml(verifyUrl);
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:#111111;margin:0 0 14px 0;letter-spacing:-0.5px;">Confirma tu correo</h1>
+    <p style="font-size:15px;line-height:1.6;color:#444444;margin:0 0 20px 0;">
+      Hola <strong>${safeName}</strong>, gracias por crear tu cuenta en Grúas Cares. Para activarla confirma que este correo es tuyo.
+      El enlace es válido por <strong>${validHours} horas</strong>.
+    </p>
+    <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:26px 0;">
+      <tr>
+        <td align="center" style="border-radius:6px;background-color:#029834;">
+          <a href="${safeUrl}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:14px;color:#ffffff;font-weight:700;text-decoration:none;border-radius:6px;">Confirmar mi correo ↗</a>
+        </td>
+      </tr>
+    </table>
+    <p style="font-size:13px;line-height:1.6;color:#666666;margin:0 0 8px 0;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+    <p style="font-size:12px;line-height:1.5;color:#029834;word-break:break-all;margin:0 0 20px 0;">${safeUrl}</p>
+    <p style="font-size:13px;line-height:1.6;color:#666666;margin:0;">
+      Si tú no creaste esta cuenta, ignora este correo: sin confirmar, nadie podrá usarla.
+    </p>
+  `;
+  return {
+    subject,
+    html: baseEmailLayout(content, "Confirma tu correo para activar tu cuenta de Grúas Cares."),
+    text: `Hola ${name},\n\nGracias por crear tu cuenta en Grúas Cares. Confirma tu correo con este enlace (válido por ${validHours} horas):\n${verifyUrl}\n\nSi no creaste la cuenta, ignora este correo.`,
+  };
+}
+
+// Aviso de que el taller confirmó o canceló una solicitud de cita
+export type AppointmentDecision = "confirmada" | "cancelada";
+
+export function getAppointmentDecisionTemplate(
+  kind: AppointmentDecision,
+  data: Pick<AppointmentEmailData, "name" | "serviceName" | "scheduledDate" | "timeSlot" | "vehiclePlate" | "vehicleBrandModel">
+): { html: string; text: string; subject: string } {
+  const confirmed = kind === "confirmada";
+  const subject = sanitizeHeader(confirmed ? `Tu cita fue confirmada: ${data.serviceName}` : `Tu solicitud de cita fue cancelada: ${data.serviceName}`);
+  const e = {
+    name: escapeHtml(data.name),
+    serviceName: escapeHtml(data.serviceName),
+    scheduledDate: escapeHtml(data.scheduledDate),
+    timeSlot: escapeHtml(data.timeSlot),
+    vehiclePlate: escapeHtml(data.vehiclePlate),
+    vehicleBrandModel: escapeHtml(data.vehicleBrandModel),
+  };
+  const color = confirmed ? "#029834" : "#b42318";
+  const badgeBg = confirmed ? "#e8f5e9" : "#fdecea";
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:#111111;margin:0 0 14px 0;letter-spacing:-0.5px;">${confirmed ? "¡Tu cita está confirmada!" : "Tu solicitud fue cancelada"}</h1>
+    <p style="font-size:15px;line-height:1.6;color:#444444;margin:0 0 24px 0;">
+      Hola <strong>${e.name}</strong>, ${
+        confirmed
+          ? "el taller revisó tu solicitud y <strong>confirmó</strong> tu atención. Te esperamos:"
+          : "lamentablemente el taller no pudo tomar tu solicitud y la <strong>canceló</strong>. El detalle era:"
+      }
+    </p>
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#fafafa;border:1px solid #e0e0e0;border-radius:8px;padding:20px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:6px 0;font-size:13px;color:#777777;width:140px;">Servicio:</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${e.serviceName}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;font-size:13px;color:#777777;">Fecha:</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#017827;">${e.scheduledDate}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;font-size:13px;color:#777777;">Horario:</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${e.timeSlot} hrs</td>
+      </tr>
+      ${data.vehiclePlate ? `
+      <tr>
+        <td style="padding:6px 0;font-size:13px;color:#777777;">Vehículo:</td>
+        <td style="padding:6px 0;font-size:14px;font-weight:600;color:#111111;">${e.vehicleBrandModel || "Vehículo"} (Patente: ${e.vehiclePlate})</td>
+      </tr>` : ""}
+      <tr>
+        <td style="padding:6px 0;font-size:13px;color:#777777;">Estado:</td>
+        <td style="padding:6px 0;"><span style="display:inline-block;padding:3px 10px;background-color:${badgeBg};color:${color};border-radius:12px;font-size:12px;font-weight:600;text-transform:capitalize;">${kind}</span></td>
+      </tr>
+    </table>
+    <p style="font-size:14px;color:#555555;line-height:1.5;">
+      ${
+        confirmed
+          ? "Si necesitas cambiar la hora o tienes alguna duda, llámanos al <strong>+56 9 9162 7809</strong>."
+          : "Puedes pedir otra hora desde nuestra web o llamarnos al <strong>+56 9 9162 7809</strong> para coordinar una nueva fecha."
+      }
+    </p>
+  `;
+  return {
+    subject,
+    html: baseEmailLayout(content, confirmed ? `Tu cita para ${e.serviceName} fue confirmada.` : `Tu solicitud para ${e.serviceName} fue cancelada.`),
+    text: `Hola ${data.name},\n\n${confirmed ? "Tu cita fue confirmada" : "Tu solicitud de cita fue cancelada"}:\n- Servicio: ${data.serviceName}\n- Fecha: ${data.scheduledDate} a las ${data.timeSlot}\n\nConsultas: +56 9 9162 7809.`,
+  };
+}

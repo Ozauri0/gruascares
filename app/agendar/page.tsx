@@ -11,6 +11,7 @@ import { todayInSantiago } from "../lib/dates";
 import { formatPlate } from "../lib/plate";
 import { useAvailability } from "../lib/use-availability";
 import { useVehicles } from "../lib/use-vehicles";
+import Icon from "../components/Icon";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,7 +24,7 @@ export default function AgendarPage() {
   const [servicesError, setServicesError] = useState("");
   const [servicesNonce, setServicesNonce] = useState(0);
 
-  const [category, setCategory] = useState<BookingCategory>("gruas");
+  const [category, setCategory] = useState<BookingCategory>("serviteca");
   const [serviceId, setServiceId] = useState("");
   const [today, setToday] = useState("");
   const [date, setDate] = useState("");
@@ -64,7 +65,7 @@ export default function AgendarPage() {
         if (cancelled) return;
         setServices(list);
         const wanted = findServiceByQuery(list, new URLSearchParams(window.location.search).get("servicio"));
-        const initial = wanted ?? groupServices(list).gruas[0] ?? list[0];
+        const initial = wanted ?? groupServices(list).serviteca[0] ?? list[0];
         if (initial) {
           setCategory(initial.category === "grua" ? "gruas" : "serviteca");
           setServiceId(initial.id);
@@ -165,14 +166,14 @@ export default function AgendarPage() {
                 <span className="emergency-title">¿Quedaste en pana ahora mismo?</span>
                 <p>Para auxilio inmediato en ruta, llámanos directamente:</p>
                 <a href="tel:+56991627809" className="emergency-phone-btn">
-                  📞 +56 9 9162 7809 <span>↗</span>
+                  <Icon name="phone" />+56 9 9162 7809 <span>↗</span>
                 </a>
               </div>
             </aside>
 
             {created ? (
               <div className="success booking-success" role="status">
-                <span>✓</span>
+                <span><Icon name="check" bare /></span>
                 <h2>¡Solicitud enviada con éxito!</h2>
                 <p>
                   Recibimos tu solicitud para <strong>{created.serviceName}</strong> con fecha <b>{created.scheduledDate}</b> a las <b>{created.timeSlot} hrs</b>
@@ -213,7 +214,7 @@ export default function AgendarPage() {
                         onClick={() => changeCategory(option)}
                         key={option}
                       >
-                        <strong>{CATEGORY_INFO[option].icon} {CATEGORY_INFO[option].label}</strong>
+                        <strong><Icon name={CATEGORY_INFO[option].icon} />{CATEGORY_INFO[option].label}</strong>
                         <small>{CATEGORY_INFO[option].description}</small>
                       </button>
                     ))}
@@ -243,7 +244,7 @@ export default function AgendarPage() {
                         <option key={option.id} value={option.id}>{option.name}</option>
                       ))}
                     </select>
-                    {selectedService && <small className="service-hint">⏱️ {serviceHint(selectedService)}</small>}
+                    {selectedService && <small className="service-hint"><Icon name="timer" />{serviceHint(selectedService)}</small>}
                   </label>
 
                   <label>
@@ -298,7 +299,7 @@ export default function AgendarPage() {
                     <p className="service-hint">No quedan bloques disponibles para esta fecha. Prueba con otro día o llámanos al +56 9 9162 7809.</p>
                   )}
                   {timeError && (
-                    <p className="field-error" role="alert">⚠️ Por favor selecciona un bloque de horario para continuar.</p>
+                    <p className="field-error" role="alert"><Icon name="alert" />Por favor selecciona un bloque de horario para continuar.</p>
                   )}
                 </fieldset>
 
@@ -330,7 +331,7 @@ export default function AgendarPage() {
 
                 {vehicles.length > 0 && (
                   <label>
-                    🚗 Vehículo guardado en tu cuenta (opcional)
+                    <Icon name="car" />Vehículo guardado en tu cuenta (opcional)
                     <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
                       <option value="">Seleccionar vehículo o registrar otro...</option>
                       {vehicles.map((item) => (
@@ -352,7 +353,7 @@ export default function AgendarPage() {
                   <textarea rows={2} placeholder="Ej: El auto no arranca, o requiero cambio de filtro además del aceite..." value={notes} onChange={(e) => setNotes(e.target.value)} />
                 </label>
 
-                {formError && <p className="field-error" role="alert">⚠️ {formError}</p>}
+                {formError && <p className="field-error" role="alert"><Icon name="alert" />{formError}</p>}
 
                 <button className="button button-submit" type="submit" disabled={submitting || servicesLoading || !selectedService}>
                   {submitting ? "Enviando solicitud…" : <>Confirmar y Solicitar Servicio <span>↗</span></>}

@@ -3,10 +3,10 @@ import { Request, Response } from "express";
 import { createHash, randomBytes } from "crypto";
 import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { appointments, passwordResetTokens, users } from "../db/schema.js";
+import { appointments, emailVerificationTokens, passwordResetTokens, users } from "../db/schema.js";
 import { generateToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
-import { sendPasswordResetEmail, sendWelcomeEmail } from "../services/email/email.service.js";
+import { sendEmailVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../services/email/email.service.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong } from "../utils/validate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { hashPassword, validatePassword, verifyPassword } from "../utils/password.js";
@@ -16,6 +16,24 @@ import type { UserRole } from "../types/auth.js";
 
 const COOKIE_NAME = "gc_token";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
+
+const VERIFY_TOKEN_HOURS = 24;
+const hashVerifyToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+/** Genera un enlace de confirmación de un solo uso (invalida los anteriores) y lo envía por correo. */
+async function issueEmailVerification(userId: string, email: string, name: string): Promise<void> {
+  const token = randomBytes(32).toString("base64url");
+  await db.transaction(async (tx) => {
+    await tx.update(emailVerificationTokens).set({ usedAt: new Date() }).where(and(eq(emailVerificationTokens.userId, userId), isNull(emailVerificationTokens.usedAt)));
+    await tx.insert(emailVerificationTokens).values({
+      userId,
+      tokenHash: hashVerifyToken(token),
+      expiresAt: new Date(Date.now() + VERIFY_TOKEN_HOURS * 60 * 60 * 1000),
+    });
+  });
+  const url = `${config.appUrl}/confirmar-correo?token=${encodeURIComponent(token)}`;
+  sendEmailVerificationEmail(email, name, url, VERIFY_TOKEN_HOURS);
+}
 
 export async function register(req: Request, res: Response) {
   try {
@@ -88,12 +106,6 @@ export async function register(req: Request, res: Response) {
         createdAt: users.createdAt,
       });
 
-    // 4.1 Vincular solicitudes hechas como invitado con este mismo correo
-    await db
-      .update(appointments)
-      .set({ userId: newUser.id, guestName: null, guestEmail: null, guestPhone: null })
-      .where(and(isNull(appointments.userId), eq(sql`lower(${appointments.guestEmail})`, normalizedEmail)));
-
     logAudit({
       userId: newUser.id,
       userEmail: newUser.email,
@@ -103,27 +115,12 @@ export async function register(req: Request, res: Response) {
       req,
     });
 
-    // 5. Enviar correo de bienvenida (asíncrono, fire-and-forget)
-    sendWelcomeEmail(newUser.email, newUser.name);
-
-    // 6. Generar JWT y establecer cookie HTTP-only
-    const token = generateToken({
-      userId: newUser.id,
-      email: newUser.email,
-      role: newUser.role,
-      name: newUser.name,
-      tokenVersion: 0,
-    });
-
-    res.cookie(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: config.isProduction,
-      sameSite: "lax",
-      maxAge: COOKIE_MAX_AGE,
-    });
+    // 5. La cuenta queda pendiente: no hay sesión hasta que confirme el enlace que se le envía.
+    await issueEmailVerification(newUser.id, newUser.email, newUser.name);
 
     return res.status(201).json({
-      message: "Usuario registrado exitosamente",
+      message: "Cuenta creada. Te enviamos un correo para confirmar tu dirección: ábrelo y sigue el enlace para activarla.",
+      verificationRequired: true,
       user: newUser,
     });
   } catch (error) {
@@ -181,6 +178,15 @@ export async function login(req: Request, res: Response) {
       return res.status(403).json({
         error: "Forbidden",
         message: "Tu cuenta ha sido desactivada. Comunícate con Grúas Cares.",
+      });
+    }
+
+    // 3. Correo sin confirmar: solo se informa a quien demostró conocer la contraseña.
+    if (!user.emailVerifiedAt) {
+      logAudit({ userId: user.id, userEmail: user.email, action: "LOGIN_BLOCKED", entityType: "user", entityId: user.id, details: { reason: "email_not_verified" }, req });
+      return res.status(403).json({
+        error: "EmailNotVerified",
+        message: "Aún no confirmas tu correo. Revisa tu bandeja de entrada y sigue el enlace que te enviamos.",
       });
     }
 
@@ -473,7 +479,7 @@ export async function resetPassword(req: Request, res: Response) {
 
       const [user] = await tx
         .update(users)
-        .set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` as unknown as number, updatedAt: new Date() })
+        .set({ passwordHash, emailVerifiedAt: sql`coalesce(${users.emailVerifiedAt}, now())` as unknown as Date, tokenVersion: sql`${users.tokenVersion} + 1` as unknown as number, updatedAt: new Date() })
         .where(and(eq(users.id, consumed.userId), eq(users.isActive, true)))
         .returning({ id: users.id, email: users.email });
       if (!user) return null;
@@ -495,5 +501,73 @@ export async function resetPassword(req: Request, res: Response) {
   } catch (error) {
     console.error("Error en resetPassword:", error);
     return res.status(500).json({ error: "Internal Server Error", message: "No se pudo restablecer la contraseña" });
+  }
+}
+
+/**
+ * POST /api/auth/verify-email { token }
+ * Confirma el correo con un enlace vigente de un solo uso, activa la cuenta y vincula sus solicitudes de invitado.
+ */
+export async function verifyEmail(req: Request, res: Response) {
+  const invalid = { error: "Bad Request", message: "El enlace no es válido o ya venció. Pide uno nuevo desde el inicio de sesión." };
+  try {
+    const { token } = req.body ?? {};
+    if (typeof token !== "string" || token.length < 20 || token.length > 200) return res.status(400).json(invalid);
+
+    const tokenHash = hashVerifyToken(token);
+    const user = await db.transaction(async (tx) => {
+      const [consumed] = await tx
+        .update(emailVerificationTokens)
+        .set({ usedAt: new Date() })
+        .where(and(eq(emailVerificationTokens.tokenHash, tokenHash), isNull(emailVerificationTokens.usedAt), gt(emailVerificationTokens.expiresAt, new Date())))
+        .returning({ userId: emailVerificationTokens.userId });
+      if (!consumed) return null;
+
+      const [verified] = await tx
+        .update(users)
+        .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+        .where(eq(users.id, consumed.userId))
+        .returning({ id: users.id, email: users.email, name: users.name });
+      if (!verified) return null;
+
+      // Solicitudes hechas como invitado con este correo pasan a su cuenta (ya probó que el correo es suyo).
+      await tx
+        .update(appointments)
+        .set({ userId: verified.id, guestName: null, guestEmail: null, guestPhone: null })
+        .where(and(isNull(appointments.userId), eq(sql`lower(${appointments.guestEmail})`, verified.email.toLowerCase())));
+      return verified;
+    });
+
+    if (!user) return res.status(400).json(invalid);
+
+    logAudit({ userId: user.id, userEmail: user.email, action: "EMAIL_VERIFIED", entityType: "user", entityId: user.id, req });
+    sendWelcomeEmail(user.email, user.name);
+    return res.status(200).json({ message: "¡Correo confirmado! Tu cuenta está activa: ya puedes iniciar sesión." });
+  } catch (error) {
+    console.error("Error en verifyEmail:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "No se pudo confirmar el correo" });
+  }
+}
+
+/**
+ * POST /api/auth/resend-verification { email }
+ * Siempre responde igual (exista o no la cuenta). Si está pendiente de confirmar, envía un enlace nuevo.
+ */
+export async function resendVerification(req: Request, res: Response) {
+  const generic = { message: "Si ese correo tiene una cuenta pendiente de confirmar, te enviamos un enlace nuevo. Revisa tu bandeja de entrada." };
+  try {
+    const email = req.body?.email;
+    if (typeof email !== "string" || !EMAIL_REGEX.test(email.trim()) || email.length > MAX_LEN.email) {
+      return res.status(400).json({ error: "Bad Request", message: "Debe ingresar un correo electrónico válido" });
+    }
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim())).limit(1);
+    if (user && user.isActive && !user.emailVerifiedAt) {
+      await issueEmailVerification(user.id, user.email, user.name);
+      logAudit({ userId: user.id, userEmail: user.email, action: "EMAIL_VERIFICATION_RESENT", entityType: "user", entityId: user.id, req });
+    }
+    return res.status(200).json(generic);
+  } catch (error) {
+    console.error("Error en resendVerification:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "No se pudo procesar la solicitud" });
   }
 }

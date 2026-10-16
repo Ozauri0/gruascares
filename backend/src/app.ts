@@ -89,6 +89,8 @@ export function createApp(options: AppOptions = {}): Express {
   app.post("/api/auth/register", limiters.register);
   app.post("/api/auth/forgot-password", limiters.forgotPassword);
   app.post("/api/auth/reset-password", limiters.resetPassword);
+  app.post("/api/auth/resend-verification", limiters.forgotPassword);
+  app.post("/api/auth/verify-email", limiters.resetPassword);
   app.post("/api/appointments", limiters.publicAppointment);
   app.get("/api/appointments/availability", limiters.availability);
 

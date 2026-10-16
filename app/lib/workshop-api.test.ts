@@ -41,6 +41,12 @@ describe("INT-8: taller contra la API", () => {
     expect(agenda[1]).toMatchObject({ clientName: "Invitado", clientPhone: "", vehicleLabel: "Sin vehículo registrado", mechanicName: null });
   });
 
+  test("fetchAgenda sin fecha trae todas las citas desde hace 30 días, de cualquier estado", async () => {
+    respond(200, { agenda: [] });
+    await fetchAgenda(undefined, undefined, "2026-10-16");
+    expect(calls[0].url).toBe("/api/mechanic/agenda?startDate=2026-09-16&limit=500");
+  });
+
   test("changeAppointmentStatus hace PATCH a la ruta del taller", async () => {
     respond(200, { appointment: {} });
     await changeAppointmentStatus("a 1", "en_proceso");

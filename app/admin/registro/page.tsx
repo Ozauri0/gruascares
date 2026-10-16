@@ -6,15 +6,16 @@ import Skeleton from "../../components/Skeleton";
 import AdminNav from "../components/AdminNav";
 import { formatDetails, type ActivityArea, type ActivityLevel } from "../../lib/activity-api";
 import { useActivity } from "../../lib/use-activity";
+import Icon, { type IconName } from "../../components/Icon";
 
-const AREAS: { value: ActivityArea | "todas"; label: string }[] = [
+const AREAS: { value: ActivityArea | "todas"; label: string; icon?: IconName }[] = [
   { value: "todas", label: "Todo" },
-  { value: "taller", label: "🔧 Taller" },
-  { value: "ventas", label: "🏷️ Ventas" },
-  { value: "administracion", label: "🛠️ Administración" },
-  { value: "clientes", label: "👤 Clientes" },
-  { value: "cuentas", label: "🔑 Cuentas y accesos" },
-  { value: "sistema", label: "⚠️ Sistema" },
+  { value: "taller", label: "Taller", icon: "wrench" },
+  { value: "ventas", label: "Ventas", icon: "tag" },
+  { value: "administracion", label: "Administración", icon: "shield" },
+  { value: "clientes", label: "Clientes", icon: "user" },
+  { value: "cuentas", label: "Cuentas y accesos", icon: "key" },
+  { value: "sistema", label: "Sistema", icon: "alert" },
 ];
 
 const LEVELS: { value: ActivityLevel | "todos"; label: string }[] = [
@@ -72,7 +73,7 @@ export default function ActivityLogPage() {
               <div className="portal-toolbar-left">
                 <span className="portal-badge-counter">{loading ? "Cargando…" : error ? "No disponible" : `${total} ${total === 1 ? "evento" : "eventos"}`}</span>
               </div>
-              <button type="button" className="portal-add" onClick={reload}>↻ Actualizar</button>
+              <button type="button" className="portal-add" onClick={reload}>Actualizar</button>
             </div>
 
             <div className="filter-bar">
@@ -80,7 +81,7 @@ export default function ActivityLogPage() {
               <div className="filter-pills" role="tablist" aria-label="Filtrar por área">
                 {AREAS.map((option) => (
                   <button key={option.value} type="button" role="tab" aria-selected={area === option.value} className={area === option.value ? "filter-pill selected" : "filter-pill"} onClick={() => setArea(option.value)}>
-                    {option.label}
+                    {option.icon && <Icon name={option.icon} />}{option.label}
                   </button>
                 ))}
               </div>

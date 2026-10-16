@@ -29,11 +29,11 @@ export async function seedBasics(): Promise<Seed> {
   const [admin, mechanic, clientA, clientB, seller] = await db
     .insert(users)
     .values([
-      { name: "Admin Test", email: "admin@test.local", passwordHash: hash, role: "admin" },
-      { name: "Mecanico Test", email: "mecanico@test.local", passwordHash: hash, role: "mecanico" },
-      { name: "Cliente A", email: "a@test.local", passwordHash: hash, role: "usuario" },
-      { name: "Cliente B", email: "b@test.local", passwordHash: hash, role: "usuario" },
-      { name: "Vendedor Test", email: "vendedor@test.local", passwordHash: hash, role: "vendedor" },
+      { name: "Admin Test", email: "admin@test.local", passwordHash: hash, role: "admin", emailVerifiedAt: new Date() },
+      { name: "Mecanico Test", email: "mecanico@test.local", passwordHash: hash, role: "mecanico", emailVerifiedAt: new Date() },
+      { name: "Cliente A", email: "a@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
+      { name: "Cliente B", email: "b@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
+      { name: "Vendedor Test", email: "vendedor@test.local", passwordHash: hash, role: "vendedor", emailVerifiedAt: new Date() },
     ])
     .returning();
   const [serviceGrua, serviceAceite] = await db

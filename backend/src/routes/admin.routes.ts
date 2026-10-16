@@ -16,7 +16,7 @@ import {
 } from "../controllers/admin.controller.js";
 import { discardDraft, getDraft, publishDraft, saveDraft, updateContent, uploadImage } from "../controllers/content.controller.js";
 import { createProduct, deleteProduct, getAdminCatalog, updateProduct } from "../controllers/catalog.controller.js";
-import { createStaffUser, listUsers, updateUser } from "../controllers/admin-users.controller.js";
+import { createStaffUser, deleteUser, listUsers, updateUser } from "../controllers/admin-users.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -54,6 +54,7 @@ router.patch("/appointments/:id/assign", reassignAppointmentMechanic);
 router.get("/users", listUsers);
 router.post("/users", createStaffUser);
 router.patch("/users/:id", updateUser);
+router.delete("/users/:id", deleteUser);
 
 // Contenido editable de la web pública (la lectura pública está en GET /api/content)
 router.put("/content", updateContent);

@@ -30,10 +30,23 @@ export async function loginRequest(email: string, password: string): Promise<Ses
 
 export type RegisterInput = { name: string; email: string; password: string; phone?: string };
 
-export async function registerRequest(input: RegisterInput): Promise<SessionUser> {
+/** El registro no abre sesión: la cuenta queda pendiente hasta confirmar el enlace que llega al correo. */
+export async function registerRequest(input: RegisterInput): Promise<{ email: string }> {
   const body = { ...input, phone: input.phone?.trim() || undefined };
   const { user } = await apiPost<UserResponse>("/api/auth/register", body, { redirectOnUnauthorized: false });
-  return toSessionUser(user);
+  return { email: user.email };
+}
+
+/** Confirma el correo con el token del enlace recibido. */
+export async function verifyEmailRequest(token: string): Promise<string> {
+  const { message } = await apiPost<{ message: string }>("/api/auth/verify-email", { token }, { redirectOnUnauthorized: false });
+  return message;
+}
+
+/** Pide un enlace nuevo (la respuesta es la misma exista o no la cuenta). */
+export async function resendVerificationRequest(email: string): Promise<string> {
+  const { message } = await apiPost<{ message: string }>("/api/auth/resend-verification", { email }, { redirectOnUnauthorized: false });
+  return message;
 }
 
 /** SOLO DEMO: entra como la cuenta demo del rol, sin credenciales (requiere DEMO_MODE en el backend). */

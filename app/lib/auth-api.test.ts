@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ApiError } from "./api";
-import { demoLoginRequest, fetchSession, loginRequest, logoutRequest, registerRequest } from "./auth-api";
+import { demoLoginRequest, fetchSession, loginRequest, logoutRequest, registerRequest, resendVerificationRequest, verifyEmailRequest } from "./auth-api";
 
 type Call = { url: string; init: RequestInit };
 const realFetch = globalThis.fetch;
@@ -54,8 +54,9 @@ describe("INT-3: operaciones de sesión", () => {
   });
 
   test("registerRequest omite el teléfono vacío", async () => {
-    respond(201, { user: apiUser });
-    await registerRequest({ name: "Ana", email: "a@b.cl", password: "clave1234", phone: "  " });
+    respond(201, { user: apiUser, verificationRequired: true });
+    const result = await registerRequest({ name: "Ana", email: "a@b.cl", password: "clave1234", phone: "  " });
+    expect(result).toEqual({ email: apiUser.email }); // sin sesión: solo el correo al que se envió el enlace
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "Ana", email: "a@b.cl", password: "clave1234" });
   });
 
@@ -63,6 +64,16 @@ describe("INT-3: operaciones de sesión", () => {
     respond(409, { error: "Conflict", message: "Ya existe una cuenta registrada con este correo electrónico" });
     const error = (await registerRequest({ name: "Ana", email: "a@b.cl", password: "clave1234" }).catch((e) => e)) as ApiError;
     expect(error.status).toBe(409);
+  });
+
+  test("verifyEmailRequest y resendVerificationRequest llaman a sus rutas", async () => {
+    respond(200, { message: "ok" });
+    expect(await verifyEmailRequest("tok")).toBe("ok");
+    expect(calls[0].url).toBe("/api/auth/verify-email");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ token: "tok" });
+    respond(200, { message: "enviado" });
+    expect(await resendVerificationRequest("a@b.cl")).toBe("enviado");
+    expect(calls[1].url).toBe("/api/auth/resend-verification");
   });
 
   test("demoLoginRequest envía el rol y devuelve el usuario", async () => {
