@@ -3,8 +3,8 @@ import { Request, Response } from "express";
 import { createHash, randomBytes } from "crypto";
 import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { appointments, emailVerificationTokens, passwordResetTokens, users } from "../db/schema.js";
-import { generateToken } from "../utils/jwt.js";
+import { appointments, emailVerificationTokens, passwordResetTokens, revokedTokens, users } from "../db/schema.js";
+import { generateToken, verifyToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
 import { sendEmailVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../services/email/email.service.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong } from "../utils/validate.js";
@@ -269,7 +269,25 @@ export async function getMe(req: Request, res: Response) {
   }
 }
 
-export function logout(_req: Request, res: Response) {
+/**
+ * POST /api/auth/logout
+ * Cierra solo esta sesión: borra la cookie y revoca el token en el servidor (otras sesiones siguen activas).
+ */
+export async function logout(req: Request, res: Response) {
+  try {
+    const token: string | undefined = req.cookies?.gc_token ?? (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.substring(7) : undefined);
+    const payload = token ? verifyToken(token) : null;
+    if (payload?.jti && payload.exp) {
+      await db
+        .insert(revokedTokens)
+        .values({ jti: payload.jti, expiresAt: new Date(payload.exp * 1000) })
+        .onConflictDoNothing();
+    }
+  } catch (error) {
+    // Si la base falla, igual se borra la cookie del navegador.
+    console.error("Error al revocar el token en logout:", error);
+  }
+
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: config.isProduction,

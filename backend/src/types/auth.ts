@@ -11,6 +11,10 @@ export interface JWTPayload {
   name: string;
   /** Versión de sesión: si no coincide con la de la BD, el token queda invalidado. */
   tokenVersion?: number;
+  /** Identificador único del token (permite revocarlo al cerrar sesión). */
+  jti?: string;
+  /** Vencimiento (segundos desde 1970), lo agrega jsonwebtoken. */
+  exp?: number;
 }
 
 declare global {

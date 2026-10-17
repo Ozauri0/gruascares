@@ -322,3 +322,14 @@ export const emailVerificationTokens = pgTable(
   },
   (table) => [index("email_verification_tokens_user_id_idx").on(table.userId)]
 );
+
+// 12. Tokens de sesión revocados al cerrar sesión (el identificador `jti` se descarta cuando el token ya venció)
+export const revokedTokens = pgTable(
+  "revoked_tokens",
+  {
+    jti: varchar("jti", { length: 64 }).primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("revoked_tokens_expires_at_idx").on(table.expiresAt)]
+);
