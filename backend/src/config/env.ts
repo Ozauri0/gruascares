@@ -29,7 +29,14 @@ export interface AppConfig {
   /** Carpeta donde se guardan las imágenes que sube el administrador. */
   uploadsDir: string;
   jwt: { secret: string; expiresIn: string };
+  /** Meses que se conserva el registro de actividad (audit_logs); lo más antiguo se borra solo. */
+  auditRetentionMonths: number;
   email: { host: string; port: number; user: string; pass: string; from: string };
+}
+
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
 function parseTrustProxy(raw: string | undefined): boolean | number {
@@ -87,6 +94,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       env.UPLOADS_DIR || path.resolve(process.cwd(), path.basename(process.cwd()) === "backend" ? "uploads" : "backend/uploads")
     ),
     jwt: { secret, expiresIn: env.JWT_EXPIRES_IN || "7d" },
+    auditRetentionMonths: parsePositiveInt(env.AUDIT_RETENTION_MONTHS, 12),
     email: {
       host: env.SMTP_HOST || "",
       port: Number(env.SMTP_PORT) || 587,

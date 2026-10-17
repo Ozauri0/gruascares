@@ -1,5 +1,6 @@
 import { createApp } from "./app.js";
 import { config } from "./config/env.js";
+import { startMaintenanceJobs } from "./services/maintenance.js";
 
 const app = createApp();
 
@@ -13,6 +14,8 @@ if (config.isProduction) {
     console.warn("⚠️  TRUST_PROXY=true confía en cualquier X-Forwarded-For (se pueden evadir los límites). Usa el número exacto de proxies.");
   }
 }
+
+startMaintenanceJobs();
 
 app.listen(config.port, () => {
   console.log(`🚀 Servidor backend de Grúas Cares ejecutándose en http://localhost:${config.port}`);

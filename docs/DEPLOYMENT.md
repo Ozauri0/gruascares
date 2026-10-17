@@ -54,3 +54,13 @@ Con una sola instancia los límites en memoria bastan. Si escalas o usas varias 
 ## 4. Otras variables obligatorias
 
 `NODE_ENV=production`, `DEMO_MODE=false`, `JWT_SECRET` (≥ 32 caracteres), `CORS_ORIGIN`, `APP_URL` (URL pública: arma los enlaces de los correos), `SMTP_*` y `EMAIL_FROM` (sin SMTP nadie puede confirmar su correo), `UPLOADS_DIR` persistente.
+
+## 5. Limpieza automática
+
+El backend ejecuta una limpieza al arrancar (tras 1 minuto) y cada 24 horas (`backend/src/services/maintenance.ts`):
+
+- Registro de actividad: se borra lo que supera `AUDIT_RETENTION_MONTHS` (12 meses por defecto; contiene IPs y correos).
+- Cuentas sin confirmar: se eliminan las registradas por el sitio que no confirmaron su correo tras 24 horas y sin enlace vigente (el correo vuelve a quedar libre). No toca cuentas confirmadas ni las creadas por el administrador.
+- Sesiones cerradas cuyo token ya venció.
+
+Con varias instancias del backend la limpieza se ejecuta en cada una; es idempotente y no hay conflicto.

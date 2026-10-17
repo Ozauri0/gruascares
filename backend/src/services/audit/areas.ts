@@ -26,7 +26,7 @@ const AREA_MATCHERS: Record<AuditArea, Matcher> = {
     exact: ["DEMO_LOGIN", "LOGOUT_ALL", "PROFILE_UPDATED", "USER_REGISTER", "EMAIL_VERIFIED", "EMAIL_VERIFICATION_RESENT"],
   },
   clientes: { exact: ["APPOINTMENT_CREATE", "APPOINTMENT_CREATE_GUEST", "APPOINTMENT_CANCEL", "VEHICLE_CREATED", "VEHICLE_UPDATED", "VEHICLE_DELETED"] },
-  sistema: { exact: ["SERVER_ERROR"] },
+  sistema: { exact: ["SERVER_ERROR", "MAINTENANCE_PURGE"] },
 };
 
 const WARN_ACTIONS = new Set(["LOGIN_FAILED", "LOGIN_BLOCKED"]);
@@ -103,6 +103,7 @@ const LABELS: Record<string, string> = {
   PASSWORD_RESET_REQUESTED: "Pidió recuperar su contraseña",
   PASSWORD_RESET_COMPLETED: "Cambió su contraseña",
   SERVER_ERROR: "Error del servidor",
+  MAINTENANCE_PURGE: "Limpieza automática (registros y cuentas sin confirmar)",
 };
 
 export function labelOf(action: string): string {
