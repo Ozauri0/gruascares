@@ -97,3 +97,44 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
     expect(res.headers.get("set-cookie")).toBeNull();
   });
 });
+
+describe.skipIf(!dbReady)("cerrar sesión revoca el token en el servidor", () => {
+  const login = async () => {
+    const res = await fetch(`${server.url}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: seed.clientA.email, password: "password123" }),
+    });
+    expect(res.status).toBe(200);
+    return /gc_token=([^;]+)/.exec(res.headers.get("set-cookie") ?? "")![1];
+  };
+  const meWith = (token: string) => fetch(`${server.url}/api/auth/me`, { headers: { Cookie: `gc_token=${token}` } });
+
+  test("el token usado antes del logout deja de servir, pero otra sesión de la persona sigue", async () => {
+    const first = await login();
+    const second = await login();
+    expect((await meWith(first)).status).toBe(200);
+
+    const out = await fetch(`${server.url}/api/auth/logout`, { method: "POST", headers: { Cookie: `gc_token=${first}` } });
+    expect(out.status).toBe(200);
+
+    expect((await meWith(first)).status).toBe(401); // aunque no haya vencido
+    expect((await meWith(second)).status).toBe(200);
+    const [{ n }] = await sql`select count(*)::int as n from revoked_tokens`;
+    expect(n).toBe(1);
+  });
+
+  test("cerrar sesión sin cookie o con un token inválido responde 200 y no revoca nada", async () => {
+    expect((await fetch(`${server.url}/api/auth/logout`, { method: "POST" })).status).toBe(200);
+    expect((await fetch(`${server.url}/api/auth/logout`, { method: "POST", headers: { Cookie: "gc_token=basura" } })).status).toBe(200);
+    const [{ n }] = await sql`select count(*)::int as n from revoked_tokens`;
+    expect(n).toBe(0);
+  });
+
+  test("cerrar sesión dos veces con el mismo token no falla", async () => {
+    const token = await login();
+    for (let i = 0; i < 2; i++) {
+      expect((await fetch(`${server.url}/api/auth/logout`, { method: "POST", headers: { Cookie: `gc_token=${token}` } })).status).toBe(200);
+    }
+  });
+});

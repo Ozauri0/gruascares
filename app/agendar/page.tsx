@@ -12,11 +12,11 @@ import { formatPlate } from "../lib/plate";
 import { useAvailability } from "../lib/use-availability";
 import { useVehicles } from "../lib/use-vehicles";
 import Icon from "../components/Icon";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import Skeleton from "../components/Skeleton";
+import { rememberRedirect } from "../lib/post-login";
 
 export default function AgendarPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { vehicles } = useVehicles({ enabled: Boolean(user) });
 
   const [services, setServices] = useState<ApiService[]>([]);
@@ -31,9 +31,6 @@ export default function AgendarPage() {
   const [time, setTime] = useState("");
   const [timeError, setTimeError] = useState(false);
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [vehicleId, setVehicleId] = useState("");
@@ -82,14 +79,6 @@ export default function AgendarPage() {
     };
   }, [servicesNonce]);
 
-  // Con sesión iniciada se precargan los datos de contacto de la cuenta.
-  useEffect(() => {
-    if (!user) return;
-    setName((current) => current || user.name);
-    setPhone((current) => current || user.phone || "");
-    setEmail((current) => current || user.email);
-  }, [user]);
-
   function changeCategory(next: BookingCategory) {
     setCategory(next);
     setServiceId(grouped[next][0]?.id ?? "");
@@ -108,11 +97,6 @@ export default function AgendarPage() {
       setTimeError(true);
       return;
     }
-    if (!user && !EMAIL_PATTERN.test(email.trim())) {
-      setFormError("Ingresa un correo válido para enviarte la confirmación.");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const result = await createAppointment({
@@ -121,9 +105,7 @@ export default function AgendarPage() {
         timeSlot: time,
         location: location.trim(),
         notes: notes.trim(),
-        ...(user
-          ? { vehicleId }
-          : { name: name.trim(), email: email.trim(), phone: phone.trim() }),
+        vehicleId,
       });
       setCreated(result);
     } catch (err) {
@@ -182,17 +164,29 @@ export default function AgendarPage() {
                 <div className="success-instruction">
                   <p>
                     Tu solicitud quedó <b>pendiente de confirmación</b>: el taller revisará la disponibilidad y te contactará para confirmarla.
-                    {email ? <> Enviamos el detalle a <b>{email}</b>.</> : null}
+                    {user ? <> Enviamos el detalle a <b>{user.email}</b>.</> : null}
                   </p>
                 </div>
                 <div className="success-actions">
-                  {user ? (
-                    <a className="button" href="/portal/citas">Ver mis citas <span>→</span></a>
-                  ) : (
-                    <a className="button" href="/registro">Crear cuenta para seguir mi solicitud <span>→</span></a>
-                  )}
+                  <a className="button" href="/portal/citas">Ver mis citas <span>→</span></a>
                   <a className="button button-secondary" href="/">Volver al inicio</a>
                 </div>
+              </div>
+            ) : authLoading ? (
+              <div className="wide-form" aria-busy="true"><Skeleton label="Comprobando tu sesión…" rows={4} /></div>
+            ) : !user ? (
+              <div className="wide-form booking-gate" role="region" aria-label="Inicia sesión para agendar">
+                <div className="form-heading">
+                  <div>
+                    <span>Inicia sesión para agendar</span>
+                    <small>Para pedir una hora necesitas una cuenta con tu correo confirmado. Así el taller sabe quién eres y puedes seguir tu solicitud.</small>
+                  </div>
+                </div>
+                <div className="success-actions">
+                  <a className="button" href={`/login?redirect=${encodeURIComponent(`/agendar${typeof window === "undefined" ? "" : window.location.search}`)}`}>Iniciar sesión <span>→</span></a>
+                  <a className="button button-secondary" href="/registro" onClick={() => rememberRedirect(`/agendar${window.location.search}`)}>Crear cuenta</a>
+                </div>
+                <p className="verify-hint">¿Es una emergencia? Para grúa o auxilio en ruta llámanos directo al <a href="tel:+56991627809"><b>+56 9 9162 7809</b></a>, 24/7.</p>
               </div>
             ) : (
               <form onSubmit={submit} className="wide-form">
@@ -305,33 +299,19 @@ export default function AgendarPage() {
 
                 <div className="form-heading" style={{ marginTop: "12px" }}>
                   <div>
-                    <span>Paso 3: Tus datos de contacto y ubicación</span>
-                    <small>Para coordinar contigo y acudir al lugar</small>
+                    <span>Paso 3: Ubicación y detalles</span>
+                    <small>Dónde te atendemos y qué necesitas</small>
                   </div>
                 </div>
 
-                <div className="form-row">
-                  <label>
-                    Nombre y apellido *
-                    <input required placeholder="Ej: Juan Pérez" value={name} onChange={(e) => setName(e.target.value)} readOnly={Boolean(user)} />
-                  </label>
-                  <label>
-                    Teléfono de contacto *
-                    <input required type="tel" placeholder="+56 9 1234 5678" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                  </label>
-                </div>
-
-                {!user && (
-                  <label>
-                    Correo electrónico *
-                    <input required type="email" placeholder="nombre@correo.cl" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-                    <small className="service-hint">Te enviamos el detalle de la solicitud. Si luego creas tu cuenta con este correo, la verás en tu portal.</small>
-                  </label>
-                )}
+                <p className="booking-account">
+                  <Icon name="user" />A nombre de <b>{user.name}</b> · {user.email}
+                  {user.phone ? <> · <Icon name="phone" />{user.phone}</> : <small> (agrega tu teléfono en tu perfil para que el taller te llame)</small>}
+                </p>
 
                 {vehicles.length > 0 && (
                   <label>
-                    <Icon name="car" />Vehículo guardado en tu cuenta (opcional)
+                    <span><Icon name="car" />Vehículo guardado en tu cuenta (opcional)</span>
                     <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
                       <option value="">Seleccionar vehículo o registrar otro...</option>
                       {vehicles.map((item) => (

@@ -65,7 +65,7 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 
 ### ADR 006: Solicitudes de cita sin sesión (invitado) no crean ni usan cuentas
 - **Fecha**: 2026-10-15
-- **Estado**: Aceptado
+- **Estado**: Reemplazado por el ADR 014 (agendar exige sesión); se conserva como historial de las solicitudes de invitado antiguas
 - **Contexto**: Agendar sin sesión creaba una cuenta con el correo indicado (y clave aleatoria) o asociaba la cita a la cuenta existente con ese correo. Cualquiera podía así "ocupar" el correo de otra persona (que luego no podía registrarse) o ensuciar el historial de cuentas ajenas, incluidas las de administración.
 - **Decisión**: Una solicitud sin sesión se guarda con `user_id` nulo y los datos de contacto en `guest_name`, `guest_email` y `guest_phone` (restricción de BD: debe existir cuenta o correo de invitado). Nunca se busca ni crea un usuario. Al registrarse una cuenta, las solicitudes de invitado con el mismo correo se vinculan a ella.
 - **Consecuencias**:
@@ -135,3 +135,12 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 ### ADR 013 (revisión): edición sobre la propia página, con borrador y publicación
 
 El editor vive en la página pública, como en WordPress: al iniciar sesión como admin aparece "✏️ Editar página" (Inicio y Tienda; también `?editar=1`). En modo edición se resalta lo editable, tocar un texto o imagen abre su campo en un panel flotante y nada navega. Los cambios se ven al instante solo en ese navegador y se guardan como **borrador** (`site_content_draft`, migración 0008; `PUT /api/admin/content/draft`); el público sigue viendo lo publicado hasta "Publicar" (`POST /api/admin/content/publish`). "Descartar borrador" (`DELETE /api/admin/content/draft`) no toca lo publicado. `ContentEditor` identifica los elementos comparando el contenido de cada campo con la página (`app/lib/edit-dom.ts`), sin alterar ningún texto (insertar caracteres invisibles rompía la tipografía). Todo el código del modo edición exige `role === "admin"` y los endpoints están protegidos por la API de admin. El antiguo editor con iframe se retiró (el marco volvió a poder relajarse, pero no se revirtió `frame-ancestors 'self'`, inocuo).
+
+---
+
+### ADR 014: Agendar exige iniciar sesión
+- **Fecha**: 2026-10-17
+- **Estado**: Aceptado (issue #124)
+- **Contexto**: Las solicitudes de invitado se aceptaban con un correo sin verificar: cualquiera podía llenar los cupos de la agenda con citas falsas (solo limitado por IP) y el taller recibía solicitudes y enviaba correos a direcciones de terceros.
+- **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. `/agendar` es una ruta protegida: sin sesión redirige a `/login?redirect=…` y se vuelve a la ruta tras iniciar sesión (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora). Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
+- **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo). Para emergencias se mantiene el teléfono 24/7 visible.

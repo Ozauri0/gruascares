@@ -59,6 +59,8 @@ Backend (`backend/.env`, plantilla en `backend/.env.example`):
 | `DEMO_MODE` | Login demo | Nunca en producción. |
 | `APP_URL` | URL pública del sitio | Enlaces de los correos (recuperación de contraseña). |
 | `SMTP_*`, `EMAIL_FROM` | Correo | Sin `SMTP_HOST/USER/PASS` los correos se **simulan** y se muestran en la consola del backend. |
+| `REDIS_URL` | Redis para compartir los límites de tasa | Opcional; sin él, en memoria. Ver `docs/DEPLOYMENT.md`. |
+| `AUDIT_RETENTION_MONTHS` | Meses que se conserva el registro de actividad | 12 por defecto; una limpieza diaria borra lo más antiguo. |
 | `TRUST_PROXY` | Proxies de confianza | Para `req.ip` y límites de tasa detrás de nginx. |
 | `BCRYPT_ROUNDS` | Costo de contraseñas | 12 por defecto. |
 | `UPLOADS_DIR` | Imágenes subidas por el admin (editor de la página y catálogo) | Por defecto `backend/uploads` (ignorada por git). En producción debe ser una carpeta persistente. Con Docker (`docker compose --profile app up -d --build`) es el volumen `uploads_data`, montado en `/data/uploads`. |

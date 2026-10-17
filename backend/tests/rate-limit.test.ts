@@ -50,10 +50,10 @@ describe("SEC-4: rate limiting", () => {
     expect(statuses).toEqual([400, 400, 429]);
   });
 
-  test("creación pública de citas limitada", async () => {
+  test("creación de citas limitada por red (antes de comprobar la sesión)", async () => {
     const statuses: number[] = [];
     for (let i = 0; i < 3; i++) statuses.push((await post("/api/appointments", {})).status);
-    expect(statuses).toEqual([400, 400, 429]);
+    expect(statuses).toEqual([401, 401, 429]);
   });
 
   test("consulta de disponibilidad limitada", async () => {

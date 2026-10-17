@@ -1066,3 +1066,8 @@ body>footer{flex-shrink:0}
 .qty-stepper input::-webkit-outer-spin-button,.qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .cart-item .qty-limit{margin-top:4px;color:#8a5a00}
 @media(max-width:560px){.cart-item{grid-template-columns:52px 1fr 25px;grid-template-areas:"art info remove" "art qty qty"}.cart-item>.mini-product-art{grid-area:art}.cart-item>div:nth-child(2){grid-area:info}.cart-item>.qty-stepper{grid-area:qty;justify-self:start}.cart-item>button{grid-area:remove}}
+
+/* Agendar: datos de la cuenta y pantalla de acceso */
+.booking-account{margin:0 0 4px;padding:12px 14px;border-radius:12px;background:#f4f4f4;font-size:14px;line-height:1.5;color:#333}
+.booking-account small{color:#8a5a00}
+.booking-gate .success-actions{margin:18px 0}

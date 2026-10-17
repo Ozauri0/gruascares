@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { users } from "../db/schema.js";
+import { revokedTokens, users } from "../db/schema.js";
 import { verifyToken } from "../utils/jwt.js";
 import { JWTPayload, UserRole } from "../types/auth.js";
 import { hasRole, rolesOf } from "../utils/roles.js";
@@ -22,6 +22,13 @@ function extractToken(req: Request): string | undefined {
 async function resolveUser(token: string): Promise<JWTPayload | null> {
   const payload = verifyToken(token);
   if (!payload) return null;
+
+  // Sesión cerrada con "Cerrar sesión": el token ya no sirve aunque no haya vencido.
+  // (Los tokens emitidos antes de existir el identificador no tienen jti y siguen válidos hasta vencer.)
+  if (payload.jti) {
+    const [revoked] = await db.select({ jti: revokedTokens.jti }).from(revokedTokens).where(eq(revokedTokens.jti, payload.jti)).limit(1);
+    if (revoked) return null;
+  }
 
   const [user] = await db
     .select({

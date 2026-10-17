@@ -8,6 +8,13 @@ describe("INT-4: decisión de acceso por rol", () => {
     }
   });
 
+  test("/agendar exige sesión, pero la puede usar cualquier rol", () => {
+    expect(guardDecision("/agendar", null)).toEqual({ type: "login" });
+    for (const role of ["usuario", "mecanico", "vendedor", "admin"] as const) {
+      expect(guardDecision("/agendar", role)).toEqual({ type: "allow" });
+    }
+  });
+
   test("cliente: solo /portal; /admin y /mecanico lo devuelven a su inicio", () => {
     expect(guardDecision("/portal/vehiculos", "usuario")).toEqual({ type: "allow" });
     expect(guardDecision("/admin", "usuario")).toEqual({ type: "redirect", to: "/portal" });

@@ -14,6 +14,7 @@ import {
 } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { AUDIT_AREAS, AUDIT_LEVELS, areaCondition, areaOf, labelOf, levelCondition, levelOf, type AuditArea, type AuditLevel } from "../services/audit/areas.js";
+import { lockDaysForBlocking, lockSlotForBooking } from "../utils/locks.js";
 import { isValidIsoDate, todayInSantiago, weekRange } from "../utils/dates.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { escapeCsvCell } from "../utils/csv.js";
@@ -319,18 +320,30 @@ export async function createBlockedDate(req: Request, res: Response) {
       });
     }
 
-    // Verificar si ya existe este bloqueo
-    const existing = await db
-      .select({ id: blockedDates.id })
-      .from(blockedDates)
-      .where(
-        cleanSlot
-          ? and(eq(blockedDates.date, date), eq(blockedDates.timeSlot, cleanSlot))
-          : and(eq(blockedDates.date, date), sql`${blockedDates.timeSlot} is null`)
-      )
-      .limit(1);
+    // Con el candado del día: una reserva que esté justo ahora en curso termina antes de que se guarde el bloqueo
+    // (y las nuevas ven el bloqueo), así ninguna cita entra dentro de un horario recién bloqueado.
+    const outcome = await db.transaction(async (tx) => {
+      await lockDaysForBlocking(tx, [date]);
 
-    if (existing.length > 0) {
+      const existing = await tx
+        .select({ id: blockedDates.id })
+        .from(blockedDates)
+        .where(
+          cleanSlot
+            ? and(eq(blockedDates.date, date), eq(blockedDates.timeSlot, cleanSlot))
+            : and(eq(blockedDates.date, date), sql`${blockedDates.timeSlot} is null`)
+        )
+        .limit(1);
+      if (existing.length > 0) return { kind: "exists" as const };
+
+      const [created] = await tx
+        .insert(blockedDates)
+        .values({ date, timeSlot: cleanSlot, reason: reason.trim(), createdBy: currentUser.userId })
+        .returning();
+      return { kind: "ok" as const, blocked: created };
+    });
+
+    if (outcome.kind === "exists") {
       return res.status(409).json({
         error: "Conflict",
         message: cleanSlot
@@ -338,16 +351,7 @@ export async function createBlockedDate(req: Request, res: Response) {
           : `El día ${date} completo ya se encuentra bloqueado`,
       });
     }
-
-    const [newBlocked] = await db
-      .insert(blockedDates)
-      .values({
-        date,
-        timeSlot: cleanSlot,
-        reason: reason.trim(),
-        createdBy: currentUser.userId,
-      })
-      .returning();
+    const newBlocked = outcome.blocked;
 
     // Auditoría
     logAudit({
@@ -531,7 +535,7 @@ export async function deleteTimeSlot(req: Request, res: Response) {
     }
     // Con el mismo candado que usan las reservas de ese horario: nadie puede agendar entre el conteo y el borrado.
     const outcome = await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`appointment-slot:${existing.date}|${existing.timeSlot}`}))`);
+      await lockSlotForBooking(tx, existing.date, existing.timeSlot);
       const [{ count }] = await tx
         .select({ count: sql<number>`count(*)::int` })
         .from(appointments)
@@ -614,11 +618,14 @@ export async function bulkBlockDates(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: "No hay días futuros que coincidan con el rango y los días elegidos" });
     }
     const createdBy = req.user!.userId;
-    const created = await db
-      .insert(blockedDates)
-      .values(dates.map((date) => ({ date, timeSlot: null, reason, createdBy })))
-      .onConflictDoNothing()
-      .returning({ id: blockedDates.id });
+    const created = await db.transaction(async (tx) => {
+      await lockDaysForBlocking(tx, dates); // espera a las reservas en curso de esos días
+      return tx
+        .insert(blockedDates)
+        .values(dates.map((date) => ({ date, timeSlot: null, reason, createdBy })))
+        .onConflictDoNothing()
+        .returning({ id: blockedDates.id });
+    });
     const [{ count: affected }] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(appointments)
@@ -736,7 +743,7 @@ export async function rescheduleAppointment(req: Request, res: Response) {
     }
 
     const outcome = await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`appointment-slot:${scheduledDate}|${timeSlot}`}))`);
+      await lockSlotForBooking(tx, scheduledDate, timeSlot);
       const [block] = await tx
         .select()
         .from(blockedDates)

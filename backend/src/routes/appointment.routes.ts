@@ -12,7 +12,7 @@ import {
   saveTechnicalReport,
   getAppointmentReport,
 } from "../controllers/mechanic.controller.js";
-import { authenticate, optionalAuthenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -23,7 +23,7 @@ router.get("/services", getServicesCatalog);
 router.get("/availability", getAvailableSlots);
 
 // 3. Crear solicitud de cita (público o con sesión activa)
-router.post("/", optionalAuthenticate, createAppointment);
+router.post("/", authenticate, createAppointment);
 
 // 4. Mis citas (usuario autenticado)
 router.get("/my", authenticate, getMyAppointments);
