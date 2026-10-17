@@ -1,6 +1,7 @@
 import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, ne, sql, desc, isNull } from "drizzle-orm";
+import { lockSlotForBooking } from "../utils/locks.js";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
 import { appointments, services, vehicles, users, serviceRecords, blockedDates } from "../db/schema.js";
@@ -298,7 +299,7 @@ export async function createAppointment(req: Request, res: Response) {
     // serializa las reservas simultáneas del mismo horario: sin él, dos solicitudes paralelas
     // leerían "queda un cupo" y ambas insertarían superando la capacidad.
     const outcome = await db.transaction(async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`appointment-slot:${scheduledDate}|${timeSlot}`}))`);
+      await lockSlotForBooking(tx, scheduledDate, timeSlot);
 
       const [blockedRecord] = await tx
         .select()

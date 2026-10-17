@@ -163,3 +163,57 @@ describe.skipIf(!dbReady)("informe técnico enviado dos veces a la vez", () => {
     expect(n).toBe(1);
   });
 });
+
+describe.skipIf(!dbReady)("bloqueos de fecha frente a reservas en curso", () => {
+  const settled = async (promise: Promise<unknown>, ms = 400) => {
+    let done = false;
+    promise.then(() => (done = true), () => (done = true));
+    await new Promise((r) => setTimeout(r, ms));
+    return done;
+  };
+  const block = (date: string, timeSlot?: string) =>
+    fetch(`${server.url}/api/admin/blocked-dates`, { method: "POST", headers: cookieFor(seed.admin), body: JSON.stringify({ date, timeSlot, reason: "Mantención" }) });
+  const book = (date: string, timeSlot: string, email: string) =>
+    fetch(`${server.url}/api/appointments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot, name: "Inv", email }),
+    });
+
+  test("el bloqueo espera a una reserva en curso del mismo día", async () => {
+    const date = futureDate();
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const inFlight = sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock_shared(hashtext(${`appointment-day:${date}`}))`; // lo que toma una reserva
+      await held;
+    });
+    await new Promise((r) => setTimeout(r, 100));
+
+    const blocking = block(date, "10:30");
+    expect(await settled(blocking)).toBe(false); // sigue esperando
+    release();
+    await inFlight;
+    expect((await blocking).status).toBe(201);
+  });
+
+  test("una reserva espera a un bloqueo en curso y luego lo respeta", async () => {
+    const date = futureDate();
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const inFlight = sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtext(${`appointment-day:${date}`}))`; // lo que toma un bloqueo
+      await tx`insert into blocked_dates (date, time_slot, reason) values (${date}, '10:30', 'Mantención')`;
+      await held;
+    });
+    await new Promise((r) => setTimeout(r, 100));
+
+    const booking = book(date, "10:30", "espera@test.local");
+    expect(await settled(booking)).toBe(false);
+    release();
+    await inFlight;
+    expect((await booking).status).toBe(409); // ya está bloqueado
+    const [{ n }] = await sql`select count(*)::int as n from appointments where scheduled_date = ${date}`;
+    expect(n).toBe(0);
+  });
+});
