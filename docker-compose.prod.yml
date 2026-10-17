@@ -1,0 +1,17 @@
+# Producción: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app up -d --build`
+# Exige contraseñas propias (nada por defecto) y hace que el backend use un usuario SIN privilegios de
+# superusuario. Ver docs/DEPLOYMENT.md (incluye cómo migrar una base ya creada).
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD (openssl rand -base64 32)}
+      APP_DB_USER: ${APP_DB_USER:-gruas_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Define APP_DB_PASSWORD (openssl rand -base64 32)}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+
+  backend:
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${APP_DB_USER:-gruas_app}:${APP_DB_PASSWORD:?Define APP_DB_PASSWORD}@postgres:5432/gruas_cares
