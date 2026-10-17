@@ -109,15 +109,16 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
     const a = await book(seed.clientA);
     const b = await book(seed.clientB);
     expect([a.status, b.status]).toEqual([201, 201]);
-    const guest = await book(null, { name: "Invitado Tercero", email: "tercero@test.cl" });
-    expect(guest.status).toBe(409);
-    expect(guest.body.message).toContain("cupos");
+    const third = await book(seed.seller); // una tercera persona (con sesión) no entra: ya no hay cupos
+    expect(third.status).toBe(409);
+    expect(third.body.message).toContain("cupos");
+    expect((await book(null)).status).toBe(401); // sin sesión ni se evalúa el cupo
 
     const slots = await call(null, "GET", `/api/appointments/availability?date=${date}`);
     expect(slots.body.slots.find((s: any) => s.time === "09:30")).toMatchObject({ available: false, capacityRemaining: 0 });
 
     expect((await call(seed.clientA, "PATCH", `/api/appointments/${a.body.appointment.id}/cancel`)).status).toBe(200);
-    expect((await book(null, { name: "Invitado Tercero", email: "tercero@test.cl" })).status).toBe(201);
+    expect((await book(seed.seller)).status).toBe(201);
   });
 
   test("cancelación: el cliente cancela antes de entrar a taller, no después", async () => {

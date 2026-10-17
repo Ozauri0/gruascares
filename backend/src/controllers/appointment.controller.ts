@@ -1,6 +1,6 @@
 import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
-import { eq, and, ne, sql, desc, isNull } from "drizzle-orm";
+import { eq, and, ne, sql, desc } from "drizzle-orm";
 import { lockSlotForBooking } from "../utils/locks.js";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
@@ -8,7 +8,7 @@ import { appointments, services, vehicles, users, serviceRecords, blockedDates }
 import { isValidSlotFormat, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
-import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
+import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { isCancellable } from "../domain/appointment-status.js";
 import { slotsForDate } from "../utils/slots.js";
 import { isSlotPast, isValidIsoDate, todayInSantiago } from "../utils/dates.js";
@@ -162,9 +162,6 @@ export async function createAppointment(req: Request, res: Response) {
       vehicleId,
       location,
       notes,
-      name,
-      email,
-      phone,
     } = req.body;
 
     // 1. Validaciones básicas
@@ -183,18 +180,9 @@ export async function createAppointment(req: Request, res: Response) {
       if (!isUuid(vehicleId)) {
         return res.status(400).json({ error: "Bad Request", message: "vehicleId debe ser un UUID válido" });
       }
-      if (!req.user) {
-        return res.status(401).json({
-          error: "Unauthorized",
-          message: "Para asociar un vehículo a la cita debes iniciar sesión",
-        });
-      }
     }
 
     const tooLong = findTooLong([
-      ["El nombre", name, MAX_LEN.name],
-      ["El correo", email, MAX_LEN.email],
-      ["El teléfono", phone, MAX_LEN.phone],
       ["La ubicación", location, MAX_LEN.location],
       ["Los detalles", notes, MAX_LEN.notes],
     ]);
@@ -252,31 +240,11 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    // 3. Determinar titular: usuario autenticado o solicitud de invitado.
-    // Una solicitud sin sesión NUNCA se asocia a una cuenta existente ni crea cuentas:
-    // queda con los datos de contacto y se vincula si esa persona se registra después.
-    const targetUserId: string | null = req.user?.userId ?? null;
-    let clientName: string = req.user?.name ?? "";
-    let clientEmail: string = req.user?.email ?? "";
-    let guest: { name: string; email: string; phone: string | null } | null = null;
-
-    if (!targetUserId) {
-      if (typeof name !== "string" || name.trim().length < 2) {
-        return res.status(400).json({
-          error: "Bad Request",
-          message: "Para agendar sin sesión iniciada, indica tu nombre (mínimo 2 caracteres)",
-        });
-      }
-      if (typeof email !== "string" || !EMAIL_REGEX.test(email.trim())) {
-        return res.status(400).json({
-          error: "Bad Request",
-          message: "Para agendar sin sesión iniciada, indica un correo electrónico válido",
-        });
-      }
-      clientName = name.trim();
-      clientEmail = email.toLowerCase().trim();
-      guest = { name: clientName, email: clientEmail, phone: phone ? String(phone).trim() : null };
-    }
+    // 3. Titular: siempre una cuenta con sesión iniciada (la ruta exige autenticación). Ya no se aceptan
+    // solicitudes de invitado: cualquiera podía llenar los cupos con correos inventados.
+    const targetUserId: string = req.user!.userId;
+    const clientName: string = req.user!.name;
+    const clientEmail: string = req.user!.email;
 
     // 4. Validar vehículo: debe pertenecer al usuario autenticado
     let vehicleInfo: { plate: string; brand: string; model: string } | null = null;
@@ -284,7 +252,7 @@ export async function createAppointment(req: Request, res: Response) {
       const [veh] = await db
         .select()
         .from(vehicles)
-        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, targetUserId!)))
+        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, targetUserId)))
         .limit(1);
       if (!veh) {
         return res.status(404).json({
@@ -322,9 +290,7 @@ export async function createAppointment(req: Request, res: Response) {
             eq(appointments.scheduledDate, scheduledDate),
             eq(appointments.timeSlot, timeSlot),
             ne(appointments.status, "cancelada"),
-            targetUserId
-              ? eq(appointments.userId, targetUserId)
-              : and(isNull(appointments.userId), eq(sql`lower(${appointments.guestEmail})`, guest!.email))
+            eq(appointments.userId, targetUserId)
           )
         )
         .limit(1);
@@ -348,9 +314,6 @@ export async function createAppointment(req: Request, res: Response) {
         .insert(appointments)
         .values({
           userId: targetUserId,
-          guestName: guest?.name ?? null,
-          guestEmail: guest?.email ?? null,
-          guestPhone: guest?.phone ?? null,
           vehicleId: vehicleId || null,
           serviceId: service.id,
           scheduledDate,
@@ -402,7 +365,7 @@ export async function createAppointment(req: Request, res: Response) {
     logAudit({
       userId: targetUserId,
       userEmail: clientEmail,
-      action: guest ? "APPOINTMENT_CREATE_GUEST" : "APPOINTMENT_CREATE",
+      action: "APPOINTMENT_CREATE",
       entityType: "appointment",
       entityId: newAppointment.id,
       details: {

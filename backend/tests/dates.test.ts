@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { clock, isSlotPast, isValidIsoDate, todayInSantiago, workshopNow } from "../src/utils/dates.js";
-import { dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
+import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
 const realNow = clock.now;
@@ -60,8 +60,8 @@ describe.skipIf(!dbReady)("BUG-6: endpoints con fechas y hora", () => {
   const book = (body: Record<string, unknown>) =>
     fetch(`${server.url}/api/appointments`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ serviceId: seed.serviceAceite.id, name: "Invitado", email: "inv@test.local", ...body }),
+      headers: cookieFor(seed.clientA),
+      body: JSON.stringify({ serviceId: seed.serviceAceite.id, ...body }),
     });
 
   test("fecha inexistente devuelve 400 (no 500) al agendar y consultar disponibilidad", async () => {

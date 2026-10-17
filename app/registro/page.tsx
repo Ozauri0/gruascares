@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "../lib/api";
 import { HOME_FOR_ROLE, useAuth } from "../lib/auth";
+import { isSafeInternalPath, rememberRedirect } from "../lib/post-login";
 import ResendVerification from "../components/ResendVerification";
 
 export default function RegisterPage() {
@@ -18,6 +19,12 @@ export default function RegisterPage() {
   useEffect(() => {
     if (user && !busy) window.location.replace(HOME_FOR_ROLE[user.role]);
   }, [user, busy]);
+
+  // Si llegó desde una pantalla que exigía cuenta (p. ej. /agendar), se vuelve ahí al iniciar sesión tras confirmar el correo.
+  useEffect(() => {
+    const redirect = new URLSearchParams(window.location.search).get("redirect");
+    if (isSafeInternalPath(redirect)) rememberRedirect(redirect);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

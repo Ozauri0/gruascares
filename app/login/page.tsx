@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "../lib/api";
+import { rememberRedirect, takeRememberedRedirect } from "../lib/post-login";
 import { HOME_FOR_ROLE, useAuth } from "../lib/auth";
 import ResendVerification from "../components/ResendVerification";
 import type { UserRole } from "../lib/portal-types";
@@ -34,13 +35,19 @@ export default function LoginPage() {
   const [demoError, setDemoError] = useState("");
   const [busy, setBusy] = useState<UserRole | "form" | null>(null);
 
+  // Si desde aquí crea una cuenta (y confirma el correo en otra pestaña), después vuelve a donde iba.
+  useEffect(() => {
+    const target = redirectTarget();
+    if (target) rememberRedirect(target);
+  }, []);
+
   // Con sesión activa no se vuelve a pedir el acceso: se va directo al portal del rol.
   useEffect(() => {
     if (user && busy === null) window.location.replace(redirectTarget() ?? HOME_FOR_ROLE[user.role]);
   }, [user, busy]);
 
   function goHome(role: UserRole) {
-    window.location.href = redirectTarget() ?? HOME_FOR_ROLE[role];
+    window.location.href = redirectTarget() ?? takeRememberedRedirect() ?? HOME_FOR_ROLE[role];
   }
 
   // Acceso demostrativo: sesión real de la cuenta demo, sin pedir credenciales.

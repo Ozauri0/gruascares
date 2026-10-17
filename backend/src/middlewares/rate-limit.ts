@@ -13,7 +13,7 @@ export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" |
   loginPerAccount: { windowMs: 15 * MINUTE, max: 10 }, // IP + correo
   loginPerIp: { windowMs: 15 * MINUTE, max: 100 },
   register: { windowMs: 60 * MINUTE, max: 10 },
-  publicAppointment: { windowMs: 60 * MINUTE, max: 10 },
+  publicAppointment: { windowMs: 60 * MINUTE, max: 30 }, // por red; ahora todas las solicitudes exigen sesión
   availability: { windowMs: MINUTE, max: 60 },
   catalog: { windowMs: MINUTE, max: 120 },
   content: { windowMs: MINUTE, max: 1200 }, // lo consulta el servidor del sitio en cada página

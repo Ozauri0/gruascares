@@ -21,12 +21,8 @@ export type CreateAppointmentInput = {
   timeSlot: string;
   location?: string;
   notes?: string;
-  /** Solo con sesión iniciada (el backend lo rechaza para invitados). */
+  /** Vehículo guardado en la cuenta (opcional). */
   vehicleId?: string;
-  /** Solo para invitados (sin sesión): el backend ignora estos campos si hay sesión. */
-  name?: string;
-  email?: string;
-  phone?: string;
 };
 
 export type CreatedAppointment = {
@@ -37,11 +33,10 @@ export type CreatedAppointment = {
   serviceName: string;
 };
 
+/** Exige sesión: un 401 (sesión vencida) lleva a /login y vuelve a /agendar al iniciar sesión. */
 export async function createAppointment(input: CreateAppointmentInput): Promise<CreatedAppointment> {
   // Se omiten campos vacíos: el backend trata "" como dato presente en algunos casos.
   const body = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined && value !== ""));
-  const { appointment } = await apiPost<{ appointment: CreatedAppointment }>("/api/appointments", body, {
-    redirectOnUnauthorized: false,
-  });
+  const { appointment } = await apiPost<{ appointment: CreatedAppointment }>("/api/appointments", body);
   return appointment;
 }

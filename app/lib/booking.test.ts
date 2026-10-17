@@ -91,17 +91,19 @@ describe("INT-6: cliente de citas", () => {
 
   test("createAppointment omite campos vacíos y devuelve la cita", async () => {
     respond(201, { appointment: { id: "a1", scheduledDate: "2026-10-20", timeSlot: "10:30", status: "solicitada", serviceName: "Camiones grúa" } });
-    const created = await createAppointment({ serviceId: "2", scheduledDate: "2026-10-20", timeSlot: "10:30", location: "Calle 1", notes: "", vehicleId: "", name: "Ana", email: "a@b.cl", phone: "" });
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ serviceId: "2", scheduledDate: "2026-10-20", timeSlot: "10:30", location: "Calle 1", name: "Ana", email: "a@b.cl" });
+    const created = await createAppointment({ serviceId: "2", scheduledDate: "2026-10-20", timeSlot: "10:30", location: "Calle 1", notes: "", vehicleId: "" });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ serviceId: "2", scheduledDate: "2026-10-20", timeSlot: "10:30", location: "Calle 1" });
     expect(created.serviceName).toBe("Camiones grúa");
   });
 
-  test("un 401 al crear NO redirige (los invitados pueden agendar)", async () => {
+  test("un 401 al crear lleva a /login y vuelve a /agendar (agendar exige sesión)", async () => {
     const assigned: string[] = [];
     (globalThis as { window?: unknown }).window = { location: { pathname: "/agendar", search: "", assign: (u: string) => assigned.push(u) } };
-    respond(401, { error: "Unauthorized", message: "Para asociar un vehículo a la cita debes iniciar sesión" });
+    respond(401, { error: "Unauthorized", message: "No autenticado: Token no proporcionado" });
     await createAppointment({ serviceId: "2", scheduledDate: "2026-10-20", timeSlot: "10:30" }).catch(() => null);
-    expect(assigned).toHaveLength(0);
+    expect(assigned).toHaveLength(1);
+    expect(assigned[0]).toContain("/login");
+    expect(decodeURIComponent(assigned[0])).toContain("/agendar");
     (globalThis as { window?: unknown }).window = undefined;
   });
 });

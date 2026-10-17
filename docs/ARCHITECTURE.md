@@ -58,7 +58,7 @@ graph TD
   - Listados de personal (`/api/mechanic/agenda`, `/api/vehicles`) paginados (`page`, `limit`, máximo 500).
   - Frontend: cabeceras de seguridad (CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, HSTS en producción) en `next.config.ts`.
   - Tokens JWT (HS256 fijado) en cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción; el token **no** se devuelve en el cuerpo JSON.
-  - Cada request autenticado se contrasta con la BD: el usuario debe existir y estar activo, el rol efectivo es el de la BD y `users.token_version` debe coincidir con el del token. Desactivar a un usuario, o `POST /api/auth/logout-all`, invalida sus sesiones de inmediato; cambiar sus roles no (se leen de la BD en cada request).
+  - Cada request autenticado se contrasta con la BD: el usuario debe existir y estar activo, el rol efectivo es el de la BD y `users.token_version` debe coincidir con el del token. Desactivar a un usuario, o `POST /api/auth/logout-all`, invalida sus sesiones de inmediato; cambiar sus roles no (se leen de la BD en cada request). Cada token lleva un `jti`: "Cerrar sesión" lo guarda en `revoked_tokens` y deja de servir (las demás sesiones de la persona siguen); una limpieza diaria descarta los ya vencidos.
 
 ### 2.3. Base de Datos (PostgreSQL)
 - **Migraciones**: el esquema vive en `backend/src/db/schema.ts` y los cambios se versionan en `backend/drizzle/`.

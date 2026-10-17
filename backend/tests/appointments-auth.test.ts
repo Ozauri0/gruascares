@@ -20,8 +20,9 @@ beforeEach(async () => {
 });
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
-const guestBody = (over: Record<string, unknown> = {}) => ({
-  serviceId: "",
+const countUsers = async () => Number((await sql`select count(*)::int as n from users`)[0].n);
+const request = (over: Record<string, unknown> = {}) => ({
+  serviceId: seed.serviceAceite.id,
   scheduledDate: futureDate(),
   timeSlot: "10:30",
   name: "Invitado Prueba",
@@ -29,65 +30,44 @@ const guestBody = (over: Record<string, unknown> = {}) => ({
   phone: "+56 9 1111 2222",
   ...over,
 });
-const countUsers = async () => Number((await sql`select count(*)::int as n from users`)[0].n);
+/** Solicitud de invitado "histórica" (hechas antes de exigir sesión): se inserta directo en la base. */
+const insertGuestAppointment = (email: string, date: string = futureDate()) =>
+  sql`insert into appointments (service_id, scheduled_date, time_slot, guest_name, guest_email, guest_phone)
+      values (${seed.serviceAceite.id}, ${date}, '10:30', 'Invitado Prueba', ${email}, '+56 9 1111 2222')`;
 
-describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
-  test("agendar sin sesión con correo nuevo NO crea una cuenta", async () => {
+describe.skipIf(!dbReady)("agendar exige iniciar sesión", () => {
+  test("sin sesión responde 401: no crea cuenta ni cita, ni siquiera con datos de contacto completos", async () => {
     const before = await countUsers();
-    const res = await fetch(`${server.url}/api/appointments`, {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify(guestBody({ serviceId: seed.serviceAceite.id })),
-    });
-    expect(res.status).toBe(201);
+    const res = await fetch(`${server.url}/api/appointments`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(request()) });
+    expect(res.status).toBe(401);
     expect(await countUsers()).toBe(before);
-    const [row] = await sql`select user_id, guest_name, guest_email, guest_phone from appointments`;
-    expect(row.user_id).toBeNull();
-    expect(row.guest_email).toBe("invitado@nuevo.cl");
-    expect(row.guest_name).toBe("Invitado Prueba");
+    expect((await sql`select 1 from appointments`).length).toBe(0);
   });
 
-  test("agendar con el correo de una cuenta existente NO se asocia a esa cuenta", async () => {
+  test("con sesión se agenda a nombre de la cuenta, ignorando nombre y correo enviados en el cuerpo", async () => {
     const res = await fetch(`${server.url}/api/appointments`, {
       method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify(guestBody({ serviceId: seed.serviceAceite.id, email: seed.admin.email })),
+      headers: cookieFor(seed.clientA),
+      body: JSON.stringify(request({ email: "otro@nuevo.cl", name: "Otra Persona" })),
     });
     expect(res.status).toBe(201);
-    const [row] = await sql`select user_id, guest_email from appointments`;
-    expect(row.user_id).toBeNull();
-    expect(row.guest_email).toBe(seed.admin.email);
-
-    // el dueño de la cuenta no ve esa solicitud en su historial
-    const mine = await fetch(`${server.url}/api/appointments/my`, { headers: cookieFor(seed.admin) });
-    expect(((await mine.json() as any)).appointments).toHaveLength(0);
+    const [row] = await sql`select user_id, guest_email, guest_name from appointments`;
+    expect(row.user_id).toBe(seed.clientA.id);
+    expect(row.guest_email).toBeNull();
+    expect(row.guest_name).toBeNull();
   });
+});
 
-  test("correo inválido o nombre ausente devuelve 400", async () => {
-    const base = guestBody({ serviceId: seed.serviceAceite.id });
-    for (const over of [{ email: "no-es-correo" }, { name: "" }, { email: undefined }]) {
-      const res = await fetch(`${server.url}/api/appointments`, {
-        method: "POST",
-        headers: JSON_HEADERS,
-        body: JSON.stringify({ ...base, ...over }),
-      });
-      expect(res.status).toBe(400);
-    }
-  });
-
-  test("al registrarse con el mismo correo, sus solicitudes de invitado se vinculan", async () => {
-    await fetch(`${server.url}/api/appointments`, {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify(guestBody({ serviceId: seed.serviceAceite.id, email: "Nuevo.Cliente@Test.cl" })),
-    });
+describe.skipIf(!dbReady)("solicitudes de invitado anteriores", () => {
+  test("al confirmar el correo de la cuenta nueva se vinculan; antes de confirmar no", async () => {
+    await insertGuestAppointment("Nuevo.Cliente@Test.cl");
     const reg = await fetch(`${server.url}/api/auth/register`, {
       method: "POST",
       headers: JSON_HEADERS,
       body: JSON.stringify({ name: "Nuevo Cliente", email: "nuevo.cliente@test.cl", password: "clave1234" }),
     });
     expect(reg.status).toBe(201);
-    const { user } = (await reg.json() as any);
+    const { user } = (await reg.json()) as any;
 
     // Sin confirmar el correo no se vincula nada (nadie puede apropiarse de solicitudes ajenas).
     const [pending] = await sql`select user_id from appointments`;
@@ -105,18 +85,20 @@ describe.skipIf(!dbReady)("SEC-6: solicitudes de invitado", () => {
     expect(row.guest_email).toBeNull();
 
     const mine = await fetch(`${server.url}/api/appointments/my`, { headers: { Cookie: `gc_token=${token}` } });
-    expect(((await mine.json() as any)).appointments).toHaveLength(1);
+    expect(((await mine.json()) as any).appointments).toHaveLength(1);
+  });
+
+  test("una cuenta existente no recibe solicitudes de invitado de su mismo correo", async () => {
+    await insertGuestAppointment(seed.admin.email);
+    const mine = await fetch(`${server.url}/api/appointments/my`, { headers: cookieFor(seed.admin) });
+    expect(((await mine.json()) as any).appointments).toHaveLength(0);
   });
 
   test("el mecánico ve los datos de contacto del invitado en la agenda", async () => {
     const date = futureDate();
-    await fetch(`${server.url}/api/appointments`, {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify(guestBody({ serviceId: seed.serviceAceite.id, scheduledDate: date })),
-    });
+    await insertGuestAppointment("invitado@nuevo.cl", date);
     const res = await fetch(`${server.url}/api/mechanic/agenda?date=${date}`, { headers: cookieFor(seed.mechanic) });
-    const { agenda } = (await res.json() as any);
+    const { agenda } = (await res.json()) as any;
     expect(agenda).toHaveLength(1);
     expect(agenda[0].client.name).toBe("Invitado Prueba");
     expect(agenda[0].client.email).toBe("invitado@nuevo.cl");

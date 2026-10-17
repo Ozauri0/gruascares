@@ -64,3 +64,12 @@ export function futureDate(days = 7): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/** Crea `count` clientes con correo confirmado (para pruebas con muchas personas distintas a la vez). */
+export async function createClients(count: number): Promise<Seed["clientA"][]> {
+  const hash = await hashPassword("password123");
+  return db
+    .insert(users)
+    .values(Array.from({ length: count }, (_, i) => ({ name: `Cliente ${i}`, email: `cliente${i}@test.local`, passwordHash: hash, role: "usuario" as const, emailVerifiedAt: new Date() })))
+    .returning();
+}
