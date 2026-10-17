@@ -43,6 +43,8 @@ describe("clasificación de acciones", () => {
     expect(areaOf("LOGIN_FAILED")).toBe("cuentas");
     expect(areaOf("APPOINTMENT_CANCEL")).toBe("clientes");
     expect(areaOf("SERVER_ERROR")).toBe("sistema");
+    expect(areaOf("VEHICLE_UPDATED")).toBe("clientes");
+    expect(areaOf("VEHICLE_UPDATED_BY_STAFF")).toBe("taller");
     expect(levelOf("SERVER_ERROR")).toBe("error");
     expect(levelOf("LOGIN_BLOCKED")).toBe("warn");
     expect(levelOf("CATALOG_CREATED")).toBe("info");
@@ -79,5 +81,41 @@ describe.skipIf(!dbReady)("registro de actividad (admin)", () => {
     expect((await logs("?level=nada")).status).toBe(400);
     expect((await call(seed.seller, "GET", "/api/admin/audit-logs")).status).toBe(403);
     expect((await call(seed.mechanic, "GET", "/api/admin/audit-logs")).status).toBe(403);
+  });
+});
+
+describe.skipIf(!dbReady)("cambios de vehículos en el registro", () => {
+  const actionsOf = async (...like: string[]) => {
+    for (let i = 0; i < 40; i++) {
+      const rows = (await sql`select action, details from audit_logs where action like 'VEHICLE_%' order by created_at`) as unknown as { action: string; details: string }[];
+      if (rows.length >= like.length) return rows;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    throw new Error("faltan eventos de vehículos");
+  };
+
+  test("el dueño crea, edita y borra: queda en Clientes con el detalle del cambio", async () => {
+    const created = await call(seed.clientB, "POST", "/api/vehicles", { plate: "ZZZZ11", brand: "Kia", model: "Rio", year: 2020, mileage: 100 });
+    expect(created.status).toBe(201);
+    const id = created.body.vehicle.id;
+    expect((await call(seed.clientB, "PATCH", `/api/vehicles/${id}`, { mileage: 250 })).status).toBe(200);
+    expect((await call(seed.clientB, "PATCH", `/api/vehicles/${id}`, { mileage: 250 })).status).toBe(200); // sin cambios: no se registra
+    expect((await call(seed.clientB, "DELETE", `/api/vehicles/${id}`)).status).toBe(200);
+
+    const rows = await actionsOf("a", "b", "c");
+    expect(rows.map((r) => r.action)).toEqual(["VEHICLE_CREATED", "VEHICLE_UPDATED", "VEHICLE_DELETED"]);
+    expect(JSON.parse(rows[1].details).changes).toEqual({ mileage: { from: 100, to: 250 } });
+
+    const list = await logs("?area=clientes");
+    expect(list.body.logs.map((l: any) => l.action)).toContain("VEHICLE_DELETED");
+  });
+
+  test("el personal que edita o borra un vehículo ajeno queda en Taller", async () => {
+    expect((await call(seed.mechanic, "PATCH", `/api/vehicles/${seed.vehicleA.id}`, { brand: "Toyota Corregido" })).status).toBe(200);
+    expect((await call(seed.admin, "DELETE", `/api/vehicles/${seed.vehicleB.id}`)).status).toBe(200);
+    const rows = await actionsOf("a", "b");
+    expect(rows.map((r) => r.action).sort()).toEqual(["VEHICLE_DELETED_BY_STAFF", "VEHICLE_UPDATED_BY_STAFF"]);
+    const taller = await logs("?area=taller");
+    expect(taller.body.logs.map((l: any) => l.userName)).toContain(seed.mechanic.name);
   });
 });

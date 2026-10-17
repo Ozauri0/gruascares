@@ -1,11 +1,16 @@
 import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, notInArray } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { vehicles, users } from "../db/schema.js";
+import { appointments, vehicles, users } from "../db/schema.js";
+import { logAudit } from "../services/audit/audit.service.js";
 import { isValidChileanPlate, normalizePlate } from "../utils/plate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { parsePagination } from "../utils/pagination.js";
+
+/** Acción de auditoría; si quien actúa no es el dueño (personal de taller o admin) se marca para verla en Taller. */
+const vehicleAction = (base: "VEHICLE_CREATED" | "VEHICLE_UPDATED" | "VEHICLE_DELETED", actorId: string, ownerId: string) =>
+  actorId === ownerId ? base : (`${base}_BY_STAFF` as const);
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -269,6 +274,14 @@ export async function createVehicle(req: Request, res: Response) {
       })
       .returning();
 
+    logAudit({
+      action: vehicleAction("VEHICLE_CREATED", currentUser.userId, ownerUserId),
+      entityType: "vehicle",
+      entityId: newVehicle.id,
+      details: { plate: newVehicle.plate, ownerId: ownerUserId },
+      req,
+    });
+
     return res.status(201).json({
       message: "Vehículo registrado exitosamente",
       vehicle: newVehicle,
@@ -438,6 +451,21 @@ export async function updateVehicle(req: Request, res: Response) {
       .where(eq(vehicles.id, id))
       .returning();
 
+    // Qué cambió (antes → después), sin guardar el resto de los datos del vehículo.
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    for (const key of ["plate", "brand", "model", "year", "mileage", "notes"] as const) {
+      if (existing[key] !== updatedVehicle[key]) changes[key] = { from: existing[key], to: updatedVehicle[key] };
+    }
+    if (Object.keys(changes).length > 0) {
+      logAudit({
+        action: vehicleAction("VEHICLE_UPDATED", currentUser.userId, existing.userId),
+        entityType: "vehicle",
+        entityId: id,
+        details: { plate: updatedVehicle.plate, ownerId: existing.userId, changes },
+        req,
+      });
+    }
+
     return res.json({
       message: "Vehículo actualizado exitosamente",
       vehicle: updatedVehicle,
@@ -501,8 +529,22 @@ export async function deleteVehicle(req: Request, res: Response) {
       });
     }
 
+    // Citas todavía abiertas que quedarán sin vehículo (para dejarlo registrado)
+    const [{ openAppointments }] = await db
+      .select({ openAppointments: sql<number>`count(*)::int` })
+      .from(appointments)
+      .where(and(eq(appointments.vehicleId, id), notInArray(appointments.status, ["finalizada", "cancelada"])));
+
     // Eliminar el vehículo (las citas asociadas preservan su registro histórico con vehicleId en null)
     await db.delete(vehicles).where(eq(vehicles.id, id));
+
+    logAudit({
+      action: vehicleAction("VEHICLE_DELETED", currentUser.userId, existing.userId),
+      entityType: "vehicle",
+      entityId: id,
+      details: { plate: existing.plate, ownerId: existing.userId, openAppointments },
+      req,
+    });
 
     return res.json({
       message: "Vehículo eliminado exitosamente",

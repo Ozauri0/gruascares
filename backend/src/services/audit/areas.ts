@@ -8,10 +8,14 @@ export type AuditLevel = "info" | "warn" | "error";
 export const AUDIT_AREAS: AuditArea[] = ["taller", "ventas", "administracion", "cuentas", "clientes", "sistema"];
 export const AUDIT_LEVELS: AuditLevel[] = ["info", "warn", "error"];
 
-type Matcher = { exact?: string[]; prefix?: string[] };
+type Matcher = { exact?: string[]; prefix?: string[]; suffix?: string[] };
 
 const AREA_MATCHERS: Record<AuditArea, Matcher> = {
-  taller: { exact: ["APPOINTMENT_STATUS_CHANGE", "APPOINTMENT_FINALIZED", "TECHNICAL_REPORT_SAVED"] },
+  taller: {
+    exact: ["APPOINTMENT_STATUS_CHANGE", "APPOINTMENT_FINALIZED", "TECHNICAL_REPORT_SAVED"],
+    // vehículos de un cliente creados, editados o borrados por el personal
+    suffix: ["_BY_STAFF"],
+  },
   ventas: { prefix: ["CATALOG_"], exact: ["IMAGE_UPLOADED"] },
   administracion: {
     prefix: ["DATE_", "DATES_", "TIME_SLOT_", "CONTENT_", "DATA_EXPORT_"],
@@ -21,14 +25,14 @@ const AREA_MATCHERS: Record<AuditArea, Matcher> = {
     prefix: ["LOGIN", "PASSWORD_"],
     exact: ["DEMO_LOGIN", "LOGOUT_ALL", "PROFILE_UPDATED", "USER_REGISTER", "EMAIL_VERIFIED", "EMAIL_VERIFICATION_RESENT"],
   },
-  clientes: { exact: ["APPOINTMENT_CREATE", "APPOINTMENT_CREATE_GUEST", "APPOINTMENT_CANCEL"] },
+  clientes: { exact: ["APPOINTMENT_CREATE", "APPOINTMENT_CREATE_GUEST", "APPOINTMENT_CANCEL", "VEHICLE_CREATED", "VEHICLE_UPDATED", "VEHICLE_DELETED"] },
   sistema: { exact: ["SERVER_ERROR"] },
 };
 
 const WARN_ACTIONS = new Set(["LOGIN_FAILED", "LOGIN_BLOCKED"]);
 
 function matches(action: string, m: Matcher): boolean {
-  return !!m.exact?.includes(action) || !!m.prefix?.some((p) => action.startsWith(p));
+  return !!m.exact?.includes(action) || !!m.prefix?.some((p) => action.startsWith(p)) || !!m.suffix?.some((x) => action.endsWith(x));
 }
 
 export function areaOf(action: string): AuditArea {
@@ -43,7 +47,7 @@ export function levelOf(action: string): AuditLevel {
 /** Condición SQL equivalente a `areaOf(action) === area`. */
 export function areaCondition(area: AuditArea): SQL | undefined {
   const m = AREA_MATCHERS[area];
-  return or(...(m.exact ? [inArray(auditLogs.action, m.exact)] : []), ...(m.prefix ?? []).map((p) => like(auditLogs.action, `${p}%`)));
+  return or(...(m.exact ? [inArray(auditLogs.action, m.exact)] : []), ...(m.prefix ?? []).map((p) => like(auditLogs.action, `${p}%`)), ...(m.suffix ?? []).map((x) => like(auditLogs.action, `%${x}`)));
 }
 
 export function levelCondition(level: AuditLevel): SQL | undefined {
@@ -81,6 +85,12 @@ const LABELS: Record<string, string> = {
   USER_DEACTIVATED: "Desactivó una cuenta",
   USER_UPDATED: "Editó una cuenta",
   USER_DELETED: "Eliminó una cuenta",
+  VEHICLE_CREATED: "Registró un vehículo",
+  VEHICLE_UPDATED: "Editó un vehículo",
+  VEHICLE_DELETED: "Eliminó un vehículo",
+  VEHICLE_CREATED_BY_STAFF: "Registró un vehículo de un cliente",
+  VEHICLE_UPDATED_BY_STAFF: "Editó un vehículo de un cliente",
+  VEHICLE_DELETED_BY_STAFF: "Eliminó un vehículo de un cliente",
   USER_REGISTER: "Se registró una cuenta",
   EMAIL_VERIFIED: "Confirmó su correo",
   EMAIL_VERIFICATION_RESENT: "Pidió un nuevo enlace de confirmación",
