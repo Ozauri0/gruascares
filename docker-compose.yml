@@ -12,6 +12,19 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Redis (opcional): comparte los límites de tasa entre varias instancias del backend y los conserva al reiniciar.
+  # `docker compose --profile redis up -d` y REDIS_URL=redis://:<REDIS_PASSWORD>@127.0.0.1:6379 en backend/.env.
+  redis:
+    profiles: ["redis"]
+    image: redis:7-alpine
+    container_name: gruas-cares-redis
+    restart: unless-stopped
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispassword} # SOLO desarrollo: en producción define REDIS_PASSWORD
+    ports:
+      - "127.0.0.1:6379:6379"
+
   # API en contenedor (opcional): `docker compose --profile app up -d --build`.
   # En desarrollo normal el backend corre en el host con `bun run backend:dev`.
   backend:

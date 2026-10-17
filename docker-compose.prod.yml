@@ -15,3 +15,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${APP_DB_USER:-gruas_app}:${APP_DB_PASSWORD:?Define APP_DB_PASSWORD}@postgres:5432/gruas_cares
+
+  redis:
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Define REDIS_PASSWORD (openssl rand -base64 32)}

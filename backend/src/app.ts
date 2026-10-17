@@ -27,11 +27,13 @@ export interface AppOptions {
   rateLimits?: Partial<typeof RATE_LIMITS>;
   /** Fuerza el login demo (por defecto sigue DEMO_MODE). Solo para pruebas. */
   demoMode?: boolean;
+  /** Redis para los límites de tasa (por defecto REDIS_URL). Solo para pruebas. */
+  redisUrl?: string;
 }
 
 export function createApp(options: AppOptions = {}): Express {
   const app = express();
-  const limiters = createRateLimiters(options.rateLimits);
+  const limiters = createRateLimiters(options.rateLimits, options.redisUrl ?? config.redisUrl);
 
   // Middleware de Seguridad HTTP
   app.use(helmet());

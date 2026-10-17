@@ -31,6 +31,8 @@ export interface AppConfig {
   jwt: { secret: string; expiresIn: string };
   /** Meses que se conserva el registro de actividad (audit_logs); lo más antiguo se borra solo. */
   auditRetentionMonths: number;
+  /** Redis para compartir los límites de tasa entre instancias y reinicios (opcional; sin él, en memoria). */
+  redisUrl: string;
   email: { host: string; port: number; user: string; pass: string; from: string };
 }
 
@@ -95,6 +97,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     ),
     jwt: { secret, expiresIn: env.JWT_EXPIRES_IN || "7d" },
     auditRetentionMonths: parsePositiveInt(env.AUDIT_RETENTION_MONTHS, 12),
+    redisUrl: (env.REDIS_URL || "").trim(),
     email: {
       host: env.SMTP_HOST || "",
       port: Number(env.SMTP_PORT) || 587,

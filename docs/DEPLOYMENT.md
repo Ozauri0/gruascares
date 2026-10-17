@@ -49,7 +49,18 @@ y actualiza `DATABASE_URL`. Cambiar `POSTGRES_PASSWORD` en el compose **no** cam
 
 ## 3. Límites de tasa con varias instancias (Redis)
 
-Con una sola instancia los límites en memoria bastan. Si escalas o usas varias instancias, define `REDIS_URL` (por ejemplo `redis://:clave@redis:6379`): los contadores pasan a Redis y se comparten entre instancias y reinicios. Levanta Redis con el perfil incluido: `docker compose --profile redis up -d`. Si Redis no responde, el login, el registro y la recuperación de contraseña **rechazan** la petición (429) y el resto sigue (prioriza seguridad donde importa).
+Con una sola instancia los límites en memoria bastan. Si escalas, usas varias instancias o no quieres que un reinicio los borre, define `REDIS_URL`:
+
+```bash
+export REDIS_PASSWORD="$(openssl rand -base64 32)"
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile redis --profile app up -d
+# backend/.env → REDIS_URL=redis://:<REDIS_PASSWORD>@redis:6379
+```
+
+- Los contadores se guardan en Redis (prefijo `gc:rl:`): el límite es total entre instancias y sobrevive a reinicios.
+- Si Redis no responde, **login, registro y recuperación de contraseña rechazan la petición con 429** (prioriza seguridad) y el resto de los límites deja pasar (el sitio sigue funcionando).
+- Redis no publica puertos fuera de la máquina y no persiste datos (los contadores son efímeros).
+- Prueba contra un Redis real: `REDIS_URL_TEST=redis://:<clave>@127.0.0.1:6379 bun test backend/tests/rate-limit-redis.test.ts`.
 
 ## 4. Otras variables obligatorias
 
