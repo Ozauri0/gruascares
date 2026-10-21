@@ -164,7 +164,7 @@ export async function getVehicleById(req: Request, res: Response) {
 
 /**
  * POST /api/vehicles
- * Registra un nuevo vehículo para el usuario autenticado.
+ * Registra un nuevo vehículo para el usuario autenticado o para un cliente (si es personal).
  */
 export async function createVehicle(req: Request, res: Response) {
   try {
@@ -178,9 +178,9 @@ export async function createVehicle(req: Request, res: Response) {
 
     const { plate, brand, model, year, mileage, notes, userId: targetUserId } = req.body;
 
-    // Si es admin y envía userId, puede registrar vehículos a nombre de un cliente
+    // Si es personal (admin, mecánico o vendedor) y envía userId, puede registrar vehículos a nombre de un cliente
     let ownerUserId = currentUser.userId;
-    if (targetUserId && hasRole(currentUser, "admin", "mecanico")) {
+    if (targetUserId && hasRole(currentUser, "admin", "mecanico", "vendedor")) {
       if (!UUID_REGEX.test(targetUserId)) {
         return res.status(400).json({
           error: "Bad Request",

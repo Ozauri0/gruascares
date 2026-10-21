@@ -37,6 +37,8 @@ async function waitFor(action: string) {
 describe("clasificación de acciones", () => {
   test("cada acción cae en un área y un nivel", () => {
     expect(areaOf("CATALOG_UPDATED")).toBe("ventas");
+    expect(areaOf("WALK_IN_CLIENT_CREATED")).toBe("ventas");
+    expect(areaOf("APPOINTMENT_CREATE_BY_STAFF")).toBe("taller");
     expect(areaOf("TECHNICAL_REPORT_SAVED")).toBe("taller");
     expect(areaOf("USER_ROLE_CHANGED")).toBe("administracion");
     expect(areaOf("USER_REGISTER")).toBe("cuentas");
@@ -49,6 +51,8 @@ describe("clasificación de acciones", () => {
     expect(levelOf("LOGIN_BLOCKED")).toBe("warn");
     expect(levelOf("CATALOG_CREATED")).toBe("info");
     expect(labelOf("DATA_EXPORT_CSV")).toContain("CSV");
+    expect(labelOf("WALK_IN_CLIENT_CREATED")).toContain("presencialmente");
+    expect(labelOf("APPOINTMENT_CREATE_BY_STAFF")).toContain("cliente");
   });
 });
 

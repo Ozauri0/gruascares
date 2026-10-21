@@ -8,12 +8,14 @@ export type UserRole = "admin" | "mecanico" | "usuario" | "vendedor";
 
 export type SessionUser = {
   id: string;
+  rut: string;
   name: string;
   email: string;
   role: UserRole;
   /** Todos sus roles (el principal primero). */
   roles: UserRole[];
   phone: string | null;
+  hasAccount?: boolean;
   isActive: boolean;
   createdAt: string;
 };

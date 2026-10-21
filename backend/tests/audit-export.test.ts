@@ -3,6 +3,7 @@ import { sql } from "../src/db/connection.js";
 import { limits } from "../src/config/constants.js";
 import { escapeCsvCell } from "../src/utils/csv.js";
 import { logAudit } from "../src/services/audit/audit.service.js";
+import { makeValidRut } from "../src/utils/rut.js";
 import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
@@ -49,8 +50,9 @@ describe.skipIf(!dbReady)("SEC-8: auditoría y exportación", () => {
   const actionsLogged = async () => (await sql`select action from audit_logs order by created_at`).map((r) => r.action as string);
 
   test("el CSV exportado neutraliza fórmulas en datos ingresados por clientes", async () => {
-    await sql`insert into appointments (service_id, scheduled_date, time_slot, guest_name, guest_email, notes)
-      values (${seed.serviceAceite.id}, ${futureDate()}, '10:30', '=cmd|calc', 'x@test.cl', '@SUM(1)')`;
+    const [evilUser] = await sql`insert into users (name, rut, phone, role) values ('=cmd|calc', ${makeValidRut(88)}, '+56 9 1111 2222', 'usuario') returning id`;
+    await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot, notes)
+      values (${evilUser.id}, ${seed.serviceAceite.id}, ${futureDate()}, '10:30', '@SUM(1)')`;
     const res = await fetch(`${server.url}/api/admin/export/appointments?format=csv`, { headers: cookieFor(seed.admin) });
     const text = await res.text();
     expect(text).toContain(`"'=cmd|calc"`);
@@ -58,8 +60,10 @@ describe.skipIf(!dbReady)("SEC-8: auditoría y exportación", () => {
   });
 
   test("la exportación que supera el máximo responde 413", async () => {
-    await sql`insert into appointments (service_id, scheduled_date, time_slot, guest_email) values
-      (${seed.serviceAceite.id}, '2030-01-01', '10:30', 'a@t.cl'), (${seed.serviceAceite.id}, '2030-01-02', '10:30', 'b@t.cl'), (${seed.serviceAceite.id}, '2030-01-03', '10:30', 'c@t.cl')`;
+    await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot) values
+      (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-01', '10:30'),
+      (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-02', '10:30'),
+      (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-03', '10:30')`;
     limits.exportMaxRows = 2;
     const res = await fetch(`${server.url}/api/admin/export/appointments`, { headers: cookieFor(seed.admin) });
     expect(res.status).toBe(413);
@@ -93,7 +97,7 @@ describe.skipIf(!dbReady)("SEC-8: auditoría y exportación", () => {
     await post("/api/auth/login", { email: "no-existe@test.cl", password: "x" });
     await sql`update users set is_active = false where id = ${seed.clientB.id}`;
     await post("/api/auth/login", { email: seed.clientB.email, password: "password123" });
-    await post("/api/auth/register", { name: "Nueva Persona", email: "nueva@test.cl", password: "clave1234" });
+    await post("/api/auth/register", { name: "Nueva Persona", rut: makeValidRut(89), phone: "+56 9 1111 2222", email: "nueva@test.cl", password: "clave1234" });
     await post("/api/auth/logout-all", {}, cookieFor(seed.mechanic));
 
     await waitFor(async () => ((await actionsLogged()).length >= 6 ? true : undefined));

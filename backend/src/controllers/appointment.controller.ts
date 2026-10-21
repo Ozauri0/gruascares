@@ -8,10 +8,13 @@ import { appointments, services, vehicles, users, serviceRecords, blockedDates }
 import { isValidSlotFormat, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
-import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
+import { MAX_LEN, findTooLong, isUuid, isValidEmail } from "../utils/validate.js";
 import { isCancellable } from "../domain/appointment-status.js";
 import { slotsForDate } from "../utils/slots.js";
 import { isSlotPast, isValidIsoDate, todayInSantiago } from "../utils/dates.js";
+import { isValidRut, normalizeRut } from "../utils/rut.js";
+import { isValidChileanPlate, normalizePlate } from "../utils/plate.js";
+import { isUniqueViolation } from "../utils/db-errors.js";
 
 /**
  * 1. Obtener catálogo de servicios activos para agendamiento
@@ -152,6 +155,8 @@ export async function getAvailableSlots(req: Request, res: Response) {
 
 /**
  * 3. Crear una nueva cita (agendamiento)
+ * Puede ser solicitada por el propio cliente en su cuenta, o por personal (ventas, taller, admin)
+ * buscando por RUT / userId (y creando el perfil sin cuenta si es ventas/admin).
  */
 export async function createAppointment(req: Request, res: Response) {
   try {
@@ -162,7 +167,12 @@ export async function createAppointment(req: Request, res: Response) {
       vehicleId,
       location,
       notes,
-    } = req.body;
+      userId: requestedUserId,
+      clientId: requestedClientId,
+      rut: requestedRut,
+      client: requestedClient,
+      newVehicle,
+    } = req.body ?? {};
 
     // 1. Validaciones básicas
     if (!serviceId || !scheduledDate || !timeSlot) {
@@ -240,27 +250,250 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    // 3. Titular: siempre una cuenta con sesión iniciada (la ruta exige autenticación). Ya no se aceptan
-    // solicitudes de invitado: cualquiera podía llenar los cupos con correos inventados.
-    const targetUserId: string = req.user!.userId;
-    const clientName: string = req.user!.name;
-    const clientEmail: string = req.user!.email;
+    // 3. Determinar titular de la cita:
+    // - Si el usuario solicita para sí mismo, se usa req.user.
+    // - Si se envía userId/clientId, rut o client, debe ser personal autorizado (vendedor, mecanico o admin).
+    const actor = req.user!;
+    const explicitClientId = requestedUserId ?? requestedClientId;
+    const rawRut = requestedRut ?? requestedClient?.rut;
+    const isBookingForOther =
+      (explicitClientId !== undefined && explicitClientId !== null && explicitClientId !== "" && explicitClientId !== actor.userId) ||
+      (rawRut !== undefined && rawRut !== null && rawRut !== "") ||
+      (requestedClient !== undefined && requestedClient !== null);
 
-    // 4. Validar vehículo: debe pertenecer al usuario autenticado
+    let targetUserId: string = actor.userId;
+    let clientName: string = actor.name;
+    let clientEmail: string | null = actor.email || null;
+    let clientRut: string | undefined;
+    let bookedByStaff = false;
+
+    if (isBookingForOther) {
+      if (!hasRole(actor, "vendedor", "mecanico", "admin")) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "No tienes permiso para agendar citas a nombre de otro cliente",
+        });
+      }
+      bookedByStaff = true;
+
+      if (explicitClientId) {
+        if (!isUuid(explicitClientId)) {
+          return res.status(400).json({ error: "Bad Request", message: "El identificador del cliente debe ser un UUID válido" });
+        }
+        const [foundUser] = await db.select().from(users).where(eq(users.id, explicitClientId)).limit(1);
+        if (!foundUser) {
+          return res.status(404).json({ error: "Not Found", message: "El cliente indicado no existe" });
+        }
+        targetUserId = foundUser.id;
+        clientName = foundUser.name;
+        clientEmail = foundUser.email;
+        clientRut = foundUser.rut;
+      } else if (rawRut) {
+        if (typeof rawRut !== "string" || !isValidRut(rawRut)) {
+          return res.status(400).json({
+            error: "Bad Request",
+            message: "El RUT del cliente no es válido. Ingresa un RUT con dígito verificador correcto",
+          });
+        }
+        const cleanRut = normalizeRut(rawRut);
+        const [existingClient] = await db.select().from(users).where(eq(users.rut, cleanRut)).limit(1);
+
+        if (existingClient) {
+          targetUserId = existingClient.id;
+          clientName = existingClient.name;
+          clientEmail = existingClient.email;
+          clientRut = existingClient.rut;
+        } else {
+          // Crear perfiles nuevos queda solo para ventas (vendedor) y admin
+          if (!hasRole(actor, "vendedor", "admin")) {
+            return res.status(403).json({
+              error: "Forbidden",
+              message: "Crear perfiles nuevos de clientes está reservado para ventas y administración",
+            });
+          }
+
+          const newName = requestedClient?.name;
+          const newPhone = requestedClient?.phone;
+          const rawNewEmail = requestedClient?.email;
+
+          if (!newName || typeof newName !== "string" || !newName.trim()) {
+            return res.status(400).json({
+              error: "Bad Request",
+              message: "El cliente no está registrado: indica nombre y teléfono para crear su perfil",
+            });
+          }
+          if (!newPhone || typeof newPhone !== "string" || !newPhone.trim()) {
+            return res.status(400).json({
+              error: "Bad Request",
+              message: "El teléfono del cliente es obligatorio para crear su perfil",
+            });
+          }
+
+          const cleanNewEmail =
+            rawNewEmail === undefined || rawNewEmail === null || (typeof rawNewEmail === "string" && !rawNewEmail.trim())
+              ? null
+              : typeof rawNewEmail === "string"
+              ? rawNewEmail.trim().toLowerCase()
+              : null;
+
+          if (rawNewEmail !== undefined && rawNewEmail !== null && rawNewEmail !== "" && (!cleanNewEmail || !isValidEmail(cleanNewEmail))) {
+            return res.status(400).json({ error: "Bad Request", message: "El formato del correo del cliente no es válido" });
+          }
+
+          const clientTooLong = findTooLong([
+            ["El nombre", newName, MAX_LEN.name],
+            ["El correo", cleanNewEmail, MAX_LEN.email],
+            ["El teléfono", newPhone, MAX_LEN.phone],
+          ]);
+          if (clientTooLong) {
+            return res.status(400).json({ error: "Bad Request", message: clientTooLong });
+          }
+
+          if (cleanNewEmail) {
+            const [dupEmail] = await db.select({ id: users.id }).from(users).where(eq(users.email, cleanNewEmail)).limit(1);
+            if (dupEmail) {
+              return res.status(409).json({
+                error: "Conflict",
+                message: "Ya existe un usuario registrado con ese correo electrónico",
+              });
+            }
+          }
+
+          const [createdClient] = await db
+            .insert(users)
+            .values({
+              name: newName.trim(),
+              rut: cleanRut,
+              phone: newPhone.trim(),
+              email: cleanNewEmail,
+              passwordHash: null,
+              role: "usuario",
+              isActive: true,
+              emailVerifiedAt: null,
+            })
+            .returning();
+
+          logAudit({
+            userId: actor.userId,
+            userEmail: actor.email,
+            action: "WALK_IN_CLIENT_CREATED",
+            entityType: "user",
+            entityId: createdClient.id,
+            details: {
+              rut: createdClient.rut,
+              name: createdClient.name,
+              phone: createdClient.phone,
+              email: createdClient.email,
+            },
+            req,
+          });
+
+          targetUserId = createdClient.id;
+          clientName = createdClient.name;
+          clientEmail = createdClient.email;
+          clientRut = createdClient.rut;
+        }
+      } else {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Indica el RUT del cliente para registrar la atención presencial",
+        });
+      }
+    }
+
+    // 4. Validar o registrar vehículo en el momento
+    let resolvedVehicleId: string | null = vehicleId || null;
     let vehicleInfo: { plate: string; brand: string; model: string } | null = null;
-    if (vehicleId) {
+    if (resolvedVehicleId) {
       const [veh] = await db
         .select()
         .from(vehicles)
-        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.userId, targetUserId)))
+        .where(and(eq(vehicles.id, resolvedVehicleId), eq(vehicles.userId, targetUserId)))
         .limit(1);
       if (!veh) {
         return res.status(404).json({
           error: "Not Found",
-          message: "El vehículo indicado no existe en tu cuenta",
+          message: "El vehículo indicado no existe en la cuenta del cliente",
         });
       }
       vehicleInfo = veh;
+    } else if (newVehicle && typeof newVehicle === "object") {
+      const { plate, brand, model, year, mileage, notes: vehNotes } = newVehicle;
+      if (!plate || typeof plate !== "string") {
+        return res.status(400).json({ error: "Bad Request", message: "La patente del vehículo es obligatoria" });
+      }
+      const normalizedPlate = normalizePlate(plate);
+      if (!isValidChileanPlate(normalizedPlate)) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Formato de patente chilena inválido. Ej: AB1234 o ABCD12",
+        });
+      }
+      if (!brand || typeof brand !== "string" || !brand.trim()) {
+        return res.status(400).json({ error: "Bad Request", message: "La marca del vehículo es obligatoria" });
+      }
+      if (!model || typeof model !== "string" || !model.trim()) {
+        return res.status(400).json({ error: "Bad Request", message: "El modelo del vehículo es obligatorio" });
+      }
+
+      let parsedYear: number | null = null;
+      if (year !== undefined && year !== null && year !== "") {
+        parsedYear = Number(year);
+        const currentYear = new Date().getFullYear();
+        if (!Number.isInteger(parsedYear) || parsedYear < 1920 || parsedYear > currentYear + 1) {
+          return res.status(400).json({
+            error: "Bad Request",
+            message: `El año del vehículo debe ser un número entero entre 1920 y ${currentYear + 1}`,
+          });
+        }
+      }
+
+      let parsedMileage = 0;
+      if (mileage !== undefined && mileage !== null && mileage !== "") {
+        parsedMileage = Number(mileage);
+        if (!Number.isInteger(parsedMileage) || parsedMileage < 0) {
+          return res.status(400).json({
+            error: "Bad Request",
+            message: "El kilometraje del vehículo debe ser un número entero mayor o igual a 0",
+          });
+        }
+      }
+
+      const [existingVeh] = await db
+        .select()
+        .from(vehicles)
+        .where(and(eq(vehicles.userId, targetUserId), eq(vehicles.plate, normalizedPlate)))
+        .limit(1);
+
+      if (existingVeh) {
+        resolvedVehicleId = existingVeh.id;
+        vehicleInfo = existingVeh;
+      } else {
+        const [createdVeh] = await db
+          .insert(vehicles)
+          .values({
+            userId: targetUserId,
+            plate: normalizedPlate,
+            brand: brand.trim(),
+            model: model.trim(),
+            year: parsedYear,
+            mileage: parsedMileage,
+            notes: vehNotes && typeof vehNotes === "string" ? vehNotes.trim() : null,
+          })
+          .returning();
+        resolvedVehicleId = createdVeh.id;
+        vehicleInfo = createdVeh;
+
+        logAudit({
+          userId: actor.userId,
+          userEmail: actor.email,
+          action: actor.userId === targetUserId ? "VEHICLE_CREATED" : "VEHICLE_CREATED_BY_STAFF",
+          entityType: "vehicle",
+          entityId: createdVeh.id,
+          details: { plate: createdVeh.plate, ownerId: targetUserId },
+          req,
+        });
+      }
     }
 
     // 5. Verificar bloqueos y cupo e insertar de forma atómica. El candado por (fecha, bloque)
@@ -314,7 +547,7 @@ export async function createAppointment(req: Request, res: Response) {
         .insert(appointments)
         .values({
           userId: targetUserId,
-          vehicleId: vehicleId || null,
+          vehicleId: resolvedVehicleId,
           serviceId: service.id,
           scheduledDate,
           timeSlot,
@@ -346,7 +579,7 @@ export async function createAppointment(req: Request, res: Response) {
     }
     const newAppointment = outcome.appointment;
 
-    // 7. Disparar correo de confirmación de forma asíncrona
+    // 7. Disparar correo de confirmación de forma asíncrona (solo si el cliente tiene correo registrado)
     if (clientEmail) {
       sendAppointmentConfirmationEmail(clientEmail, {
         name: clientName,
@@ -361,11 +594,11 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    // 8. Registrar evento de auditoría
+    // 8. Registrar evento de auditoría: quién creó la cita (el cliente o el miembro del personal)
     logAudit({
-      userId: targetUserId,
-      userEmail: clientEmail,
-      action: "APPOINTMENT_CREATE",
+      userId: actor.userId,
+      userEmail: actor.email || clientEmail || undefined,
+      action: bookedByStaff ? "APPOINTMENT_CREATE_BY_STAFF" : "APPOINTMENT_CREATE",
       entityType: "appointment",
       entityId: newAppointment.id,
       details: {
@@ -373,7 +606,8 @@ export async function createAppointment(req: Request, res: Response) {
         serviceName: service.name,
         scheduledDate,
         timeSlot,
-        vehicleId: vehicleId || null,
+        vehicleId: resolvedVehicleId,
+        ...(bookedByStaff ? { clientId: targetUserId, clientRut, clientName } : {}),
       },
       req,
     });
@@ -387,6 +621,12 @@ export async function createAppointment(req: Request, res: Response) {
       },
     });
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "El RUT o correo indicado ya está registrado en otra cuenta",
+      });
+    }
     console.error("Error en createAppointment:", error);
     return res.status(500).json({
       error: "Internal Server Error",

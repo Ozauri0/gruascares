@@ -1,6 +1,6 @@
-import { and, eq, gt, isNull, lt, notExists, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lt, notExists, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { auditLogs, emailVerificationTokens, revokedTokens, users } from "../db/schema.js";
+import { appointments, auditLogs, emailVerificationTokens, revokedTokens, users, vehicles } from "../db/schema.js";
 import { config } from "../config/env.js";
 import { logAudit } from "./audit/audit.service.js";
 
@@ -18,7 +18,7 @@ export async function purgeAuditLogs(months: number = config.auditRetentionMonth
 /**
  * Elimina las cuentas registradas por el sitio que nunca confirmaron su correo: pasaron más de 24 horas desde que se
  * crearon y ya no tienen ningún enlace de confirmación vigente (un reenvío reinicia el plazo). No toca cuentas
- * confirmadas ni las creadas por el administrador (esas nacen confirmadas).
+ * confirmadas, perfiles presenciales sin contraseña ni perfiles que ya tengan vehículos o citas registradas.
  */
 export async function purgeUnverifiedAccounts(now: Date = new Date()): Promise<number> {
   const createdBefore = new Date(now.getTime() - UNVERIFIED_ACCOUNT_HOURS * 60 * 60 * 1000);
@@ -27,6 +27,7 @@ export async function purgeUnverifiedAccounts(now: Date = new Date()): Promise<n
     .where(
       and(
         isNull(users.emailVerifiedAt),
+        isNotNull(users.passwordHash),
         eq(users.role, "usuario"),
         lt(users.createdAt, createdBefore),
         notExists(
@@ -40,6 +41,18 @@ export async function purgeUnverifiedAccounts(now: Date = new Date()): Promise<n
                 gt(emailVerificationTokens.expiresAt, now)
               )
             )
+        ),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(vehicles)
+            .where(eq(vehicles.userId, users.id))
+        ),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(appointments)
+            .where(eq(appointments.userId, users.id))
         )
       )
     )

@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 const apiProduct = { id: "p1", name: "Aceite", description: "Lubricación", price: 32990, stock: 24, category: "TOP VENTAS", tag: "TOP 02", art: "oil", image: null, featured: true };
-const apiUser = { id: "u1", name: "Ana", email: "a@b.cl", role: "mecanico", phone: null, isActive: true, createdAt: "2026-10-01T00:00:00Z" };
+const apiUser = { id: "u1", rut: "12345678-5", name: "Ana", email: "a@b.cl", role: "mecanico", phone: "+56 9 1111 2222", isActive: true, createdAt: "2026-10-01T00:00:00Z" };
 
 describe("INT-11: catálogo", () => {
   test("adapta description → text y completa `active` en la lectura pública", () => {
@@ -72,22 +72,29 @@ describe("INT-11: usuarios", () => {
     respond(200, { users: [apiUser], total: 1, page: 1, limit: 50 });
     const page = await listUsers({ q: "  ana ", role: "mecanico", page: 2 });
     expect(calls[0].url).toBe("/api/admin/users?q=ana&role=mecanico&page=2&limit=50");
-    expect(page.users[0]).toMatchObject({ name: "Ana", role: "mecanico", isActive: true });
+    expect(page.users[0]).toMatchObject({ name: "Ana", rut: "12345678-5", role: "mecanico", isActive: true });
 
     respond(200, { users: [], total: 0, page: 1, limit: 50 });
     await listUsers({ q: "", role: "todos" });
     expect(calls[1].url).toBe("/api/admin/users?limit=50");
   });
 
-  test("createStaff omite el teléfono vacío", async () => {
+  test("createStaff normaliza el RUT y recorta el teléfono", async () => {
     respond(201, { user: apiUser });
-    await createStaff({ name: "Ana", email: "a@b.cl", phone: "  ", roles: ["mecanico"], password: "clave-inicial-1" });
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "Ana", email: "a@b.cl", roles: ["mecanico"], password: "clave-inicial-1" });
+    await createStaff({ name: "Ana", rut: "12.345.678-5", email: "a@b.cl", phone: " +56 9 1111 2222 ", roles: ["mecanico"], password: "clave-inicial-1" });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({
+      name: "Ana",
+      rut: "12345678-5",
+      email: "a@b.cl",
+      phone: "+56 9 1111 2222",
+      roles: ["mecanico"],
+      password: "clave-inicial-1",
+    });
   });
 
-  test("correo repetido llega como 409", async () => {
+  test("correo o RUT repetido llega como 409", async () => {
     respond(409, { error: "Conflict", message: "Ya existe una cuenta registrada con este correo electrónico" });
-    const error = (await createStaff({ name: "Ana", email: "a@b.cl", phone: "", roles: ["admin"], password: "clave-inicial-1" }).catch((e) => e)) as ApiError;
+    const error = (await createStaff({ name: "Ana", rut: "12345678-5", email: "a@b.cl", phone: "+56 9 1111 2222", roles: ["admin"], password: "clave-inicial-1" }).catch((e) => e)) as ApiError;
     expect(error.status).toBe(409);
   });
 

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { sql } from "../src/db/connection.js";
 import { clock, weekRange } from "../src/utils/dates.js";
+import { makeValidRut } from "../src/utils/rut.js";
 import { cookieFor, dbReady, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
@@ -46,9 +47,9 @@ describe.skipIf(!dbReady)("INT-10: GET /api/admin/metrics ampliado", () => {
 
   test("semana, vehículos atendidos y agenda de hoy", async () => {
     clock.now = () => new Date("2026-10-14T15:00:00Z"); // miércoles 12:00 en Santiago
-    const row = (date: string, slot: string, status: string, service: string, extra = "") =>
-      sql.unsafe(`insert into appointments (user_id, vehicle_id, service_id, scheduled_date, time_slot, status ${extra ? ", guest_name, guest_email" : ""})
-        values ('${seed.clientA.id}', ${service === seed.serviceAceite.id ? `'${seed.vehicleA.id}'` : "null"}, '${service}', '${date}', '${slot}', '${status}' ${extra})`);
+    const row = (date: string, slot: string, status: string, service: string) =>
+      sql.unsafe(`insert into appointments (user_id, vehicle_id, service_id, scheduled_date, time_slot, status)
+        values ('${seed.clientA.id}', ${service === seed.serviceAceite.id ? `'${seed.vehicleA.id}'` : "null"}, '${service}', '${date}', '${slot}', '${status}')`);
     await row("2026-10-12", "10:30", "finalizada", seed.serviceAceite.id); // lunes (semana) - vehículo A atendido
     await row("2026-10-14", "09:30", "confirmada", seed.serviceGrua.id); // hoy
     await row("2026-10-14", "14:00", "solicitada", seed.serviceAceite.id); // hoy
@@ -67,12 +68,13 @@ describe.skipIf(!dbReady)("INT-10: GET /api/admin/metrics ampliado", () => {
     expect(data.users.byRole.usuario).toBe(2);
   });
 
-  test("la agenda de hoy incluye a clientes invitados", async () => {
+  test("la agenda de hoy incluye a clientes presenciales sin cuenta", async () => {
     clock.now = () => new Date("2026-10-14T15:00:00Z");
-    await sql`insert into appointments (service_id, scheduled_date, time_slot, guest_name, guest_email) values (${seed.serviceGrua.id}, '2026-10-14', '09:30', 'Invitada Perez', 'inv@test.cl')`;
+    const [walkIn] = await sql`insert into users (name, rut, phone, role) values ('Presencial Perez', ${makeValidRut(77)}, '+56 9 7777 8888', 'usuario') returning id`;
+    await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot) values (${walkIn.id}, ${seed.serviceGrua.id}, '2026-10-14', '09:30')`;
     const data = await metrics();
     expect(data.todayAgenda).toHaveLength(1);
-    expect(data.todayAgenda[0]).toMatchObject({ clientName: "Invitada Perez", vehiclePlate: null });
+    expect(data.todayAgenda[0]).toMatchObject({ clientName: "Presencial Perez", vehiclePlate: null });
   });
 
   test("en una base vacía todo es 0 y las listas vacías", async () => {

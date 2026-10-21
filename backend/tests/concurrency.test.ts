@@ -4,6 +4,7 @@ import { cookieFor, createClients, dbReady, futureDate, resetDb, seedBasics, typ
 import { startServer, type TestServer } from "./helpers.js";
 import { MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../src/config/constants.js";
 import { isUniqueViolation } from "../src/utils/db-errors.js";
+import { makeValidRut } from "../src/utils/rut.js";
 
 let server: TestServer;
 let seed: Seed;
@@ -69,11 +70,11 @@ describe.skipIf(!dbReady)("BUG-5: reservas simultáneas", () => {
 
   test("registro simultáneo del mismo correo: uno 201 y el resto 409 (no 500)", async () => {
     const responses = await Promise.all(
-      Array.from({ length: 6 }, () =>
+      Array.from({ length: 6 }, (_, i) =>
         fetch(`${server.url}/api/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "Carrera", email: "carrera@test.local", password: "clave1234" }),
+          body: JSON.stringify({ name: "Carrera", rut: makeValidRut(200 + i), phone: "+56 9 3333 4444", email: "carrera@test.local", password: "clave1234" }),
         })
       )
     );

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, boolean, timestamp, date, pgEnum, index, unique, uniqueIndex, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, integer, boolean, timestamp, date, pgEnum, index, unique, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
 // 1. Enums
@@ -16,13 +16,16 @@ export const appointmentStatusEnum = pgEnum("appointment_status", [
 // 2. Tabla Usuarios
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
+  rut: varchar("rut", { length: 15 }).notNull().unique(),
   name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  // Nulo en perfiles creados presencialmente sin correo; único cuando existe.
+  email: varchar("email", { length: 255 }).unique(),
+  // Nulo en perfiles sin cuenta web (creados presencialmente); sin contraseña no puede iniciar sesión.
+  passwordHash: text("password_hash"),
   role: userRoleEnum("role").default("usuario").notNull(),
   // Roles adicionales (p. ej. un mecánico que también vende). El rol principal define su página de inicio.
   extraRoles: userRoleEnum("extra_roles").array().default(sql`'{}'::user_role[]`).notNull(),
-  phone: varchar("phone", { length: 50 }),
+  phone: varchar("phone", { length: 50 }).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   // Confirmación del correo: null = aún no confirmó el enlace que se le envió al registrarse (no puede iniciar sesión).
   emailVerifiedAt: timestamp("email_verified_at"),
@@ -73,11 +76,9 @@ export const appointments = pgTable(
   "appointments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    // Nulo en solicitudes de invitado (sin cuenta): se identifican por los datos de contacto guest_*.
-    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
-    guestName: varchar("guest_name", { length: 255 }),
-    guestEmail: varchar("guest_email", { length: 255 }),
-    guestPhone: varchar("guest_phone", { length: 50 }),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
     vehicleId: uuid("vehicle_id").references(() => vehicles.id, { onDelete: "set null" }),
     serviceId: uuid("service_id")
       .references(() => services.id, { onDelete: "restrict" })
@@ -95,8 +96,6 @@ export const appointments = pgTable(
     index("appointments_user_id_idx").on(table.userId),
     index("appointments_scheduled_date_idx").on(table.scheduledDate),
     index("appointments_status_idx").on(table.status),
-    index("appointments_guest_email_idx").on(table.guestEmail),
-    check("appointments_owner_chk", sql`${table.userId} is not null or ${table.guestEmail} is not null`),
   ]
 );
 
@@ -266,7 +265,6 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
     references: [users.id],
   }),
 }));
-
 
 // 9. Tabla Catálogo de productos (tienda visual; precios y stock son referenciales, sin pagos)
 export const products = pgTable(

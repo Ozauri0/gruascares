@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { appointments, serviceRecords, users, vehicles } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
@@ -7,6 +7,7 @@ import { isUniqueViolation } from "../utils/db-errors.js";
 import { parsePagination } from "../utils/pagination.js";
 import { hashPassword, validatePassword } from "../utils/password.js";
 import { rolesOf, withRoles } from "../utils/roles.js";
+import { isValidRut, normalizeRut } from "../utils/rut.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 
 const ROLES = ["admin", "mecanico", "usuario", "vendedor"] as const;
@@ -29,6 +30,7 @@ const isRole = (value: unknown): value is Role => typeof value === "string" && (
 /** Campos públicos de un usuario (nunca el hash de contraseña ni la versión de sesión). */
 const publicUser = {
   id: users.id,
+  rut: users.rut,
   name: users.name,
   email: users.email,
   role: users.role,
@@ -43,7 +45,7 @@ const escapeLike = (text: string) => text.replace(/[\\%_]/g, (char) => `\\${char
 
 /**
  * GET /api/admin/users?q=&role=&active=&page=&limit=
- * Directorio de usuarios con búsqueda por nombre/correo, filtro por rol y estado, y paginación.
+ * Directorio de usuarios con búsqueda por nombre/RUT/correo, filtro por rol y estado, y paginación.
  */
 export async function listUsers(req: Request, res: Response) {
   try {
@@ -63,8 +65,14 @@ export async function listUsers(req: Request, res: Response) {
       conditions.push(eq(users.isActive, active === "true"));
     }
     if (typeof q === "string" && q.trim()) {
-      const pattern = `%${escapeLike(q.trim().slice(0, 100))}%`;
-      conditions.push(or(ilike(users.name, pattern), ilike(users.email, pattern)));
+      const rawTerm = q.trim().slice(0, 100);
+      const pattern = `%${escapeLike(rawTerm)}%`;
+      const rutTerm = normalizeRut(rawTerm);
+      const matchers = [ilike(users.name, pattern), ilike(users.email, pattern), ilike(users.rut, pattern)];
+      if (rutTerm.length >= 2) {
+        matchers.push(ilike(users.rut, `%${escapeLike(rutTerm)}%`));
+      }
+      conditions.push(or(...matchers));
     }
 
     const { page, limit, offset } = parsePagination(req.query, { limit: 50, maxLimit: 200 });
@@ -81,17 +89,23 @@ export async function listUsers(req: Request, res: Response) {
 
 /**
  * POST /api/admin/users
- * Alta de personal (mecánico o administrador) con contraseña inicial.
+ * Alta de personal (mecánico, vendedor o administrador) con contraseña inicial y RUT obligatorio.
  */
 export async function createStaffUser(req: Request, res: Response) {
   try {
-    const { name, email, password, phone, role, roles } = req.body ?? {};
+    const { name, rut, email, password, phone, role, roles } = req.body ?? {};
 
     if (typeof name !== "string" || name.trim().length < 2) {
       return res.status(400).json({ error: "Bad Request", message: "El nombre es obligatorio (mínimo 2 caracteres)" });
     }
+    if (typeof rut !== "string" || !isValidRut(rut)) {
+      return res.status(400).json({ error: "Bad Request", message: "Debe ingresar un RUT chileno válido" });
+    }
     if (typeof email !== "string" || !EMAIL_REGEX.test(email.trim())) {
       return res.status(400).json({ error: "Bad Request", message: "Debe ingresar un correo electrónico válido" });
+    }
+    if (typeof phone !== "string" || phone.trim().length < 6) {
+      return res.status(400).json({ error: "Bad Request", message: "El teléfono es obligatorio" });
     }
     // Un solo `role` o una lista `roles`: el primero es el principal (su página de inicio).
     const parsedRoles = parseRoles(roles ?? [role], STAFF_ROLES);
@@ -112,7 +126,12 @@ export async function createStaffUser(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: tooLong });
     }
 
+    const normalizedRut = normalizeRut(rut);
     const normalizedEmail = email.toLowerCase().trim();
+    const [existingRut] = await db.select({ id: users.id }).from(users).where(eq(users.rut, normalizedRut)).limit(1);
+    if (existingRut) {
+      return res.status(409).json({ error: "Conflict", message: "Ya existe una cuenta registrada con este RUT" });
+    }
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, normalizedEmail)).limit(1);
     if (existing) {
       return res.status(409).json({ error: "Conflict", message: "Ya existe una cuenta registrada con este correo electrónico" });
@@ -121,13 +140,14 @@ export async function createStaffUser(req: Request, res: Response) {
     const [created] = await db
       .insert(users)
       .values({
+        rut: normalizedRut,
         name: name.trim(),
         email: normalizedEmail,
         passwordHash: await hashPassword(password),
         emailVerifiedAt: new Date(), // cuenta creada por el admin: no necesita confirmar el correo
         role: primaryRole,
         extraRoles,
-        phone: typeof phone === "string" && phone.trim() ? phone.trim() : null,
+        phone: phone.trim(),
       })
       .returning(publicUser);
 
@@ -135,14 +155,20 @@ export async function createStaffUser(req: Request, res: Response) {
       action: "USER_CREATED",
       entityType: "user",
       entityId: created.id,
-      details: { email: created.email, role: created.role, roles: rolesOf(created) },
+      details: { rut: created.rut, email: created.email, role: created.role, roles: rolesOf(created) },
       req,
     });
 
     return res.status(201).json({ message: "Cuenta creada exitosamente", user: withRoles(created) });
   } catch (error) {
     if (isUniqueViolation(error)) {
-      return res.status(409).json({ error: "Conflict", message: "Ya existe una cuenta registrada con este correo electrónico" });
+      const text = String((error as any)?.detail || (error as any)?.constraint_name || (error as any)?.message || "");
+      return res.status(409).json({
+        error: "Conflict",
+        message: text.toLowerCase().includes("rut")
+          ? "Ya existe una cuenta registrada con este RUT"
+          : "Ya existe una cuenta registrada con este correo electrónico",
+      });
     }
     console.error("Error al crear usuario:", error);
     return res.status(500).json({ error: "Internal Server Error", message: "Error al crear la cuenta" });
@@ -150,8 +176,8 @@ export async function createStaffUser(req: Request, res: Response) {
 }
 
 /**
- * PATCH /api/admin/users/:id { role?, isActive?, name?, phone? }
- * Cambia rol, estado o datos. Cambiar rol o desactivar invalida las sesiones del usuario.
+ * PATCH /api/admin/users/:id { role?, roles?, isActive?, name?, phone?, rut? }
+ * Cambia rol, estado o datos. Dar de baja invalida las sesiones del usuario.
  * El administrador no puede quitarse su propio acceso ni dejar al sistema sin administradores activos.
  */
 export async function updateUser(req: Request, res: Response) {
@@ -162,9 +188,9 @@ export async function updateUser(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: "ID de usuario inválido: debe ser un UUID" });
     }
 
-    const { role, roles, isActive, name, phone } = req.body ?? {};
-    if (role === undefined && roles === undefined && isActive === undefined && name === undefined && phone === undefined) {
-      return res.status(400).json({ error: "Bad Request", message: "Indica al menos un campo a modificar (role, roles, isActive, name, phone)" });
+    const { role, roles, isActive, name, phone, rut } = req.body ?? {};
+    if (role === undefined && roles === undefined && isActive === undefined && name === undefined && phone === undefined && rut === undefined) {
+      return res.status(400).json({ error: "Bad Request", message: "Indica al menos un campo a modificar (role, roles, isActive, name, phone, rut)" });
     }
     if (role !== undefined && !isRole(role)) {
       return res.status(400).json({ error: "Bad Request", message: `role debe ser uno de [${ROLES.join(", ")}]` });
@@ -179,8 +205,11 @@ export async function updateUser(req: Request, res: Response) {
     if (name !== undefined && (typeof name !== "string" || name.trim().length < 2)) {
       return res.status(400).json({ error: "Bad Request", message: "El nombre debe tener al menos 2 caracteres" });
     }
-    if (phone !== undefined && phone !== null && typeof phone !== "string") {
-      return res.status(400).json({ error: "Bad Request", message: "El teléfono debe ser texto" });
+    if (phone !== undefined && (typeof phone !== "string" || phone.trim().length < 6)) {
+      return res.status(400).json({ error: "Bad Request", message: "El teléfono es obligatorio" });
+    }
+    if (rut !== undefined && (typeof rut !== "string" || !isValidRut(rut))) {
+      return res.status(400).json({ error: "Bad Request", message: "Debe ingresar un RUT chileno válido" });
     }
     const tooLong = findTooLong([
       ["El nombre", name, MAX_LEN.name],
@@ -188,6 +217,18 @@ export async function updateUser(req: Request, res: Response) {
     ]);
     if (tooLong) {
       return res.status(400).json({ error: "Bad Request", message: tooLong });
+    }
+
+    const normalizedRut = rut !== undefined ? normalizeRut(rut) : undefined;
+    if (normalizedRut) {
+      const [dupRut] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.rut, normalizedRut), ne(users.id, id)))
+        .limit(1);
+      if (dupRut) {
+        return res.status(409).json({ error: "Conflict", message: "Ya existe un usuario con ese RUT" });
+      }
     }
 
     // Transacción con candado: dos administradores que se degraden a la vez no pueden dejar el sistema sin admins.
@@ -236,7 +277,8 @@ export async function updateUser(req: Request, res: Response) {
       }
       if (isActive !== undefined) updates.isActive = isActive;
       if (typeof name === "string") updates.name = name.trim();
-      if (phone !== undefined) updates.phone = typeof phone === "string" && phone.trim() ? phone.trim() : null;
+      if (typeof phone === "string") updates.phone = phone.trim();
+      if (normalizedRut) updates.rut = normalizedRut;
       // Dar de baja cierra sus sesiones; cambiar roles no: los permisos se leen de la base en cada petición.
       if (activeChanges) updates.tokenVersion = sql`${users.tokenVersion} + 1` as unknown as number;
 
@@ -262,6 +304,9 @@ export async function updateUser(req: Request, res: Response) {
 
     return res.json({ message: "Usuario actualizado exitosamente", user: withRoles(updated) });
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({ error: "Conflict", message: "Ya existe un usuario con ese RUT" });
+    }
     console.error("Error al actualizar usuario:", error);
     return res.status(500).json({ error: "Internal Server Error", message: "Error al actualizar el usuario" });
   }
@@ -340,7 +385,7 @@ export async function deleteUser(req: Request, res: Response) {
       action: "USER_DELETED",
       entityType: "user",
       entityId: id,
-      details: { email: result.target.email, name: result.target.name, roles: rolesOf(result.target), vehicles: result.vehicleCount, appointments: result.appointmentCount },
+      details: { rut: result.target.rut, email: result.target.email, name: result.target.name, roles: rolesOf(result.target), vehicles: result.vehicleCount, appointments: result.appointmentCount },
       req,
     });
     return res.json({

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { sql } from "../src/db/connection.js";
 import { testOutbox } from "../src/services/email/email.service.js";
+import { makeValidRut } from "../src/utils/rut.js";
 import { dbReady, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
@@ -21,7 +22,7 @@ beforeEach(async () => {
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const post = (path: string, body: unknown) => fetch(`${server.url}${path}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) });
-const account = { name: "Persona Nueva", email: "nueva@test.cl", password: "clave1234" };
+const account = { name: "Persona Nueva", rut: makeValidRut(50), phone: "+56 9 8888 7777", email: "nueva@test.cl", password: "clave1234" };
 const tokenFromLastEmail = () => decodeURIComponent(testOutbox.at(-1)!.html.match(/confirmar-correo\?token=([^"&\s<]+)/)![1]);
 
 describe.skipIf(!dbReady)("confirmación de correo al registrarse", () => {
@@ -52,7 +53,7 @@ describe.skipIf(!dbReady)("confirmación de correo al registrarse", () => {
     expect((await post("/api/auth/verify-email", { token: "x".repeat(43) })).status).toBe(400);
     expect((await post("/api/auth/verify-email", {})).status).toBe(400);
 
-    await post("/api/auth/register", { ...account, email: "otra@test.cl" });
+    await post("/api/auth/register", { ...account, rut: makeValidRut(51), email: "otra@test.cl" });
     const expired = tokenFromLastEmail();
     await sql`update email_verification_tokens set expires_at = now() - interval '1 minute'`;
     expect((await post("/api/auth/verify-email", { token: expired })).status).toBe(400);

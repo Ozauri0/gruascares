@@ -19,11 +19,13 @@ export function vehicleLabel(vehicle: { brand: string; model: string; year?: num
 export function toSessionUser(user: ApiUser): SessionUser {
   return {
     id: user.id,
+    rut: user.rut ?? "",
     name: user.name,
-    email: user.email,
+    email: user.email ?? "",
     role: user.role,
     roles: [...new Set([user.role, ...(user.roles ?? [])])],
     phone: user.phone ?? null,
+    ...(user.hasAccount !== undefined ? { hasAccount: user.hasAccount } : {}),
     isActive: user.isActive ?? true,
     createdAt: user.createdAt ?? new Date().toISOString(),
   };
@@ -78,6 +80,8 @@ export function toAgendaItem(item: ApiAgendaItem): AgendaItem {
     date: item.scheduledDate,
     timeSlot: item.timeSlot,
     clientName: item.client?.name ?? "Cliente sin nombre",
+    clientRut: item.client?.rut ?? "",
+    clientEmail: item.client?.email ?? null,
     clientPhone: item.client?.phone ?? "",
     vehiclePlate: item.vehicle?.plate ?? "",
     vehicleLabel: vehicleLabel(item.vehicle),

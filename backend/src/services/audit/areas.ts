@@ -13,10 +13,10 @@ type Matcher = { exact?: string[]; prefix?: string[]; suffix?: string[] };
 const AREA_MATCHERS: Record<AuditArea, Matcher> = {
   taller: {
     exact: ["APPOINTMENT_STATUS_CHANGE", "APPOINTMENT_FINALIZED", "TECHNICAL_REPORT_SAVED"],
-    // vehículos de un cliente creados, editados o borrados por el personal
+    // vehículos o citas de un cliente creados, editados o borrados por el personal
     suffix: ["_BY_STAFF"],
   },
-  ventas: { prefix: ["CATALOG_"], exact: ["IMAGE_UPLOADED"] },
+  ventas: { prefix: ["CATALOG_"], exact: ["IMAGE_UPLOADED", "WALK_IN_CLIENT_CREATED"] },
   administracion: {
     prefix: ["DATE_", "DATES_", "TIME_SLOT_", "CONTENT_", "DATA_EXPORT_"],
     exact: ["APPOINTMENT_RESCHEDULED", "APPOINTMENT_REASSIGNED", "USER_CREATED", "USER_ROLE_CHANGED", "USER_ACTIVATED", "USER_DEACTIVATED", "USER_UPDATED", "USER_DELETED"],
@@ -63,8 +63,10 @@ const LABELS: Record<string, string> = {
   APPOINTMENT_RESCHEDULED: "Reprogramó una cita",
   APPOINTMENT_REASSIGNED: "Reasignó el mecánico de una cita",
   APPOINTMENT_CREATE: "Solicitó una cita",
+  APPOINTMENT_CREATE_BY_STAFF: "Agendó una cita para un cliente",
   APPOINTMENT_CREATE_GUEST: "Solicitud de cita de invitado",
   APPOINTMENT_CANCEL: "Canceló una cita",
+  WALK_IN_CLIENT_CREATED: "Registró un cliente presencialmente",
   CATALOG_CREATED: "Creó un producto",
   CATALOG_UPDATED: "Editó un producto",
   CATALOG_DELETED: "Eliminó un producto",

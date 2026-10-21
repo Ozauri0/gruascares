@@ -56,6 +56,7 @@ export default function SellerHomePage() {
                 <div className="portal-row-head"><h2>¿Qué quieres hacer?</h2></div>
                 <div className="seller-actions">
                   <Link className="button" href="/vendedor/catalogo">Gestionar catálogo y precios <span>↗</span></Link>
+                  <Link className="button" href="/atencion-presencial">Atención presencial por RUT <span>↗</span></Link>
                   <Link className="toggle-btn" href="/catalogo">Ver la tienda como la ve el público</Link>
                   <Link className="toggle-btn" href="/portal">Mi cuenta</Link>
                 </div>

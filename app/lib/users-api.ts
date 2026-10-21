@@ -4,6 +4,7 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "./api";
 import { toAdminUser } from "./api-adapters";
 import type { ApiAdminUser } from "./api-types";
 import type { SessionUser, UserRole } from "./portal-types";
+import { normalizeRut } from "./rut";
 
 export type UserListQuery = { q?: string; role?: UserRole | "todos"; page?: number };
 export type UserPage = { users: SessionUser[]; total: number; page: number; limit: number };
@@ -17,10 +18,14 @@ export async function listUsers(query: UserListQuery, signal?: AbortSignal): Pro
   return { users: data.users.map(toAdminUser), total: data.total, page: data.page, limit: data.limit };
 }
 
-export type NewStaff = { name: string; email: string; phone: string; roles: ("mecanico" | "vendedor" | "admin")[]; password: string };
+export type NewStaff = { name: string; rut: string; email: string; phone: string; roles: ("mecanico" | "vendedor" | "admin")[]; password: string };
 
 export async function createStaff(input: NewStaff): Promise<SessionUser> {
-  const { user } = await apiPost<{ user: ApiAdminUser }>("/api/admin/users", { ...input, phone: input.phone.trim() || undefined });
+  const { user } = await apiPost<{ user: ApiAdminUser }>("/api/admin/users", {
+    ...input,
+    rut: normalizeRut(input.rut),
+    phone: input.phone.trim(),
+  });
   return toAdminUser(user);
 }
 

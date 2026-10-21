@@ -6,6 +6,8 @@ export type AgendaItem = {
   date: string;
   timeSlot: string;
   clientName: string;
+  clientRut?: string;
+  clientEmail?: string | null;
   clientPhone: string;
   vehiclePlate: string;
   vehicleLabel: string;

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import * as schema from "../src/db/schema.js";
+import { makeValidRut } from "../src/utils/rut.js";
 import { dbReady, resetDb } from "./db.js";
 import { sql } from "../src/db/connection.js";
 
@@ -38,7 +39,7 @@ describe.skipIf(!dbReady)("BUG-3: migraciones alineadas con schema.ts", () => {
   });
 
   test("no se puede duplicar la patente de un mismo usuario", async () => {
-    const [user] = await sql`insert into users (name, email, password_hash) values ('U', 'u@t.cl', 'x') returning id`;
+    const [user] = await sql`insert into users (name, rut, phone, email, password_hash) values ('U', ${makeValidRut(500)}, '+56 9 1111 2222', 'u@t.cl', 'x') returning id`;
     await sql`insert into vehicles (user_id, plate, brand, model) values (${user.id}, 'ABCD12', 'a', 'b')`;
     await expectFails(() => sql`insert into vehicles (user_id, plate, brand, model) values (${user.id}, 'ABCD12', 'a', 'b')`);
   });

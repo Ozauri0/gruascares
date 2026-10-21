@@ -19,13 +19,14 @@ afterEach(() => {
   calls = [];
 });
 
-const apiUser = { id: "u1", name: "María González", email: "cliente@demo.test", role: "usuario", phone: "+56 9 1111 2222" };
+const apiUser = { id: "u1", rut: "12345678-5", name: "María González", email: "cliente@demo.test", role: "usuario", phone: "+56 9 1111 2222" };
 
 describe("INT-3: operaciones de sesión", () => {
   test("fetchSession devuelve el usuario adaptado", async () => {
     respond(200, { user: { ...apiUser, isActive: true, createdAt: "2026-01-01T00:00:00Z" } });
     const user = await fetchSession();
     expect(user?.email).toBe("cliente@demo.test");
+    expect(user?.rut).toBe("12345678-5");
     expect(user?.isActive).toBe(true);
     expect(calls[0].url).toBe("/api/auth/me");
   });
@@ -53,16 +54,22 @@ describe("INT-3: operaciones de sesión", () => {
     expect(assigned).toHaveLength(0);
   });
 
-  test("registerRequest omite el teléfono vacío", async () => {
+  test("registerRequest normaliza el RUT y envía el teléfono limpio", async () => {
     respond(201, { user: apiUser, verificationRequired: true });
-    const result = await registerRequest({ name: "Ana", email: "a@b.cl", password: "clave1234", phone: "  " });
+    const result = await registerRequest({ name: "Ana", rut: "12.345.678-5", email: "a@b.cl", password: "clave1234", phone: " +56 9 1111 2222 " });
     expect(result).toEqual({ email: apiUser.email }); // sin sesión: solo el correo al que se envió el enlace
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "Ana", email: "a@b.cl", password: "clave1234" });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({
+      name: "Ana",
+      rut: "12345678-5",
+      email: "a@b.cl",
+      phone: "+56 9 1111 2222",
+      password: "clave1234",
+    });
   });
 
-  test("registerRequest propaga el 409 de correo repetido", async () => {
+  test("registerRequest propaga el 409 de correo o RUT repetido", async () => {
     respond(409, { error: "Conflict", message: "Ya existe una cuenta registrada con este correo electrónico" });
-    const error = (await registerRequest({ name: "Ana", email: "a@b.cl", password: "clave1234" }).catch((e) => e)) as ApiError;
+    const error = (await registerRequest({ name: "Ana", rut: "12345678-5", email: "a@b.cl", phone: "+56 9 1111 2222", password: "clave1234" }).catch((e) => e)) as ApiError;
     expect(error.status).toBe(409);
   });
 
