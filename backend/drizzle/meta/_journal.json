@@ -120,6 +120,13 @@
       "when": 1792804226671,
       "tag": "0016_workers_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792890000000,
+      "tag": "0017_traslado_grua",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { appointments, serviceRecords, services, users, vehicles, workers } from
 import { limits } from "../config/constants.js";
 import { APPOINTMENT_STATUSES, type AppointmentStatus } from "../domain/appointment-status.js";
 import { logAudit } from "../services/audit/audit.service.js";
+import { CARGO_LABEL, type CargoType } from "../utils/cargo.js";
 import { isValidIsoDate } from "../utils/dates.js";
 import { buildXlsx, XLSX_CONTENT_TYPE, type XlsxCell } from "../utils/xlsx.js";
 
@@ -77,6 +78,9 @@ export async function downloadAreaReport(req: Request, res: Response) {
         timeSlot: appointments.timeSlot,
         status: appointments.status,
         location: appointments.location,
+        cargoType: appointments.cargoType,
+        destination: appointments.destination,
+        cargoDetails: appointments.cargoDetails,
         notes: appointments.notes,
         requestedAt: appointments.createdAt,
         clientName: users.name,
@@ -120,6 +124,7 @@ export async function downloadAreaReport(req: Request, res: Response) {
     }
 
     // Hoja de servicios: una fila por solicitud.
+    const isCrane = area === "grua";
     const servicesRows: XlsxCell[][] = data.map((r) => [
       r.scheduledDate,
       r.timeSlot,
@@ -135,13 +140,12 @@ export async function downloadAreaReport(req: Request, res: Response) {
       prettyRut(r.workerRut),
       r.managerName,
       r.location,
+      ...(isCrane ? [r.cargoType ? CARGO_LABEL[r.cargoType as CargoType] ?? r.cargoType : null, r.destination, r.cargoDetails] : []),
       r.notes,
       when(r.requestedAt),
       when(r.reportCompletedAt),
       r.reportObservations,
-      r.reportParts,
-      r.reportMileage,
-      r.reportRecommendations,
+      ...(isCrane ? [] : [r.reportParts, r.reportMileage, r.reportRecommendations]),
       r.authorName,
     ]);
 
@@ -232,14 +236,25 @@ export async function downloadAreaReport(req: Request, res: Response) {
           { header: `${cfg.workerNoun} a cargo`, width: 26 },
           { header: `RUT ${cfg.workerNoun.toLowerCase()}`, width: 14 },
           { header: "Jefe de área que gestionó", width: 24 },
-          { header: "Ubicación", width: 26 },
+          { header: isCrane ? "Lugar de retiro" : "Ubicación", width: 26 },
+          ...(isCrane
+            ? [
+                { header: "Qué se traslada", width: 18 },
+                { header: "Destino", width: 26 },
+                { header: "Datos de la carga", width: 32, format: "wrap" as const },
+              ]
+            : []),
           { header: "Nota del cliente", width: 32, format: "wrap" },
           { header: "Solicitada el", width: 17 },
           { header: "Finalizada el", width: 17 },
-          { header: "Observaciones técnicas", width: 40, format: "wrap" },
-          { header: "Repuestos", width: 28, format: "wrap" },
-          { header: "Kilometraje en servicio", width: 14 },
-          { header: "Recomendaciones", width: 32, format: "wrap" },
+          { header: isCrane ? "Comentario del servicio" : "Observaciones técnicas", width: 40, format: "wrap" },
+          ...(isCrane
+            ? []
+            : [
+                { header: "Repuestos", width: 28, format: "wrap" as const },
+                { header: "Kilometraje en servicio", width: 14 },
+                { header: "Recomendaciones", width: 32, format: "wrap" as const },
+              ]),
           { header: "Informe redactado por", width: 24 },
         ],
         rows: servicesRows,

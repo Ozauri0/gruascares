@@ -1,3 +1,4 @@
+import { parseTransfer } from "../utils/cargo.js";
 import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, ne, sql, desc } from "drizzle-orm";
@@ -165,6 +166,9 @@ export async function createAppointment(req: Request, res: Response) {
       timeSlot,
       vehicleId,
       location,
+      cargoType,
+      destination,
+      cargoDetails,
       notes,
       userId: requestedUserId,
       clientId: requestedClientId,
@@ -248,6 +252,13 @@ export async function createAppointment(req: Request, res: Response) {
         message: "El servicio seleccionado no existe o no se encuentra activo",
       });
     }
+
+    // Las solicitudes de grúa piden qué se traslada, origen, destino y datos de la carga (#141)
+    const parsedTransfer = parseTransfer(service.category === "grua", { cargoType, destination, cargoDetails, location });
+    if ("error" in parsedTransfer) {
+      return res.status(400).json({ error: "Bad Request", message: parsedTransfer.error });
+    }
+    const transfer = parsedTransfer.transfer;
 
     // 3. Determinar titular de la cita:
     // - Si el usuario solicita para sí mismo, se usa req.user.
@@ -552,6 +563,7 @@ export async function createAppointment(req: Request, res: Response) {
           timeSlot,
           status: "solicitada",
           location: location ? String(location).trim() : null,
+          ...transfer,
           notes: notes ? String(notes).trim() : null,
         })
         .returning();
@@ -650,6 +662,9 @@ export async function getMyAppointments(req: Request, res: Response) {
         timeSlot: appointments.timeSlot,
         status: appointments.status,
         location: appointments.location,
+        cargoType: appointments.cargoType,
+        destination: appointments.destination,
+        cargoDetails: appointments.cargoDetails,
         notes: appointments.notes,
         createdAt: appointments.createdAt,
         service: {
@@ -719,6 +734,9 @@ export async function getAppointmentById(req: Request, res: Response) {
         timeSlot: appointments.timeSlot,
         status: appointments.status,
         location: appointments.location,
+        cargoType: appointments.cargoType,
+        destination: appointments.destination,
+        cargoDetails: appointments.cargoDetails,
         notes: appointments.notes,
         createdAt: appointments.createdAt,
         service: {

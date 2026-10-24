@@ -103,3 +103,6 @@ export async function createClients(count: number): Promise<SeedUser[]> {
     )
     .returning()) as SeedUser[];
 }
+
+/** Datos que debe traer toda solicitud de grúa (#141). */
+export const CRANE_TRANSFER = { cargoType: "auto", location: "Ruta 199 km 8", destination: "Taller Villarrica", cargoDetails: "Auto sin batería, 4 puertas" };

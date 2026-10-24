@@ -109,7 +109,12 @@ export const appointments = pgTable(
     scheduledDate: date("scheduled_date").notNull(),
     timeSlot: varchar("time_slot", { length: 10 }).notNull(),
     status: appointmentStatusEnum("status").default("solicitada").notNull(),
+    // En una grúa, `location` es el lugar de retiro (origen).
     location: varchar("location", { length: 255 }),
+    // Solo servicios de grúa: qué se traslada, destino y datos de la carga (ver utils/cargo.ts).
+    cargoType: varchar("cargo_type", { length: 20 }),
+    destination: varchar("destination", { length: 255 }),
+    cargoDetails: text("cargo_details"),
     notes: text("notes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),

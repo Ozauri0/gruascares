@@ -14,6 +14,12 @@ export type AgendaItem = {
   serviceName: string;
   status: AppointmentStatus;
   notes: string | null;
+  /** Dónde se atiende; en una grúa, el lugar de retiro. */
+  location: string | null;
+  /** Solo grúas: qué se traslada, destino y datos de la carga. */
+  cargoType: string | null;
+  destination: string | null;
+  cargoDetails: string | null;
   /** Categoría del servicio: define qué trabajadores pueden atenderla. */
   category: "grua" | "serviteca";
   workerId: string | null;

@@ -80,6 +80,9 @@ export type ApiAgendaItem = {
   timeSlot: string;
   status: AppointmentStatus;
   location: string | null;
+  cargoType?: string | null;
+  destination?: string | null;
+  cargoDetails?: string | null;
   notes: string | null;
   workerId?: string | null;
   workerName?: string | null;

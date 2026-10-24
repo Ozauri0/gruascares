@@ -19,7 +19,12 @@ export type CreateAppointmentInput = {
   serviceId: string;
   scheduledDate: string;
   timeSlot: string;
+  /** Grúa: lugar de retiro. */
   location?: string;
+  /** Solo grúas: qué se traslada, destino y datos de la carga. */
+  cargoType?: string;
+  destination?: string;
+  cargoDetails?: string;
   notes?: string;
   /** Vehículo guardado en la cuenta (opcional). */
   vehicleId?: string;
