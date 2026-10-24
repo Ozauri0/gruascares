@@ -419,6 +419,10 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para gestionar las citas de esta área" });
     }
 
+    // La ficha de una grúa es solo un comentario: kilometraje, implementos y recomendaciones no aplican (#142).
+    const isCrane = ctx.service?.category === "grua";
+    if (isCrane) parsedMileage = null;
+
     const status = ctx.appointment.status;
     if (status !== "en_proceso" && status !== "finalizada") {
       return res.status(409).json({
@@ -442,9 +446,9 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       workerId: ctx.appointment.workerId,
       authoredBy: currentUser.userId,
       observations: observations.trim(),
-      partsReplaced: optionalText(partsReplaced),
+      partsReplaced: isCrane ? null : optionalText(partsReplaced),
       mileageAtService: parsedMileage,
-      recommendations: optionalText(recommendations),
+      recommendations: isCrane ? null : optionalText(recommendations),
       completedAt: new Date(),
     };
 

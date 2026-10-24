@@ -213,10 +213,10 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   async function finish(item: AgendaItem) {
     if (busy) return;
     if (draft.observations.trim().length < 5) {
-      setDraftError("Describe las observaciones técnicas (mínimo 5 caracteres).");
+      setDraftError(copy.commentOnlySheet ? "Escribe un comentario (mínimo 5 caracteres)." : "Describe las observaciones técnicas (mínimo 5 caracteres).");
       return;
     }
-    if (draft.mileage.trim() !== "") {
+    if (!copy.commentOnlySheet && draft.mileage.trim() !== "") {
       const mileage = Number(draft.mileage);
       if (!Number.isInteger(mileage) || mileage < 0) {
         setDraftError("Kilometraje inválido.");
@@ -226,12 +226,12 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
     setBusy(true);
     setDraftError("");
     try {
-      await saveReportAndFinish(item.id, {
-        observations: draft.observations,
-        mileage: draft.mileage,
-        parts: draft.parts,
-        recommendations: draft.recommendations,
-      });
+      await saveReportAndFinish(
+        item.id,
+        copy.commentOnlySheet
+          ? { observations: draft.observations, mileage: "", parts: "", recommendations: "" }
+          : { observations: draft.observations, mileage: draft.mileage, parts: draft.parts, recommendations: draft.recommendations }
+      );
       setFinishedId(item.id);
       reload();
       pending.reload();
@@ -509,25 +509,31 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                   <form className="report-form" onSubmit={(event) => { event.preventDefault(); void finish(current); }} noValidate>
                     <div className="form-info-banner">
                       <span><Icon name="info" bare /></span>
-                      <p>Al completar este informe y marcar finalizada, el cliente recibirá la ficha técnica en su portal.</p>
+                      <p>{copy.commentOnlySheet ? "Al dejar el comentario y marcar finalizado, el cliente lo verá en su portal." : "Al completar este informe y marcar finalizada, el cliente recibirá la ficha técnica en su portal."}</p>
                     </div>
+                    {!copy.commentOnlySheet && (
+                      <label>
+                        Kilometraje del vehículo al recibirlo
+                        <input value={draft.mileage} onChange={(e) => set("mileage", e.target.value)} placeholder="Ej: 85000" inputMode="numeric" autoComplete="off" />
+                      </label>
+                    )}
                     <label>
-                      Kilometraje del vehículo al recibirlo
-                      <input value={draft.mileage} onChange={(e) => set("mileage", e.target.value)} placeholder="Ej: 85000" inputMode="numeric" autoComplete="off" />
-                    </label>
-                    <label>
-                      Observaciones técnicas del trabajo realizado *
-                      <textarea rows={3} value={draft.observations} onChange={(e) => set("observations", e.target.value)} placeholder="Describe diagnóstico, reparaciones hechas, estado general, etc." />
+                      {copy.commentLabel}
+                      <textarea rows={3} value={draft.observations} onChange={(e) => set("observations", e.target.value)} placeholder={copy.commentPlaceholder} />
                       {draftError && <small className="field-error">{draftError}</small>}
                     </label>
-                    <label>
-                      Repuestos e insumos utilizados (opcional)
-                      <textarea rows={2} value={draft.parts} onChange={(e) => set("parts", e.target.value)} placeholder="Ej: Filtro de aceite Bosch, Aceite 10W40 4L, etc." />
-                    </label>
-                    <label>
-                      Recomendaciones para el cliente (opcional)
-                      <textarea rows={2} value={draft.recommendations} onChange={(e) => set("recommendations", e.target.value)} placeholder="Ej: Revisar pastillas en 5.000 km, próxima mantención a los 95.000 km." />
-                    </label>
+                    {!copy.commentOnlySheet && (
+                      <>
+                        <label>
+                          Repuestos e insumos utilizados (opcional)
+                          <textarea rows={2} value={draft.parts} onChange={(e) => set("parts", e.target.value)} placeholder="Ej: Filtro de aceite Bosch, Aceite 10W40 4L, etc." />
+                        </label>
+                        <label>
+                          Recomendaciones para el cliente (opcional)
+                          <textarea rows={2} value={draft.recommendations} onChange={(e) => set("recommendations", e.target.value)} placeholder="Ej: Revisar pastillas en 5.000 km, próxima mantención a los 95.000 km." />
+                        </label>
+                      </>
+                    )}
                     <div className="modal-actions">
                       <button type="button" className="modal-cancel" onClick={() => setOpenId(null)}>Cancelar</button>
                       <button type="submit" className="button" disabled={busy}>{busy ? "Guardando…" : <>Completar e Informar Cliente <span><Icon name="check" bare /></span></>}</button>

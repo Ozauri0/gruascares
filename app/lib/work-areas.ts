@@ -25,6 +25,10 @@ export const WORK_AREAS: Record<
     needWorker: string;
     workersTitle: string;
     workerNoun: string;
+    /** La ficha es solo un comentario (sin kilometraje, repuestos ni recomendaciones). */
+    commentOnlySheet: boolean;
+    commentLabel: string;
+    commentPlaceholder: string;
   }
 > = {
   serviteca: {
@@ -48,6 +52,9 @@ export const WORK_AREAS: Record<
     needWorker: "Elige al mecánico a cargo (abajo) antes de iniciar la atención.",
     workersTitle: "Mecánicos del taller",
     workerNoun: "mecánico",
+    commentOnlySheet: false,
+    commentLabel: "Observaciones técnicas del trabajo realizado *",
+    commentPlaceholder: "Describe diagnóstico, reparaciones hechas, estado general, etc.",
   },
   grua: {
     eyebrow: "Servicio de grúas",
@@ -70,5 +77,8 @@ export const WORK_AREAS: Record<
     needWorker: "Elige al gruero a cargo (abajo) antes de iniciar el servicio.",
     workersTitle: "Grueros",
     workerNoun: "gruero",
+    commentOnlySheet: true,
+    commentLabel: "Comentario del servicio *",
+    commentPlaceholder: "Ej: Traslado completado sin novedades, entregado en el destino acordado.",
   },
 };
