@@ -178,3 +178,10 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Contexto**: Un perfil creado presencialmente (sin contraseña) se completa cuando su dueño se registra con el mismo RUT. Los RUT no son secretos: bastaba conocer el de un cliente y confirmar un correo propio para ver su historial y dejarlo fuera.
 - **Decisión**: para reclamar el perfil, el teléfono del registro debe coincidir con el que dejó en el local (se comparan los últimos 8 dígitos, sin importar el formato). Un RUT con cuenta y un perfil presencial con otro teléfono reciben la misma respuesta (409 genérico), así no se descubre qué RUT tienen perfil. Los intentos están limitados por RUT (6 por hora, desde cualquier red, además del límite por IP; falla cerrado si Redis no responde). Cada intento rechazado (`PROFILE_CLAIM_REJECTED`) y cada reclamo (`PROFILE_CLAIMED`, con cuántos vehículos y citas traía) queda en el registro de actividad con nivel «Aviso». El correo se sigue confirmando antes de dar acceso.
 - **Consecuencias**: quien cambió de número debe pedir al taller que actualice su perfil; el personal puede editarlo desde Usuarios. Alguien que conozca RUT **y** teléfono del cliente sigue pudiendo reclamar, pero queda registrado.
+
+### ADR 020: Atención por RUT en el mostrador solo para el perfil de ventas
+- **Fecha**: 2026-10-24
+- **Estado**: Aceptado (issue #144)
+- **Contexto**: Agendar o registrar clientes por RUT (ADR del issue #127/#128) estaba abierto a taller, grúas y admin.
+- **Decisión**: `/atencion-presencial`, `GET /api/clients/by-rut`, `POST /api/clients` y agendar a nombre de otro cliente (`POST /api/appointments` con RUT o cliente) exigen el rol **vendedor**; mecánico, grúa y admin reciben 403 y no ven el acceso en sus paneles. Quien deba hacerlo recibe el rol de ventas adicional (el admin puede dárselo en «Usuarios y equipo»), también el propio admin. Crear cuentas con RUT desde «Usuarios y equipo» no cambia.
+- **Consecuencias**: el admin sin rol de ventas ya no registra clientes en el mostrador (confirmar con el cliente si debe conservarlo).

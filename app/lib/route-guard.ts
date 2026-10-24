@@ -52,7 +52,7 @@ export type Session = { role: Role; roles: Role[] };
 
 /**
  * /admin → solo admin; /mecanico → mecánico o admin; /vendedor → vendedor o admin;
- * /grua → grúa o admin; /atencion-presencial → mecánico, grúa, vendedor o admin; /portal → cualquier sesión.
+ * /grua → grúa o admin; /atencion-presencial → solo vendedor (#144); /portal → cualquier sesión.
  * Con varios roles basta con tener uno de los permitidos; si no, vuelve al inicio del rol principal.
  */
 export function guardDecision(pathname: string, role: Role | null, roles?: Role[]): GuardDecision {
@@ -65,7 +65,7 @@ export function guardDecision(pathname: string, role: Role | null, roles?: Role[
   if (isUnder("/mecanico") && !has("mecanico", "admin")) return deny;
   if (isUnder("/vendedor") && !has("vendedor", "admin")) return deny;
   if (isUnder("/grua") && !has("grua", "admin")) return deny;
-  if (isUnder("/atencion-presencial") && !has("mecanico", "grua", "vendedor", "admin")) return deny;
+  if (isUnder("/atencion-presencial") && !has("vendedor")) return deny;
   return { type: "allow" };
 }
 

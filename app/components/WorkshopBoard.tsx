@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import InnerFooter from "./InnerFooter";
 import AreaNav from "./AreaNav";
@@ -270,7 +269,6 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                 <h2 className="pending-title">Solicitudes por confirmar</h2>
                 <span className="portal-badge-counter">{pending.loading ? "Cargando…" : pending.error ? "No disponible" : `${pending.items.length} ${pending.items.length === 1 ? "solicitud" : "solicitudes"}`}</span>
               </div>
-              <Link className="portal-add" href="/atencion-presencial">+ Atención presencial por RUT</Link>
             </div>
             <p className="portal-subtext">{copy.pendingHint}</p>
             {pendingError && <p className="field-error" role="alert">{pendingError}</p>}
