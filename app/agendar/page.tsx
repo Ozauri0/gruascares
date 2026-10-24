@@ -14,6 +14,8 @@ import { useVehicles } from "../lib/use-vehicles";
 import Icon from "../components/Icon";
 import Skeleton from "../components/Skeleton";
 import { rememberRedirect } from "../lib/post-login";
+import TransferFields from "../components/TransferFields";
+import { EMPTY_TRANSFER, cargoIsVehicle, transferPayload, validateTransfer, type TransferDraft } from "../lib/cargo";
 
 export default function AgendarPage() {
   const { user, loading: authLoading } = useAuth();
@@ -32,6 +34,7 @@ export default function AgendarPage() {
   const [timeError, setTimeError] = useState(false);
 
   const [location, setLocation] = useState("");
+  const [transfer, setTransfer] = useState<TransferDraft>(EMPTY_TRANSFER);
   const [notes, setNotes] = useState("");
   const [vehicleId, setVehicleId] = useState("");
 
@@ -43,7 +46,10 @@ export default function AgendarPage() {
   const grouped = useMemo(() => groupServices(services), [services]);
   const availableServices = grouped[category];
   const selectedService = services.find((item) => item.id === serviceId);
-  const selectedVehicle = vehicles.find((item) => item.id === vehicleId);
+  const isCrane = selectedService?.category === "grua";
+  // Una grúa puede llevar contenedores o maquinaria: solo se ofrece el vehículo guardado si lo que se traslada tiene patente.
+  const askVehicle = !isCrane || cargoIsVehicle(transfer.cargoType);
+  const selectedVehicle = askVehicle ? vehicles.find((item) => item.id === vehicleId) : undefined;
 
   // Hoy (hora de Chile) como fecha inicial.
   useEffect(() => {
@@ -97,15 +103,22 @@ export default function AgendarPage() {
       setTimeError(true);
       return;
     }
+    if (isCrane) {
+      const problem = validateTransfer(transfer);
+      if (problem) {
+        setFormError(problem);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const result = await createAppointment({
         serviceId: selectedService.id,
         scheduledDate: date,
         timeSlot: time,
-        location: location.trim(),
+        ...(isCrane ? transferPayload(transfer) : { location: location.trim() }),
         notes: notes.trim(),
-        vehicleId,
+        vehicleId: askVehicle ? vehicleId : "",
       });
       setCreated(result);
     } catch (err) {
@@ -309,7 +322,7 @@ export default function AgendarPage() {
                   {user.phone ? <> · <Icon name="phone" />{user.phone}</> : <small> (agrega tu teléfono en tu perfil para que el taller te llame)</small>}
                 </p>
 
-                {vehicles.length > 0 && (
+                {vehicles.length > 0 && askVehicle && (
                   <label>
                     <span><Icon name="car" />Vehículo guardado en tu cuenta (opcional)</span>
                     <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
@@ -323,10 +336,14 @@ export default function AgendarPage() {
                   </label>
                 )}
 
-                <label>
-                  Lugar o dirección de atención *
-                  <input required placeholder="Ej: Calle Prat 450, Villarrica (o punto de referencia en ruta)" value={location} onChange={(e) => setLocation(e.target.value)} />
-                </label>
+                {isCrane ? (
+                  <TransferFields value={transfer} onChange={setTransfer} />
+                ) : (
+                  <label>
+                    Lugar o dirección de atención *
+                    <input required placeholder="Ej: Calle Prat 450, Villarrica (o punto de referencia en ruta)" value={location} onChange={(e) => setLocation(e.target.value)} />
+                  </label>
+                )}
 
                 <label>
                   Detalles adicionales de tu solicitud (opcional)

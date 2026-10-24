@@ -69,6 +69,10 @@ export type CreateWalkInAppointmentInput = {
   scheduledDate: string;
   timeSlot: string;
   location?: string;
+  /** Solo grúas: qué se traslada, destino y datos de la carga. */
+  cargoType?: string;
+  destination?: string;
+  cargoDetails?: string;
   notes?: string;
   userId?: string;
   rut?: string;
@@ -99,6 +103,9 @@ export async function createWalkInAppointment(input: CreateWalkInAppointmentInpu
     timeSlot: input.timeSlot,
   };
   if (input.location?.trim()) payload.location = input.location.trim();
+  if (input.cargoType) payload.cargoType = input.cargoType;
+  if (input.destination?.trim()) payload.destination = input.destination.trim();
+  if (input.cargoDetails?.trim()) payload.cargoDetails = input.cargoDetails.trim();
   if (input.notes?.trim()) payload.notes = input.notes.trim();
   if (input.userId) payload.userId = input.userId;
   if (input.rut) payload.rut = normalizeRut(input.rut);

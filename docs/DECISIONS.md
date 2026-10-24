@@ -185,3 +185,10 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Contexto**: Agendar o registrar clientes por RUT (ADR del issue #127/#128) estaba abierto a taller, grúas y admin.
 - **Decisión**: `/atencion-presencial`, `GET /api/clients/by-rut`, `POST /api/clients` y agendar a nombre de otro cliente (`POST /api/appointments` con RUT o cliente) exigen el rol **vendedor**; mecánico, grúa y admin reciben 403 y no ven el acceso en sus paneles. Quien deba hacerlo recibe el rol de ventas adicional (el admin puede dárselo en «Usuarios y equipo»), también el propio admin. Crear cuentas con RUT desde «Usuarios y equipo» no cambia.
 - **Consecuencias**: el admin sin rol de ventas ya no registra clientes en el mostrador (confirmar con el cliente si debe conservarlo).
+
+### ADR 021: Solicitud de grúa con datos de traslado
+- **Fecha**: 2026-10-24
+- **Estado**: Aceptado (issues #141 y #142)
+- **Contexto**: La grúa no siempre lleva el vehículo al taller: traslada autos, camiones, contenedores, maquinaria u otras cargas a cualquier destino.
+- **Decisión**: `appointments` suma `cargo_type` (auto, camioneta, camion, contenedor, maquinaria, otro), `destination` y `cargo_details`; `location` pasa a ser el lugar de retiro. Para servicios de grúa el backend exige los cuatro datos (`utils/cargo.ts`) y para los demás los descarta. El vehículo guardado solo se ofrece si lo que se traslada tiene patente. La ficha de cierre de una grúa es solo un comentario (el backend ignora kilometraje, repuestos y recomendaciones en ese caso). El panel `/grua` y el reporte Excel de grúas muestran los datos del traslado.
+- **Consecuencias**: las solicitudes de grúa anteriores no tienen estos datos (columnas vacías); no se migran.

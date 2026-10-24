@@ -14,6 +14,8 @@ import { todayInSantiago } from "../lib/dates";
 import { formatPlate, isValidChileanPlate, normalizePlate } from "../lib/plate";
 import type { PortalVehicle } from "../lib/portal-types";
 import { rolesOf } from "../lib/route-guard";
+import TransferFields from "../components/TransferFields";
+import { EMPTY_TRANSFER, transferPayload, validateTransfer, type TransferDraft } from "../lib/cargo";
 import { formatRut, isValidRut, normalizeRut, whatsappUrl } from "../lib/rut";
 import { useAvailability } from "../lib/use-availability";
 import {
@@ -63,6 +65,7 @@ export default function WalkInPage() {
   const [time, setTime] = useState("");
   const [timeError, setTimeError] = useState(false);
   const [location, setLocation] = useState("Taller Villarrica");
+  const [transfer, setTransfer] = useState<TransferDraft>(EMPTY_TRANSFER);
   const [notes, setNotes] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +83,7 @@ export default function WalkInPage() {
   const grouped = useMemo(() => groupServices(services), [services]);
   const availableServices = grouped[category];
   const selectedService = services.find((item) => item.id === serviceId);
+  const isCrane = selectedService?.category === "grua";
 
   useEffect(() => {
     const current = todayInSantiago();
@@ -236,6 +240,13 @@ export default function WalkInPage() {
       setTimeError(true);
       return;
     }
+    if (isCrane) {
+      const problem = validateTransfer(transfer);
+      if (problem) {
+        setFormError(problem);
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -253,7 +264,7 @@ export default function WalkInPage() {
         serviceId: selectedService.id,
         scheduledDate: date,
         timeSlot: time,
-        location: location.trim() || undefined,
+        ...(isCrane ? transferPayload(transfer) : { location: location.trim() || undefined }),
         notes: notes.trim() || undefined,
         ...(client
           ? { userId: client.id, rut: client.rut }
@@ -709,15 +720,18 @@ export default function WalkInPage() {
                     )}
                   </fieldset>
 
+                  {isCrane && <TransferFields value={transfer} onChange={setTransfer} />}
                   <div className="form-row">
-                    <label>
-                      Lugar o dirección de atención
-                      <input
-                        placeholder="Ej: Taller Villarrica o dirección en ruta"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                      />
-                    </label>
+                    {!isCrane && (
+                      <label>
+                        Lugar o dirección de atención
+                        <input
+                          placeholder="Ej: Taller Villarrica o dirección en ruta"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                        />
+                      </label>
+                    )}
                     <label>
                       Notas u observaciones previas (opcional)
                       <input

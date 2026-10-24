@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { sql } from "../src/db/connection.js";
 import { testOutbox } from "../src/services/email/email.service.js";
-import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
+import { CRANE_TRANSFER, cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
 /**
@@ -105,7 +105,7 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
   test("sobrecupo: la quinta persona no entra a un bloque con 4 cupos; al cancelar uno, se libera", async () => {
     const date = futureDate(4);
     const book = (user: U | null, extra: Record<string, unknown> = {}) =>
-      call(user, "POST", "/api/appointments", { serviceId: seed.serviceGrua.id, scheduledDate: date, timeSlot: "09:30", ...extra });
+      call(user, "POST", "/api/appointments", { serviceId: seed.serviceGrua.id, scheduledDate: date, timeSlot: "09:30", ...CRANE_TRANSFER, ...extra });
     const first = await book(seed.clientA);
     const rest = [await book(seed.clientB), await book(seed.seller), await book(seed.mechanic)];
     expect([first.status, ...rest.map((r) => r.status)]).toEqual([201, 201, 201, 201]);
@@ -142,12 +142,12 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
 
     const slots = await call(null, "GET", `/api/appointments/availability?date=${date}`);
     expect(slots.body.slots.every((s: any) => s.available === false && s.reason === "Feriado de prueba")).toBe(true);
-    const denied = await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceGrua.id, scheduledDate: date, timeSlot: "10:30" });
+    const denied = await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceGrua.id, scheduledDate: date, timeSlot: "10:30", ...CRANE_TRANSFER });
     expect(denied.status).toBe(409);
     expect(denied.body.message).toContain("Feriado de prueba");
 
     expect((await call(seed.admin, "DELETE", `/api/admin/blocked-dates/${block.body.blockedDate.id}`)).status).toBe(200);
-    expect((await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceGrua.id, scheduledDate: date, timeSlot: "10:30" })).status).toBe(201);
+    expect((await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceGrua.id, scheduledDate: date, timeSlot: "10:30", ...CRANE_TRANSFER })).status).toBe(201);
   });
 
   test("permisos cruzados: cada rol y cada cliente solo accede a lo suyo", async () => {

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:tes
 import { sql } from "../src/db/connection.js";
 import { testOutbox } from "../src/services/email/email.service.js";
 import { computeRutDv, formatRut, isValidRut, makeValidRut, normalizeRut } from "../src/utils/rut.js";
-import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
+import { CRANE_TRANSFER, cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
 describe("RUT chileno (Módulo 11)", () => {
@@ -212,6 +212,7 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
     const byMechanic = await call(seed.mechanic, "POST", "/api/appointments", {
       rut: unknownRut,
       client: { name: "Cliente Nuevo", rut: unknownRut, phone: "+56 9 6666 7777" },
+      ...CRANE_TRANSFER,
       serviceId: seed.serviceGrua.id,
       scheduledDate: date,
       timeSlot: "09:30",
@@ -222,6 +223,7 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
       rut: unknownRut,
       client: { name: "Cliente Nuevo", rut: unknownRut, phone: "+56 9 6666 7777" },
       newVehicle: { plate: "KLMN34", brand: "Chevrolet", model: "D-Max", year: 2022, mileage: 15000 },
+      ...CRANE_TRANSFER,
       serviceId: seed.serviceGrua.id,
       scheduledDate: date,
       timeSlot: "09:30",

@@ -7,6 +7,7 @@ import LogoutButton from "./LogoutButton";
 import StatusBadge from "./StatusBadge";
 import { todayInSantiago } from "../lib/dates";
 import { matchesFilter, type AgendaFilter } from "../lib/agenda-filter";
+import { cargoLabel } from "../lib/cargo";
 import { formatRut, whatsappUrl } from "../lib/rut";
 import { useAgenda } from "../lib/use-agenda";
 import { usePendingRequests } from "../lib/use-pending-requests";
@@ -63,6 +64,18 @@ function ClientContactLine({ item }: { item: AgendaItem }) {
           <span className="role-badge role-vendedor">Sin correo · contactar por teléfono o WhatsApp</span>
         </p>
       )}
+    </>
+  );
+}
+
+/** Qué se traslada, de dónde a dónde y los datos de la carga (solo grúas); en serviteca, el lugar si lo hay. */
+function TransferLines({ item }: { item: AgendaItem }) {
+  if (!item.cargoType) return item.location ? <p><Icon name="pin" /><b>Lugar:</b> {item.location}</p> : null;
+  return (
+    <>
+      <p><Icon name="truck" /><b>Traslado:</b> {cargoLabel(item.cargoType)}</p>
+      <p><Icon name="pin" /><b>Retiro:</b> {item.location ?? "—"} <span aria-hidden="true">→</span> <b>Destino:</b> {item.destination ?? "—"}</p>
+      {item.cargoDetails && <p className="portal-note-box"><Icon name="note" /><b>Carga:</b> {item.cargoDetails}</p>}
     </>
   );
 }
@@ -295,7 +308,8 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                       <h3>{item.serviceName}</h3>
                       <div className="mechanic-card-details">
                         <ClientContactLine item={item} />
-                        <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
+                        {item.vehiclePlate ? <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p> : null}
+                        <TransferLines item={item} />
                         {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
                         <p className="portal-meta"><Icon name="wrench" /><b>{copy.assigneeLabel}:</b> {item.workerName ?? "Sin asignar"}</p>
                       </div>
@@ -375,7 +389,8 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                             <h3>{item.serviceName}</h3>
                             <div className="mechanic-card-details">
                               <ClientContactLine item={item} />
-                              <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
+                              {item.vehiclePlate ? <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p> : null}
+                        <TransferLines item={item} />
                               {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
                               <p className="portal-meta"><Icon name="wrench" /><b>Asignado a:</b> {item.workerName ?? copy.unassigned}</p>
                             </div>
@@ -410,7 +425,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
             <div className="modal-head">
               <div>
                 <h2>Ficha de Atención</h2>
-                <span className="modal-subtitle">Patente {current.vehiclePlate} · {current.serviceName}</span>
+                <span className="modal-subtitle">{current.vehiclePlate ? `Patente ${current.vehiclePlate} · ` : ""}{current.serviceName}</span>
               </div>
               <button type="button" className="modal-close" aria-label="Cerrar" onClick={() => setOpenId(null)}>×</button>
             </div>
@@ -453,7 +468,8 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                   </div>
                   <h3>{current.serviceName}</h3>
                   <ClientContactLine item={current} />
-                  <p><Icon name="car" /><b>Vehículo:</b> {current.vehicleLabel} · Patente <span className="badge-plate">{current.vehiclePlate}</span></p>
+                  {current.vehiclePlate ? <p><Icon name="car" /><b>Vehículo:</b> {current.vehicleLabel} · Patente <span className="badge-plate">{current.vehiclePlate}</span></p> : null}
+                  <TransferLines item={current} />
                   {current.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota previa:</b> {current.notes}</p>}
                 </div>
 
