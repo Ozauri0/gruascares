@@ -106,17 +106,24 @@ async function main() {
     expect(vehicles.body.vehicles?.length > 0, "el cliente demo no tiene vehículos");
     const services = (await anon.get("/api/appointments/services")).body.services as Json[];
     const service = services.find((s) => s.category === "serviteca") ?? services[0];
-    for (let offset = 8; offset < 40 && !state.slot; offset++) {
+    // Prueba cada bloque libre hasta que acepte: si el cliente demo ya tiene una solicitud en ese horario (de una
+    // corrida anterior), la API responde 409 y se sigue con el siguiente.
+    let booked: { status: number; body: Json } | undefined;
+    for (let offset = 8; offset < 40 && booked?.status !== 201; offset++) {
       const date = isoDay(offset);
-      const slots = (await anon.get(`/api/appointments/availability?date=${date}`)).body.slots as Json[] | undefined;
-      const free = slots?.find((s) => s.available);
-      if (free) Object.assign(state, { date, slot: free.time });
+      const slots = ((await anon.get(`/api/appointments/availability?date=${date}`)).body.slots as Json[] | undefined)?.filter((s) => s.available) ?? [];
+      for (const free of slots) {
+        booked = await client.post("/api/appointments", { serviceId: service.id, scheduledDate: date, timeSlot: free.time, vehicleId: vehicles.body.vehicles[0].id, location: "Prueba de humo" });
+        if (booked.status === 201) {
+          Object.assign(state, { date, slot: free.time });
+          break;
+        }
+      }
     }
-    expect(state.date && state.slot, "no hay bloques libres en los próximos 40 días");
-    const booked = await client.post("/api/appointments", { serviceId: service.id, scheduledDate: state.date, timeSlot: state.slot, vehicleId: vehicles.body.vehicles[0].id, location: "Prueba de humo" });
-    expectStatus(booked, 201, "agendar");
-    expect(booked.body.appointment.status === "solicitada", "la cita debe quedar solicitada");
-    state.id = booked.body.appointment.id;
+    expect(booked, "no hay bloques libres en los próximos 40 días");
+    expectStatus(booked!, 201, "agendar");
+    expect(booked!.body.appointment.status === "solicitada", "la cita debe quedar solicitada");
+    state.id = booked!.body.appointment.id;
   });
   await step("el mecánico la ve, la confirma, la inicia y entrega el informe", async () => {
     const agenda = await mechanic.get(`/api/mechanic/agenda?date=${state.date}`);
