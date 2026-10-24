@@ -14,7 +14,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ name?: string; rut?: string; email?: string; phone?: string; password?: string; form?: string }>({});
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errors, setErrors] = useState<{ name?: string; rut?: string; email?: string; phone?: string; password?: string; confirmPassword?: string; form?: string }>({});
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export default function RegisterPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) next.email = "Ingresa un correo válido.";
     if (phone.trim().length < 6) next.phone = "El teléfono es obligatorio (mínimo 6 caracteres).";
     if (password.length < 8) next.password = "Mínimo 8 caracteres (igual que en el backend).";
+    else if (confirmPassword !== password) next.confirmPassword = "Las contraseñas no coinciden.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -113,17 +115,21 @@ export default function RegisterPage() {
                     <input required type="email" placeholder="nombre@empresa.cl" value={email} onChange={(e) => setEmail(e.target.value)} />
                     {errors.email && <small className="field-error">{errors.email}</small>}
                   </label>
+                  <label>
+                    Teléfono *
+                    <input required type="tel" placeholder="+56 9 ..." value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    {errors.phone && <small className="field-error">{errors.phone}</small>}
+                  </label>
                   <div className="form-row">
-                    <label>
-                      Teléfono *
-                      <input required type="tel" placeholder="+56 9 ..." value={phone} onChange={(e) => setPhone(e.target.value)} />
-                      {errors.phone && <small className="field-error">{errors.phone}</small>}
-                      <small className="cf-hint">Si ya te atendieron en el taller, usa el mismo teléfono que dejaste allí: así verás tu historial y tus vehículos.</small>
-                    </label>
                     <label>
                       Contraseña *
                       <input required type="password" placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} />
                       {errors.password && <small className="field-error">{errors.password}</small>}
+                    </label>
+                    <label>
+                      Repite la contraseña *
+                      <input required type="password" placeholder="Vuelve a escribirla" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                      {errors.confirmPassword && <small className="field-error">{errors.confirmPassword}</small>}
                     </label>
                   </div>
                   {errors.form && <small className="field-error" role="alert">{errors.form}</small>}
