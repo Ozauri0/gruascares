@@ -12,7 +12,6 @@ import { useAgenda } from "../lib/use-agenda";
 import { usePendingRequests } from "../lib/use-pending-requests";
 import { assignAppointmentWorker, changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
 import { listWorkers, type Worker } from "../lib/workers-api";
-import WorkersPanel from "./WorkersPanel";
 import type { AgendaItem } from "../lib/workshop-types";
 import type { AppointmentStatus } from "../lib/portal-types";
 import type { WorkArea } from "../lib/work-areas";
@@ -395,7 +394,6 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
             </div>
           </section>
 
-          <WorkersPanel area={area} onChange={reloadWorkers} />
         </div>
       </main>
       <InnerFooter />

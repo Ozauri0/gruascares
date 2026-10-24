@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { HOME_FOR_ROLE, areasFor, fetchSession, fetchSessionRole, guardDecision, isRole } from "./route-guard";
+import { HOME_FOR_ROLE, areasFor, canManageStaff, fetchSession, fetchSessionRole, guardDecision, isRole } from "./route-guard";
 
 describe("INT-4: decisión de acceso por rol", () => {
   test("sin sesión todo va a /login", () => {
@@ -13,6 +13,15 @@ describe("INT-4: decisión de acceso por rol", () => {
     for (const role of ["usuario", "mecanico", "vendedor", "admin"] as const) {
       expect(guardDecision("/agendar", role)).toEqual({ type: "allow" });
     }
+  });
+
+  test("/personal es de los jefes de taller y de grúas y del admin", () => {
+    expect(guardDecision("/personal", null)).toEqual({ type: "login" });
+    for (const role of ["mecanico", "grua", "admin"] as const) expect(guardDecision("/personal", role)).toEqual({ type: "allow" });
+    for (const role of ["vendedor", "usuario"] as const) expect(guardDecision("/personal", role)).toEqual({ type: "redirect", to: HOME_FOR_ROLE[role] });
+    expect(guardDecision("/personal", "vendedor", ["vendedor", "grua"])).toEqual({ type: "allow" });
+    expect(canManageStaff({ role: "vendedor" })).toBe(false);
+    expect(canManageStaff({ role: "vendedor", roles: ["vendedor", "mecanico"] })).toBe(true);
   });
 
   test("/atencion-presencial es solo del perfil de ventas; el resto vuelve a su inicio", () => {
