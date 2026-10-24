@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import InnerFooter from "./InnerFooter";
 import AreaNav from "./AreaNav";
 import LogoutButton from "./LogoutButton";
@@ -10,9 +10,9 @@ import { todayInSantiago } from "../lib/dates";
 import { formatRut, whatsappUrl } from "../lib/rut";
 import { useAgenda } from "../lib/use-agenda";
 import { usePendingRequests } from "../lib/use-pending-requests";
-import { assignAppointmentMechanic, changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
-import { listStaff } from "../lib/admin-api";
-import type { StaffMember } from "../lib/admin-types";
+import { assignAppointmentWorker, changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
+import { listWorkers, type Worker } from "../lib/workers-api";
+import WorkersPanel from "./WorkersPanel";
 import type { AgendaItem } from "../lib/workshop-types";
 import type { AppointmentStatus } from "../lib/portal-types";
 import type { WorkArea } from "../lib/work-areas";
@@ -81,8 +81,8 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [pendingError, setPendingError] = useState("");
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [mechanicChoice, setMechanicChoice] = useState("");
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [workerChoice, setWorkerChoice] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [filter, setFilter] = useState<AppointmentStatus | "todas">("todas");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -110,12 +110,13 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
 
   const current = agenda.find((item) => item.id === openId);
 
-  // Personal de taller para el selector "Mecánico a cargo".
-  useEffect(() => {
+  // Trabajadores activos del área, para el selector de quién se encarga.
+  const reloadWorkers = useCallback(() => {
     const controller = new AbortController();
-    listStaff(controller.signal, area).then(setStaff).catch(() => setStaff([]));
+    listWorkers(controller.signal, area, true).then(setWorkers).catch(() => setWorkers([]));
     return () => controller.abort();
   }, [area]);
+  useEffect(() => reloadWorkers(), [reloadWorkers]);
 
   useEffect(() => {
     if (!openId) return;
@@ -132,7 +133,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
     setActionError("");
     setFinishedId(null);
     setConfirmCancel(false);
-    setMechanicChoice(item.mechanicId ?? "");
+    setWorkerChoice(item.workerId ?? "");
     setOpenId(item.id);
   }
 
@@ -170,14 +171,14 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
     }
   }
 
-  async function saveMechanic(item: AgendaItem) {
-    if (busy || !mechanicChoice || mechanicChoice === item.mechanicId) return;
+  async function saveWorker(item: AgendaItem) {
+    if (busy || !workerChoice || workerChoice === item.workerId) return;
     setBusy(true);
     setActionError("");
     try {
-      await assignAppointmentMechanic(item.id, mechanicChoice);
+      await assignAppointmentWorker(item.id, workerChoice);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "No se pudo cambiar el encargado.");
+      setActionError(err instanceof Error ? err.message : "No se pudo asignar al trabajador.");
     } finally {
       setBusy(false);
       reload();
@@ -188,10 +189,16 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   async function advance(item: AgendaItem) {
     const next = NEXT_STATUS[item.status];
     if (!next || busy) return;
+    // Para iniciar la atención hay que decir quién la hace (el trabajador elegido en la ficha, o el ya asignado).
+    const chosen = workerChoice && workerChoice !== item.workerId ? workerChoice : undefined;
+    if (next.to === "en_proceso" && !item.workerId && !chosen) {
+      setActionError(copy.needWorker);
+      return;
+    }
     setBusy(true);
     setActionError("");
     try {
-      await changeAppointmentStatus(item.id, next.to);
+      await changeAppointmentStatus(item.id, next.to, chosen);
       reload();
       pending.reload();
     } catch (err) {
@@ -290,7 +297,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                         <ClientContactLine item={item} />
                         <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
                         {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
-                        <p className="portal-meta"><Icon name="wrench" /><b>{copy.assigneeLabel}:</b> {item.mechanicName ?? "Sin asignar"}</p>
+                        <p className="portal-meta"><Icon name="wrench" /><b>{copy.assigneeLabel}:</b> {item.workerName ?? "Sin asignar"}</p>
                       </div>
                       <div className="vehicle-actions mechanic-actions pending-actions">
                         <button type="button" className="button-accent" disabled={!!decidingId} onClick={() => void decide(item, "confirmada")}>
@@ -370,7 +377,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                               <ClientContactLine item={item} />
                               <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
                               {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
-                              <p className="portal-meta"><Icon name="wrench" /><b>Asignado a:</b> {item.mechanicName ?? copy.unassigned}</p>
+                              <p className="portal-meta"><Icon name="wrench" /><b>Asignado a:</b> {item.workerName ?? copy.unassigned}</p>
                             </div>
                             <div className="vehicle-actions mechanic-actions">
                               <button type="button" className="button-accent" onClick={() => openSheet(item)}>
@@ -386,6 +393,8 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
               )}
             </div>
           </section>
+
+          <WorkersPanel area={area} onChange={reloadWorkers} />
         </div>
       </main>
       <InnerFooter />
@@ -468,14 +477,14 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                   <div className="sheet-mechanic">
                     <label>
                       {copy.assigneeLabel}
-                      <select value={mechanicChoice} disabled={busy} onChange={(event) => setMechanicChoice(event.target.value)}>
-                        <option value="">{current.mechanicId ? copy.choosePrompt : copy.unassigned}</option>
-                        {staff.map((member) => (
+                      <select value={workerChoice} disabled={busy} onChange={(event) => setWorkerChoice(event.target.value)}>
+                        <option value="">{current.workerId ? copy.choosePrompt : copy.unassigned}</option>
+                        {workers.map((member) => (
                           <option key={member.id} value={member.id}>{member.name}</option>
                         ))}
                       </select>
                     </label>
-                    <button type="button" className="button button-sm" disabled={busy || !mechanicChoice || mechanicChoice === current.mechanicId} onClick={() => void saveMechanic(current)}>
+                    <button type="button" className="button button-sm" disabled={busy || !workerChoice || workerChoice === current.workerId} onClick={() => void saveWorker(current)}>
                       {busy ? "Guardando…" : copy.changeAssignee}
                     </button>
                   </div>

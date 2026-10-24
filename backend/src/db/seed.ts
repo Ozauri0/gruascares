@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { db, sql } from "./connection.js";
-import { users, services, vehicles, appointments, serviceRecords, products } from "./schema.js";
+import { users, services, vehicles, appointments, serviceRecords, products, workers } from "./schema.js";
 import { hashPassword } from "../utils/password.js";
 import { todayInSantiago } from "../utils/dates.js";
 import { DEMO_ACCOUNTS, DEMO_EMAIL_DOMAIN } from "../config/demo.js";
@@ -68,6 +68,17 @@ async function seed() {
   const byEmail = Object.fromEntries(
     (await db.select().from(users).where(inArray(users.email, demoUsers.map((u) => u.email)))).map((u) => [u.email!, u])
   );
+  // Trabajadores demo (sin cuenta): los jefes de taller y de grúas les asignan las solicitudes.
+  const demoWorkers = [
+    { rut: makeValidRut(9101), name: "Pedro Aguilera (Mecánico)", phone: "+56 9 5555 0101", types: ["mecanico" as const] },
+    { rut: makeValidRut(9102), name: "Luis Cárdenas (Mecánico)", phone: "+56 9 5555 0102", types: ["mecanico" as const] },
+    { rut: makeValidRut(9103), name: "Jorge Millán (Gruero)", phone: "+56 9 5555 0103", types: ["gruero" as const] },
+    { rut: makeValidRut(9104), name: "Camilo Reyes (Mecánico y gruero)", phone: "+56 9 5555 0104", types: ["mecanico" as const, "gruero" as const] },
+  ];
+  await db.insert(workers).values(demoWorkers).onConflictDoNothing();
+  const workerByRut = Object.fromEntries((await db.select().from(workers).where(inArray(workers.rut, demoWorkers.map((w) => w.rut)))).map((w) => [w.rut, w]));
+  const tallerista1 = workerByRut[demoWorkers[0].rut];
+  const tallerista2 = workerByRut[demoWorkers[1].rut];
   const mecanico1 = byEmail[DEMO_ACCOUNTS.mecanico];
   const mecanico2 = byEmail[`mecanico2${DEMO_EMAIL_DOMAIN}`];
   const cliente1 = byEmail[DEMO_ACCOUNTS.usuario];
@@ -110,11 +121,12 @@ async function seed() {
 
     const [pasada] = await db
       .insert(appointments)
-      .values({ userId: cliente1.id, vehicleId: vehicleByPlate["ABCD12"].id, serviceId: frenos.id, mechanicId: mecanico1.id, scheduledDate: addDays(today, -30), timeSlot: "10:30", status: "finalizada", location: "Taller Villarrica" })
+      .values({ userId: cliente1.id, vehicleId: vehicleByPlate["ABCD12"].id, serviceId: frenos.id, workerId: tallerista1.id, managedBy: mecanico1.id, scheduledDate: addDays(today, -30), timeSlot: "10:30", status: "finalizada", location: "Taller Villarrica" })
       .returning();
     await db.insert(serviceRecords).values({
       appointmentId: pasada.id,
-      mechanicId: mecanico1.id,
+      workerId: tallerista1.id,
+      authoredBy: mecanico1.id,
       observations: "Se reemplazaron pastillas delanteras y se rectificaron discos. Nivel de líquido de frenos correcto.",
       partsReplaced: "Pastillas de freno delanteras (juego), líquido de frenos DOT4.",
       mileageAtService: 84210,
@@ -122,10 +134,10 @@ async function seed() {
     });
 
     await db.insert(appointments).values([
-      { userId: cliente1.id, vehicleId: vehicleByPlate["ABCD12"].id, serviceId: mantencion.id, scheduledDate: addDays(today, 1), timeSlot: "09:30", status: "confirmada", mechanicId: mecanico1.id, location: "Taller Villarrica", notes: "Revisar frenos traseros." },
+      { userId: cliente1.id, vehicleId: vehicleByPlate["ABCD12"].id, serviceId: mantencion.id, scheduledDate: addDays(today, 1), timeSlot: "09:30", status: "confirmada", workerId: tallerista1.id, managedBy: mecanico1.id, location: "Taller Villarrica", notes: "Revisar frenos traseros." },
       { userId: cliente1.id, vehicleId: vehicleByPlate["EFGH34"].id, serviceId: grua.id, scheduledDate: addDays(today, 3), timeSlot: "15:30", status: "solicitada", location: "Ruta Villarrica – Pucón km 8" },
       { userId: cliente2.id, vehicleId: vehicleByPlate["JKLM56"].id, serviceId: aceite.id, scheduledDate: addDays(today, 1), timeSlot: "10:30", status: "solicitada" },
-      { userId: cliente2.id, vehicleId: vehicleByPlate["JKLM56"].id, serviceId: mantencion.id, scheduledDate: addDays(today, 2), timeSlot: "11:30", status: "confirmada", mechanicId: mecanico2.id },
+      { userId: cliente2.id, vehicleId: vehicleByPlate["JKLM56"].id, serviceId: mantencion.id, scheduledDate: addDays(today, 2), timeSlot: "11:30", status: "confirmada", workerId: tallerista2.id, managedBy: mecanico2.id },
     ]);
   }
 

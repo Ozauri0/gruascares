@@ -1,4 +1,5 @@
-import { AREA_ROLE, canWorkOn, hasRole, type ServiceCategory } from "../utils/roles.js";
+import { canWorkOn, hasRole, type ServiceCategory } from "../utils/roles.js";
+import { findAssignableWorker } from "../utils/workers.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, ne, sql, or, ilike, notInArray } from "drizzle-orm";
 import { db } from "../db/connection.js";
@@ -815,13 +816,14 @@ export async function rescheduleAppointment(req: Request, res: Response) {
 }
 
 /**
- * PATCH /api/admin/appointments/:id/assign
- * Reasigna o asigna el mecánico responsable de una cita.
+ * PATCH /api/admin/appointments/:id/assign { workerId }  (y /api/mechanic/appointments/:id/assign)
+ * Asigna o cambia el trabajador a cargo de una cita. Lo hace el jefe del área (o el admin); el trabajador debe estar
+ * activo y ser del tipo del servicio (mecánico para serviteca, gruero para grúas).
  */
-export async function reassignAppointmentMechanic(req: Request, res: Response) {
+export async function assignAppointmentWorker(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const { mechanicId } = req.body;
+    const { workerId } = req.body ?? {};
 
     if (!id || !UUID_REGEX.test(id)) {
       return res.status(400).json({
@@ -830,49 +832,13 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
       });
     }
 
-    if (!mechanicId || !UUID_REGEX.test(mechanicId)) {
+    if (!workerId || typeof workerId !== "string" || !UUID_REGEX.test(workerId)) {
       return res.status(400).json({
         error: "Bad Request",
-        message: "mechanicId debe ser un UUID válido",
+        message: "workerId debe ser un UUID válido",
       });
     }
 
-    // Verificar que el mecánico exista y tenga rol mecanico o admin
-    const [mechanic] = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        role: users.role,
-        extraRoles: users.extraRoles,
-        isActive: users.isActive,
-      })
-      .from(users)
-      .where(eq(users.id, mechanicId))
-      .limit(1);
-
-    if (!mechanic) {
-      return res.status(404).json({
-        error: "Not Found",
-        message: "El técnico seleccionado no existe",
-      });
-    }
-
-    if (!hasRole(mechanic, "mecanico", "grua", "admin")) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "El usuario asignado debe tener rol de mecánico, grúa o administrador",
-      });
-    }
-
-    if (!mechanic.isActive) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "El técnico seleccionado no se encuentra activo",
-      });
-    }
-
-    // Verificar existencia de la cita
     const [existingAppointment] = await db
       .select()
       .from(appointments)
@@ -886,30 +852,30 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
       });
     }
 
-    // El encargado debe ser del área del servicio (mecánico para serviteca, grúa para grúas) y quien asigna, de esa área.
+    // Quien asigna debe ser del área del servicio, y el trabajador del tipo que lo atiende.
     const [svc] = await db.select({ category: services.category }).from(services).where(eq(services.id, existingAppointment.serviceId)).limit(1);
     const category = (svc?.category ?? "serviteca") as ServiceCategory;
     if (!canWorkOn(req.user, category)) {
       return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para gestionar las citas de esta área" });
     }
-    if (!hasRole(mechanic, AREA_ROLE[category], "admin")) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: category === "grua" ? "Para un servicio de grúa el encargado debe tener rol de grúa o administrador" : "Para un servicio de taller el encargado debe tener rol de mecánico o administrador",
-      });
+    const found = await findAssignableWorker(workerId, category);
+    if ("error" in found) {
+      return res.status(400).json({ error: "Bad Request", message: found.error });
     }
+    const worker = found.worker;
 
     if (existingAppointment.status === "finalizada" || existingAppointment.status === "cancelada") {
       return res.status(409).json({
         error: "Conflict",
-        message: "La cita ya está finalizada o cancelada: no se puede cambiar su mecánico",
+        message: "La cita ya está finalizada o cancelada: no se puede cambiar el trabajador",
       });
     }
 
     const [updatedAppointment] = await db
       .update(appointments)
       .set({
-        mechanicId,
+        workerId: worker.id,
+        managedBy: req.user!.userId,
         updatedAt: new Date(),
       })
       .where(and(eq(appointments.id, id), notInArray(appointments.status, ["finalizada", "cancelada"])))
@@ -918,7 +884,7 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
     if (!updatedAppointment) {
       return res.status(409).json({
         error: "Conflict",
-        message: "La cita se finalizó o canceló mientras la editabas: no se puede cambiar su mecánico",
+        message: "La cita se finalizó o canceló mientras la editabas: no se puede cambiar el trabajador",
       });
     }
 
@@ -928,27 +894,26 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
       entityType: "appointment",
       entityId: id,
       details: {
-        previousMechanicId: existingAppointment.mechanicId,
-        newMechanicId: mechanicId,
-        newMechanicName: mechanic.name,
+        previousWorkerId: existingAppointment.workerId,
+        newWorkerId: worker.id,
+        newWorkerName: worker.name,
       },
       req,
     });
 
     return res.json({
-      message: `Cita reasignada exitosamente a ${mechanic.name}`,
+      message: `Cita asignada exitosamente a ${worker.name}`,
       appointment: updatedAppointment,
-      mechanic: {
-        id: mechanic.id,
-        name: mechanic.name,
-        email: mechanic.email,
+      worker: {
+        id: worker.id,
+        name: worker.name,
       },
     });
   } catch (error) {
-    console.error("Error al reasignar mecánico:", error);
+    console.error("Error al asignar el trabajador:", error);
     return res.status(500).json({
       error: "Internal Server Error",
-      message: "Error al reasignar el técnico",
+      message: "Error al asignar el trabajador",
     });
   }
 }

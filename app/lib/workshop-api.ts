@@ -30,13 +30,13 @@ export async function fetchPendingRequests(signal?: AbortSignal, area: WorkArea 
   return agenda.map(toAgendaItem);
 }
 
-/** Cambia el encargado de una cita que sigue activa (solicitada, confirmada o en taller). */
-export async function assignAppointmentMechanic(id: string, mechanicId: string): Promise<void> {
-  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/assign`, { mechanicId });
+/** Asigna o cambia el trabajador a cargo de una cita que sigue activa (solicitada, confirmada o en curso). */
+export async function assignAppointmentWorker(id: string, workerId: string): Promise<void> {
+  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/assign`, { workerId });
 }
 
-export async function changeAppointmentStatus(id: string, status: AppointmentStatus): Promise<void> {
-  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/status`, { status });
+export async function changeAppointmentStatus(id: string, status: AppointmentStatus, workerId?: string): Promise<void> {
+  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/status`, workerId ? { status, workerId } : { status });
 }
 
 export type ReportInput = { observations: string; mileage: string; parts: string; recommendations: string };

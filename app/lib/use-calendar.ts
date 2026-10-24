@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { assignMechanic, blockDay, rescheduleAppointment, fetchAgendaRange, listBlockedDays, listStaff, unblockDay } from "./admin-api";
-import type { BlockedDay, StaffMember } from "./admin-types";
+import { assignWorker, blockDay, rescheduleAppointment, fetchAgendaRange, listBlockedDays, unblockDay } from "./admin-api";
+import { listWorkers, type Worker } from "./workers-api";
+import type { BlockedDay } from "./admin-types";
 import type { AgendaItem } from "./workshop-types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -12,7 +13,7 @@ export const isoDay = (year: number, month: number, day: number) => `${year}-${p
 export function useCalendar(year: number, month: number) {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [blocked, setBlocked] = useState<BlockedDay[]>([]);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [nonce, setNonce] = useState(0);
@@ -25,12 +26,12 @@ export function useCalendar(year: number, month: number) {
     Promise.all([
       fetchAgendaRange(isoDay(year, month, 1), isoDay(year, month, last), controller.signal),
       listBlockedDays(controller.signal),
-      listStaff(controller.signal),
+      listWorkers(controller.signal, undefined, true),
     ])
       .then(([agenda, days, people]) => {
         setItems(agenda);
         setBlocked(days);
-        setStaff(people);
+        setWorkers(people);
       })
       .catch((err) => {
         if ((err as Error)?.name === "AbortError") return;
@@ -60,12 +61,12 @@ export function useCalendar(year: number, month: number) {
   }, []);
 
   const assign = useCallback(
-    async (appointmentId: string, mechanicId: string) => {
-      await assignMechanic(appointmentId, mechanicId);
-      const name = staff.find((s) => s.id === mechanicId)?.name ?? null;
-      setItems((current) => current.map((item) => (item.id === appointmentId ? { ...item, mechanicId, mechanicName: name } : item)));
+    async (appointmentId: string, workerId: string) => {
+      await assignWorker(appointmentId, workerId);
+      const name = workers.find((w) => w.id === workerId)?.name ?? null;
+      setItems((current) => current.map((item) => (item.id === appointmentId ? { ...item, workerId, workerName: name } : item)));
     },
-    [staff]
+    [workers]
   );
 
   /** Cambia fecha/hora de una cita y recarga el mes (puede salir del mes visible). */
@@ -76,5 +77,5 @@ export function useCalendar(year: number, month: number) {
   }, []);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  return { byDay, blocked, staff, loading, error, reload, block, unblock, assign, reschedule };
+  return { byDay, blocked, workers, loading, error, reload, block, unblock, assign, reschedule };
 }

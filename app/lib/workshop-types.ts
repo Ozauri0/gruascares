@@ -1,6 +1,6 @@
 import type { AppointmentStatus } from "./portal-types";
 
-/** Una cita en la agenda del taller (la API la entrega con datos del cliente, vehículo y mecánico). */
+/** Una cita en la agenda del taller (la API la entrega con datos del cliente, vehículo y trabajador a cargo). */
 export type AgendaItem = {
   id: string;
   date: string;
@@ -14,7 +14,11 @@ export type AgendaItem = {
   serviceName: string;
   status: AppointmentStatus;
   notes: string | null;
-  mechanicId: string | null;
-  /** Nombre del mecánico asignado. */
-  mechanicName?: string | null;
+  /** Categoría del servicio: define qué trabajadores pueden atenderla. */
+  category: "grua" | "serviteca";
+  workerId: string | null;
+  /** Nombre del trabajador a cargo. */
+  workerName?: string | null;
+  /** Jefe de área que gestionó la solicitud por última vez. */
+  managedByName?: string | null;
 };

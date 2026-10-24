@@ -169,20 +169,6 @@ describe.skipIf(!dbReady)("INT-10: PATCH /api/admin/users/:id", () => {
   });
 });
 
-describe.skipIf(!dbReady)("INT-10: GET /api/mechanic/list", () => {
-  test("devuelve personal activo (mecánicos y admins) ordenado, sin clientes ni inactivos", async () => {
-    await sql`insert into users (name, rut, phone, email, password_hash, role, is_active) values ('Inactivo Mec', ${makeValidRut(703)}, '+56 9 1111 2222', 'inactivo@test.local', 'x', 'mecanico', false)`;
-    const { status, body } = await call(seed.mechanic, "GET", "/api/mechanic/list");
-    expect(status).toBe(200);
-    expect(body.staff.map((s: any) => s.name)).toEqual(["Admin Test", "Mecanico Test"]);
-    expect(body.staff[0].email).toBeUndefined();
-  });
-
-  test("clientes no acceden", async () => {
-    expect((await call(seed.clientA, "GET", "/api/mechanic/list")).status).toBe(403);
-  });
-});
-
 describe.skipIf(!dbReady)("DELETE /api/admin/users/:id", () => {
   test("elimina un cliente con sus vehículos y citas y lo deja auditado", async () => {
     await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot) values (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-10', '10:30')`;
@@ -199,7 +185,7 @@ describe.skipIf(!dbReady)("DELETE /api/admin/users/:id", () => {
     throw new Error("falta el evento USER_DELETED");
   });
 
-  test("no puedes eliminarte, ni al último admin, y un mecánico con informes solo se desactiva", async () => {
+  test("no puedes eliminarte ni al último admin; un jefe con informes se elimina y el historial queda con el trabajador", async () => {
     expect((await call(seed.admin, "DELETE", `/api/admin/users/${seed.admin.id}`)).status).toBe(409);
 
     await sql`insert into users (name, rut, phone, email, password_hash, role) values ('Otro Admin', ${makeValidRut(704)}, '+56 9 1111 2222', 'otro@test.local', 'x', 'admin')`;
@@ -208,11 +194,14 @@ describe.skipIf(!dbReady)("DELETE /api/admin/users/:id", () => {
     // el único admin activo es quien llama: otro admin inactivo sí se puede borrar, pero el último activo no
     expect((await call(seed.admin, "DELETE", `/api/admin/users/${other.id}`)).status).toBe(200);
 
-    const [appt] = await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot, mechanic_id, status) values (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-11', '10:30', ${seed.mechanic.id}, 'finalizada') returning id`;
-    await sql`insert into service_records (appointment_id, mechanic_id, observations) values (${appt.id}, ${seed.mechanic.id}, 'Trabajo hecho')`;
-    const blocked = await call(seed.admin, "DELETE", `/api/admin/users/${seed.mechanic.id}`);
-    expect(blocked.status).toBe(409);
-    expect(blocked.body.message).toContain("informe");
+    const [appt] = await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot, worker_id, managed_by, status) values (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-11', '10:30', ${seed.mech.id}, ${seed.mechanic.id}, 'finalizada') returning id`;
+    await sql`insert into service_records (appointment_id, worker_id, authored_by, observations) values (${appt.id}, ${seed.mech.id}, ${seed.mechanic.id}, 'Trabajo hecho')`;
+    // Un jefe de área con informes a su nombre sí se puede eliminar: el historial queda con el trabajador y sin autor.
+    const removed = await call(seed.admin, "DELETE", `/api/admin/users/${seed.mechanic.id}`);
+    expect(removed.status).toBe(200);
+    const [kept] = await sql`select worker_id, authored_by from service_records where appointment_id = ${appt.id}`;
+    expect(kept.worker_id).toBe(seed.mech.id);
+    expect(kept.authored_by).toBeNull();
   });
 
   test("solo el admin puede eliminar y el id debe ser válido", async () => {

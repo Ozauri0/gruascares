@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import StatusBadge from "../../components/StatusBadge";
-import type { BlockedDay, StaffMember } from "../../lib/admin-types";
+import type { BlockedDay } from "../../lib/admin-types";
+import type { Worker, WorkerType } from "../../lib/workers-api";
 import { formatRut, whatsappUrl } from "../../lib/rut";
 import { useDaySchedule } from "../../lib/use-day-schedule";
 import type { AgendaItem } from "../../lib/workshop-types";
 import ReasonField from "./ReasonField";
 import RescheduleForm from "./RescheduleForm";
 
+const TYPE_FOR: Record<"grua" | "serviteca", WorkerType> = { serviteca: "mecanico", grua: "gruero" };
+
 type Props = {
   date: string;
   dayBlock: BlockedDay | undefined;
   items: AgendaItem[];
-  staff: StaffMember[];
+  workers: Worker[];
   onBlockDay: (reason: string) => Promise<void>;
   onUnblockDay: (id: string) => Promise<void>;
-  onAssign: (appointmentId: string, mechanicId: string) => Promise<void>;
+  onAssign: (appointmentId: string, workerId: string) => Promise<void>;
   onReschedule: (appointmentId: string, date: string, timeSlot: string) => Promise<unknown>;
 };
 
@@ -26,7 +29,7 @@ const longDate = (iso: string) => {
 };
 
 /** Detalle de un día del calendario maestro, en dos pestañas (Citas / Horarios) para no depender del scroll. */
-export default function DayPanel({ date, dayBlock, items, staff, onBlockDay, onUnblockDay, onAssign, onReschedule }: Props) {
+export default function DayPanel({ date, dayBlock, items, workers, onBlockDay, onUnblockDay, onAssign, onReschedule }: Props) {
   const schedule = useDaySchedule(date);
   const [tab, setTab] = useState<"citas" | "horarios">(items.length > 0 ? "citas" : "horarios");
   const [reason, setReason] = useState("");
@@ -130,13 +133,17 @@ export default function DayPanel({ date, dayBlock, items, staff, onBlockDay, onU
                   )}
                   <div className="day-appt-actions">
                     <select
-                      aria-label={`Mecánico de la cita de las ${item.timeSlot}`}
-                      value={item.mechanicId ?? ""}
+                      aria-label={`Trabajador a cargo de la cita de las ${item.timeSlot}`}
+                      value={item.workerId ?? ""}
                       disabled={busy || closed}
                       onChange={(e) => e.target.value && void run(() => onAssign(item.id, e.target.value))}
                     >
-                      {!item.mechanicId && <option value="">Sin asignar</option>}
-                      {staff.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {!item.workerId && <option value="">Sin asignar</option>}
+                      {/* un mecánico para serviteca, un gruero para grúas; el ya asignado se mantiene aunque lo hayan dado de baja */}
+                      {workers
+                        .filter((p) => p.types.includes(TYPE_FOR[item.category]) || p.id === item.workerId)
+                        .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {item.workerId && !workers.some((p) => p.id === item.workerId) && <option value={item.workerId}>{item.workerName ?? "Trabajador"}</option>}
                     </select>
                     {(item.status === "solicitada" || item.status === "confirmada") && (
                       <button type="button" className="toggle-btn" disabled={busy} onClick={() => setRescheduling(rescheduling === item.id ? null : item.id)}>

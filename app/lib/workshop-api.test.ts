@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ApiError } from "./api";
-import { changeAppointmentStatus, fetchAgenda, fetchPendingRequests, saveReportAndFinish } from "./workshop-api";
+import { assignAppointmentWorker, changeAppointmentStatus, fetchAgenda, fetchPendingRequests, saveReportAndFinish } from "./workshop-api";
 
 type Call = { url: string; init: RequestInit };
 const realFetch = globalThis.fetch;
@@ -22,14 +22,14 @@ describe("INT-8: taller contra la API", () => {
       agenda: [
         {
           id: "a1", scheduledDate: "2026-10-20", timeSlot: "09:30", status: "confirmada", location: null, notes: "Revisar frenos",
-          mechanicId: "m1", mechanicName: "Juan Paredes",
+          workerId: "w1", workerName: "Juan Paredes", managedByName: "Jefe Taller",
           client: { id: "u1", name: "María González", email: "m@x.cl", phone: "+56 9 1111 2222", isGuest: false },
           vehicle: { id: "v1", plate: "ABCD12", brand: "Toyota", model: "Hilux", year: 2021, mileage: 1000 },
           service: { id: "s1", category: "serviteca", name: "Mantención" }, report: null,
         },
         {
           id: "a2", scheduledDate: "2026-10-20", timeSlot: "10:30", status: "solicitada", location: null, notes: null,
-          mechanicId: null, mechanicName: null,
+          workerId: null, workerName: null,
           client: { id: null, name: "Invitado", email: "i@x.cl", phone: null, isGuest: true },
           vehicle: null, service: { id: "s2", category: "grua", name: "Grúa" }, report: null,
         },
@@ -37,8 +37,8 @@ describe("INT-8: taller contra la API", () => {
     });
     const agenda = await fetchAgenda("2026-10-20");
     expect(calls[0].url).toBe("/api/mechanic/agenda?date=2026-10-20&area=serviteca");
-    expect(agenda[0]).toMatchObject({ clientName: "María González", vehiclePlate: "ABCD12", vehicleLabel: "Toyota Hilux 2021", mechanicName: "Juan Paredes" });
-    expect(agenda[1]).toMatchObject({ clientName: "Invitado", clientPhone: "", vehicleLabel: "Sin vehículo registrado", mechanicName: null });
+    expect(agenda[0]).toMatchObject({ clientName: "María González", vehiclePlate: "ABCD12", vehicleLabel: "Toyota Hilux 2021", workerName: "Juan Paredes", managedByName: "Jefe Taller" });
+    expect(agenda[1]).toMatchObject({ clientName: "Invitado", clientPhone: "", vehicleLabel: "Sin vehículo registrado", workerName: null });
   });
 
   test("fetchAgenda sin fecha trae todas las citas desde hace 30 días, de cualquier estado", async () => {
@@ -62,6 +62,17 @@ describe("INT-8: taller contra la API", () => {
     expect(calls[0].url).toBe("/api/mechanic/appointments/a%201/status");
     expect(calls[0].init.method).toBe("PATCH");
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ status: "en_proceso" });
+  });
+
+  test("iniciar la atención puede indicar el trabajador, y asignarlo es un PATCH a /assign", async () => {
+    respond(200, { appointment: {} });
+    await changeAppointmentStatus("a1", "en_proceso", "w1");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ status: "en_proceso", workerId: "w1" });
+    respond(200, { appointment: {} });
+    await assignAppointmentWorker("a 1", "w2");
+    expect(calls[1].url).toBe("/api/mechanic/appointments/a%201/assign");
+    expect(calls[1].init.method).toBe("PATCH");
+    expect(JSON.parse(String(calls[1].init.body))).toEqual({ workerId: "w2" });
   });
 
   test("transición inválida llega como ApiError 409 con el mensaje del backend", async () => {

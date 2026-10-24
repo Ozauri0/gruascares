@@ -54,9 +54,9 @@ export type ApiReport = {
   mileageAtService: number | null;
   recommendations: string | null;
   completedAt: string;
-  /** GET /api/appointments/my entrega solo el nombre; el detalle del informe entrega el objeto `mechanic`. */
+  /** GET /api/appointments/my entrega solo el nombre; el detalle del informe entrega el objeto `worker`. */
   mechanicName?: string | null;
-  mechanic?: { id: string; name: string; email?: string } | null;
+  worker?: { id: string; name: string } | null;
 };
 
 /** GET /api/appointments/my */
@@ -81,8 +81,9 @@ export type ApiAgendaItem = {
   status: AppointmentStatus;
   location: string | null;
   notes: string | null;
-  mechanicId?: string | null;
-  mechanicName?: string | null;
+  workerId?: string | null;
+  workerName?: string | null;
+  managedByName?: string | null;
   client: { id: string | null; rut?: string | null; name: string | null; email: string | null; phone: string | null; isGuest?: boolean; hasAccount?: boolean };
   vehicle: { id: string; plate: string; brand: string; model: string; year: number | null; mileage: number | null } | null;
   service: { id: string; category: "grua" | "serviteca"; name: string } | null;

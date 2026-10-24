@@ -136,8 +136,8 @@ describe.skipIf(!dbReady)("solicitudes repetidas de la misma persona", () => {
 
 describe.skipIf(!dbReady)("informe técnico enviado dos veces a la vez", () => {
   test("se guarda un solo informe, sin error 500 y con un solo cierre", async () => {
-    const [appt] = await sql`insert into appointments (user_id, vehicle_id, service_id, scheduled_date, time_slot, status, mechanic_id)
-      values (${seed.clientA.id}, ${seed.vehicleA.id}, ${seed.serviceAceite.id}, ${futureDate()}, '10:30', 'en_proceso', ${seed.mechanic.id}) returning id`;
+    const [appt] = await sql`insert into appointments (user_id, vehicle_id, service_id, scheduled_date, time_slot, status, worker_id)
+      values (${seed.clientA.id}, ${seed.vehicleA.id}, ${seed.serviceAceite.id}, ${futureDate()}, '10:30', 'en_proceso', ${seed.mech.id}) returning id`;
     const send = () =>
       fetch(`${server.url}/api/mechanic/appointments/${appt.id}/report`, {
         method: "POST",
