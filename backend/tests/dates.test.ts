@@ -89,10 +89,10 @@ describe.skipIf(!dbReady)("BUG-6: endpoints con fechas y hora", () => {
     const data = (await (await fetch(`${server.url}/api/appointments/availability?date=2026-10-15`)).json()) as any;
     const byTime = Object.fromEntries(data.slots.map((s: any) => [s.time, s.available]));
     expect(byTime["11:30"]).toBe(false);
-    expect(byTime["14:00"]).toBe(false);
-    expect(byTime["15:00"]).toBe(true);
+    expect(byTime["14:30"]).toBe(false); // en curso
+    expect(byTime["15:30"]).toBe(true);
     expect((await book({ scheduledDate: "2026-10-15", timeSlot: "11:30" })).status).toBe(400);
-    expect((await book({ scheduledDate: "2026-10-15", timeSlot: "16:00" })).status).toBe(201);
+    expect((await book({ scheduledDate: "2026-10-15", timeSlot: "16:30" })).status).toBe(201);
   });
 
   test("mañana a primera hora siempre se puede reservar", async () => {

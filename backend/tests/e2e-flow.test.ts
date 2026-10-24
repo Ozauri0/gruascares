@@ -102,23 +102,24 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
     expect(audit).toContain("APPOINTMENT_REASSIGNED");
   });
 
-  test("sobrecupo: el tercer cliente no entra a un bloque con 2 cupos; al cancelar uno, se libera", async () => {
+  test("sobrecupo: la quinta persona no entra a un bloque con 4 cupos; al cancelar uno, se libera", async () => {
     const date = futureDate(4);
     const book = (user: U | null, extra: Record<string, unknown> = {}) =>
       call(user, "POST", "/api/appointments", { serviceId: seed.serviceGrua.id, scheduledDate: date, timeSlot: "09:30", ...extra });
-    const a = await book(seed.clientA);
-    const b = await book(seed.clientB);
-    expect([a.status, b.status]).toEqual([201, 201]);
-    const third = await book(seed.seller); // una tercera persona (con sesión) no entra: ya no hay cupos
-    expect(third.status).toBe(409);
-    expect(third.body.message).toContain("cupos");
+    const first = await book(seed.clientA);
+    const rest = [await book(seed.clientB), await book(seed.seller), await book(seed.mechanic)];
+    expect([first.status, ...rest.map((r) => r.status)]).toEqual([201, 201, 201, 201]);
+
+    const slotsBefore = await call(null, "GET", `/api/appointments/availability?date=${date}`);
+    expect(slotsBefore.body.slots.find((s: any) => s.time === "09:30")).toMatchObject({ available: false, capacityRemaining: 0 });
+
+    const fifth = await book(seed.admin); // una quinta persona (con sesión) no entra: el horario se llenó
+    expect(fifth.status).toBe(409);
+    expect(fifth.body.message).toContain("cupos");
     expect((await book(null)).status).toBe(401); // sin sesión ni se evalúa el cupo
 
-    const slots = await call(null, "GET", `/api/appointments/availability?date=${date}`);
-    expect(slots.body.slots.find((s: any) => s.time === "09:30")).toMatchObject({ available: false, capacityRemaining: 0 });
-
-    expect((await call(seed.clientA, "PATCH", `/api/appointments/${a.body.appointment.id}/cancel`)).status).toBe(200);
-    expect((await book(seed.seller)).status).toBe(201);
+    expect((await call(seed.clientA, "PATCH", `/api/appointments/${first.body.appointment.id}/cancel`)).status).toBe(200);
+    expect((await book(seed.admin)).status).toBe(201);
   });
 
   test("cancelación: el cliente cancela antes de entrar a taller, no después", async () => {
