@@ -113,7 +113,7 @@ export default function DayPanel({ date, dayBlock, items, workers, onBlockDay, o
                     {item.vehiclePlate ? ` · ${item.vehiclePlate}` : ""}
                   </p>
                   {(item.clientPhone || !item.clientEmail) && (
-                    <p className="cell-sub">
+                    <p className="cell-sub contact-links">
                       {!item.clientEmail && <span>Sin correo{item.clientPhone ? " · " : ""}</span>}
                       {item.clientPhone && (
                         <>
