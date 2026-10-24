@@ -63,10 +63,16 @@ describe("INT-1: adaptadores API → UI", () => {
     expect(toPortalVehicle({ id: "v", plate: "AB1234", brand: "Kia", model: "Rio", year: null, mileage: null }).mileage).toBe(0);
   });
 
-  test("usuario de sesión completa campos opcionales", () => {
+  test("usuario de sesión completa campos opcionales y soporta perfil sin correo", () => {
     const user = toSessionUser({ id: "u", name: "Ana", email: "a@b.cl", role: "usuario", phone: null });
     expect(user.isActive).toBe(true);
+    expect(user.rut).toBe("");
     expect(typeof user.createdAt).toBe("string");
+
+    const walkIn = toSessionUser({ id: "u2", rut: "12345678-5", name: "Pedro", email: null, role: "usuario", phone: "+56 9 1234 5678", hasAccount: false });
+    expect(walkIn.rut).toBe("12345678-5");
+    expect(walkIn.email).toBe("");
+    expect(walkIn.hasAccount).toBe(false);
   });
 
   test("agenda del taller: cliente invitado y campos nulos", () => {
@@ -87,6 +93,8 @@ describe("INT-1: adaptadores API → UI", () => {
       date: "2026-10-20",
       timeSlot: "09:30",
       clientName: "Invitado",
+      clientRut: "",
+      clientEmail: "i@x.cl",
       clientPhone: "",
       vehiclePlate: "",
       vehicleLabel: "Sin vehículo registrado",

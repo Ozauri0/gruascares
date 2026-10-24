@@ -6,11 +6,13 @@ export type ApiErrorBody = { error: string; message: string };
 
 export type ApiUser = {
   id: string;
+  rut?: string;
   name: string;
-  email: string;
+  email: string | null;
   role: UserRole;
   roles?: UserRole[];
   phone: string | null;
+  hasAccount?: boolean;
   isActive?: boolean;
   createdAt?: string;
 };
@@ -81,7 +83,7 @@ export type ApiAgendaItem = {
   notes: string | null;
   mechanicId?: string | null;
   mechanicName?: string | null;
-  client: { id: string | null; name: string | null; email: string | null; phone: string | null; isGuest: boolean };
+  client: { id: string | null; rut?: string | null; name: string | null; email: string | null; phone: string | null; isGuest?: boolean; hasAccount?: boolean };
   vehicle: { id: string; plate: string; brand: string; model: string; year: number | null; mileage: number | null } | null;
   service: { id: string; category: "grua" | "serviteca"; name: string } | null;
   report: ApiReport | null;
@@ -127,11 +129,13 @@ export type ApiProduct = {
 
 export type ApiAdminUser = {
   id: string;
+  rut?: string;
   name: string;
-  email: string;
+  email: string | null;
   role: "admin" | "mecanico" | "usuario" | "vendedor";
   roles?: ("admin" | "mecanico" | "usuario" | "vendedor")[];
   phone: string | null;
+  hasAccount?: boolean;
   isActive: boolean;
   createdAt: string;
 };

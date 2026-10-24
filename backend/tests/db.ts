@@ -2,6 +2,7 @@ import { hashPassword } from "../src/utils/password.js";
 import { sql as rawSql, db } from "../src/db/connection.js";
 import { users, services, vehicles } from "../src/db/schema.js";
 import { generateToken } from "../src/utils/jwt.js";
+import { makeValidRut } from "../src/utils/rut.js";
 
 export const dbReady: boolean = Boolean((globalThis as any).__TEST_DB_READY__);
 
@@ -11,14 +12,16 @@ export async function resetDb(): Promise<void> {
   );
 }
 
+export type SeedUser = typeof users.$inferSelect & { email: string };
+
 export interface Seed {
-  admin: typeof users.$inferSelect;
-  mechanic: typeof users.$inferSelect;
-  clientA: typeof users.$inferSelect;
-  clientB: typeof users.$inferSelect;
+  admin: SeedUser;
+  mechanic: SeedUser;
+  clientA: SeedUser;
+  clientB: SeedUser;
   serviceGrua: typeof services.$inferSelect;
   serviceAceite: typeof services.$inferSelect;
-  seller: typeof users.$inferSelect;
+  seller: SeedUser;
   vehicleA: typeof vehicles.$inferSelect;
   vehicleB: typeof vehicles.$inferSelect;
 }
@@ -26,16 +29,16 @@ export interface Seed {
 /** Datos mínimos y deterministas para las pruebas de integración. */
 export async function seedBasics(): Promise<Seed> {
   const hash = await hashPassword("password123");
-  const [admin, mechanic, clientA, clientB, seller] = await db
+  const [admin, mechanic, clientA, clientB, seller] = (await db
     .insert(users)
     .values([
-      { name: "Admin Test", email: "admin@test.local", passwordHash: hash, role: "admin", emailVerifiedAt: new Date() },
-      { name: "Mecanico Test", email: "mecanico@test.local", passwordHash: hash, role: "mecanico", emailVerifiedAt: new Date() },
-      { name: "Cliente A", email: "a@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
-      { name: "Cliente B", email: "b@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
-      { name: "Vendedor Test", email: "vendedor@test.local", passwordHash: hash, role: "vendedor", emailVerifiedAt: new Date() },
+      { name: "Admin Test", rut: makeValidRut(1), phone: "+56 9 1000 0001", email: "admin@test.local", passwordHash: hash, role: "admin", emailVerifiedAt: new Date() },
+      { name: "Mecanico Test", rut: makeValidRut(2), phone: "+56 9 1000 0002", email: "mecanico@test.local", passwordHash: hash, role: "mecanico", emailVerifiedAt: new Date() },
+      { name: "Cliente A", rut: makeValidRut(3), phone: "+56 9 1000 0003", email: "a@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
+      { name: "Cliente B", rut: makeValidRut(4), phone: "+56 9 1000 0004", email: "b@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
+      { name: "Vendedor Test", rut: makeValidRut(5), phone: "+56 9 1000 0005", email: "vendedor@test.local", passwordHash: hash, role: "vendedor", emailVerifiedAt: new Date() },
     ])
-    .returning();
+    .returning()) as SeedUser[];
   const [serviceGrua, serviceAceite] = await db
     .insert(services)
     .values([
@@ -53,8 +56,8 @@ export async function seedBasics(): Promise<Seed> {
   return { admin, mechanic, seller, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
 }
 
-export function cookieFor(user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number }): Record<string, string> {
-  const token = generateToken({ userId: user.id, email: user.email, name: user.name, role: user.role, tokenVersion: user.tokenVersion ?? 0 });
+export function cookieFor(user: { id: string; email: string | null; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number }): Record<string, string> {
+  const token = generateToken({ userId: user.id, email: user.email ?? "", name: user.name, role: user.role, tokenVersion: user.tokenVersion ?? 0 });
   return { Cookie: `gc_token=${token}`, "Content-Type": "application/json" };
 }
 
@@ -66,10 +69,20 @@ export function futureDate(days = 7): string {
 }
 
 /** Crea `count` clientes con correo confirmado (para pruebas con muchas personas distintas a la vez). */
-export async function createClients(count: number): Promise<Seed["clientA"][]> {
+export async function createClients(count: number): Promise<SeedUser[]> {
   const hash = await hashPassword("password123");
-  return db
+  return (await db
     .insert(users)
-    .values(Array.from({ length: count }, (_, i) => ({ name: `Cliente ${i}`, email: `cliente${i}@test.local`, passwordHash: hash, role: "usuario" as const, emailVerifiedAt: new Date() })))
-    .returning();
+    .values(
+      Array.from({ length: count }, (_, i) => ({
+        name: `Cliente ${i}`,
+        rut: makeValidRut(100 + i),
+        phone: `+56 9 2000 ${String(i).padStart(4, "0")}`,
+        email: `cliente${i}@test.local`,
+        passwordHash: hash,
+        role: "usuario" as const,
+        emailVerifiedAt: new Date(),
+      }))
+    )
+    .returning()) as SeedUser[];
 }

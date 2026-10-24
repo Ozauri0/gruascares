@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import InnerFooter from "../components/InnerFooter";
 import AreaNav from "../components/AreaNav";
 import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { todayInSantiago } from "../lib/dates";
+import { formatRut, whatsappUrl } from "../lib/rut";
 import { useAgenda } from "../lib/use-agenda";
 import { usePendingRequests } from "../lib/use-pending-requests";
 import { assignAppointmentMechanic, changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
@@ -35,6 +37,40 @@ const prettyDay = (iso: string) => {
 };
 
 type ReportDraft = { mileage: string; observations: string; parts: string; recommendations: string };
+
+function ClientContactLine({ item }: { item: AgendaItem }) {
+  const wa = whatsappUrl(item.clientPhone);
+  return (
+    <>
+      <p>
+        <Icon name="user" />
+        <b>Cliente:</b> {item.clientName}
+        {item.clientRut ? ` (${formatRut(item.clientRut)})` : ""}
+        {item.clientPhone && (
+          <>
+            {" · "}
+            <Icon name="phone" />
+            <a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a>{" "}
+            <a className="toggle-btn" href={`tel:${item.clientPhone}`}>Llamar</a>
+            {wa && (
+              <>
+                {" "}
+                <a className="toggle-btn" href={wa} target="_blank" rel="noopener noreferrer">
+                  WhatsApp
+                </a>
+              </>
+            )}
+          </>
+        )}
+      </p>
+      {!item.clientEmail && (
+        <p className="portal-meta">
+          <span className="role-badge role-vendedor">Sin correo · contactar por teléfono o WhatsApp</span>
+        </p>
+      )}
+    </>
+  );
+}
 
 export default function MechanicPage() {
   const { agenda, loading, error, reload } = useAgenda(""); // todos los días
@@ -85,7 +121,7 @@ export default function MechanicPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openId ]);
+  }, [openId]);
 
   function openSheet(item: AgendaItem) {
     setDraft({ mileage: "", observations: "", parts: "", recommendations: "" });
@@ -221,6 +257,7 @@ export default function MechanicPage() {
                 <h2 className="pending-title">Solicitudes por confirmar</h2>
                 <span className="portal-badge-counter">{pending.loading ? "Cargando…" : pending.error ? "No disponible" : `${pending.items.length} ${pending.items.length === 1 ? "solicitud" : "solicitudes"}`}</span>
               </div>
+              <Link className="portal-add" href="/atencion-presencial">+ Atención presencial por RUT</Link>
             </div>
             <p className="portal-subtext">Todas las solicitudes de serviteca, de cualquier fecha, para que las confirmes o canceles sin esperar al día de la cita.</p>
             {pendingError && <p className="field-error" role="alert">{pendingError}</p>}
@@ -247,7 +284,7 @@ export default function MechanicPage() {
                       {overdue && <p className="pending-overdue"><Icon name="alert" />La fecha ya pasó: confírmala solo si se atendió o cancélala.</p>}
                       <h3>{item.serviceName}</h3>
                       <div className="mechanic-card-details">
-                        <p><Icon name="user" /><b>Cliente:</b> {item.clientName}{item.clientPhone && <> · <Icon name="phone" /><a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a></>}</p>
+                        <ClientContactLine item={item} />
                         <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
                         {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
                         <p className="portal-meta"><Icon name="wrench" /><b>Mecánico a cargo:</b> {item.mechanicName ?? "Sin asignar"}</p>
@@ -296,54 +333,54 @@ export default function MechanicPage() {
             </aside>
 
             <div className="workshop-main">
-            {loading ? (
-              <Skeleton label="Cargando la agenda del taller…" />
-            ) : error ? (
-              <div className="portal-empty-card" role="alert">
-                <p>{error}</p>
-                <button type="button" className="button button-sm" onClick={reload}>Reintentar</button>
-              </div>
-            ) : visible.length === 0 ? (
-              <div className="portal-empty-card">
-                <p>No hay citas con ese filtro.</p>
-                <button type="button" className="button button-sm" onClick={() => setFilter("todas")}>
-                  Ver todas las citas
-                </button>
-              </div>
-            ) : (
-              <div className="workshop-days">
-                {days.map((day) => (
-                  <section className="workshop-day" key={day.date} aria-label={dayTitle(day.date)}>
-                    <h3 className="workshop-day-title">
-                      <Icon name="calendar" />{dayTitle(day.date)}
-                      <span className="workshop-day-count">{day.items.length} {day.items.length === 1 ? "cita" : "citas"}</span>
-                    </h3>
-                    <div className="portal-appointments workshop-list">
-                      {day.items.map((item) => (
-                  <article className="portal-card workshop-card" key={item.id}>
-                    <div className="portal-card-top">
-                      <StatusBadge status={item.status} />
-                      <span className="portal-slot"><Icon name="clock" />{item.timeSlot} hrs</span>
-                    </div>
-                    <h3>{item.serviceName}</h3>
-                    <div className="mechanic-card-details">
-                      <p><Icon name="user" /><b>Cliente:</b> {item.clientName}{item.clientPhone && <> · <Icon name="phone" /><a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a></>}</p>
-                      <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
-                      {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
-                      <p className="portal-meta"><Icon name="wrench" /><b>Asignado a:</b> {item.mechanicName ?? "Sin mecánico asignado"}</p>
-                    </div>
-                    <div className="vehicle-actions mechanic-actions">
-                      <button type="button" className="button-accent" onClick={() => openSheet(item)}>
-                        <Icon name="clipboard" />Abrir ficha técnica & opciones <span>→</span>
-                      </button>
-                    </div>
-                  </article>
-                ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
+              {loading ? (
+                <Skeleton label="Cargando la agenda del taller…" />
+              ) : error ? (
+                <div className="portal-empty-card" role="alert">
+                  <p>{error}</p>
+                  <button type="button" className="button button-sm" onClick={reload}>Reintentar</button>
+                </div>
+              ) : visible.length === 0 ? (
+                <div className="portal-empty-card">
+                  <p>No hay citas con ese filtro.</p>
+                  <button type="button" className="button button-sm" onClick={() => setFilter("todas")}>
+                    Ver todas las citas
+                  </button>
+                </div>
+              ) : (
+                <div className="workshop-days">
+                  {days.map((day) => (
+                    <section className="workshop-day" key={day.date} aria-label={dayTitle(day.date)}>
+                      <h3 className="workshop-day-title">
+                        <Icon name="calendar" />{dayTitle(day.date)}
+                        <span className="workshop-day-count">{day.items.length} {day.items.length === 1 ? "cita" : "citas"}</span>
+                      </h3>
+                      <div className="portal-appointments workshop-list">
+                        {day.items.map((item) => (
+                          <article className="portal-card workshop-card" key={item.id}>
+                            <div className="portal-card-top">
+                              <StatusBadge status={item.status} />
+                              <span className="portal-slot"><Icon name="clock" />{item.timeSlot} hrs</span>
+                            </div>
+                            <h3>{item.serviceName}</h3>
+                            <div className="mechanic-card-details">
+                              <ClientContactLine item={item} />
+                              <p><Icon name="car" /><b>Vehículo:</b> {item.vehicleLabel} · Patente <span className="badge-plate">{item.vehiclePlate}</span></p>
+                              {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
+                              <p className="portal-meta"><Icon name="wrench" /><b>Asignado a:</b> {item.mechanicName ?? "Sin mecánico asignado"}</p>
+                            </div>
+                            <div className="vehicle-actions mechanic-actions">
+                              <button type="button" className="button-accent" onClick={() => openSheet(item)}>
+                                <Icon name="clipboard" />Abrir ficha técnica & opciones <span>→</span>
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -404,7 +441,7 @@ export default function MechanicPage() {
                     <span className="portal-slot"><Icon name="calendar" />{current.date} · <Icon name="clock" />{current.timeSlot} hrs</span>
                   </div>
                   <h3>{current.serviceName}</h3>
-                  <p><Icon name="user" /><b>Cliente:</b> {current.clientName} · <Icon name="phone" /><a href={`tel:${current.clientPhone}`}>{current.clientPhone}</a></p>
+                  <ClientContactLine item={current} />
                   <p><Icon name="car" /><b>Vehículo:</b> {current.vehicleLabel} · Patente <span className="badge-plate">{current.vehiclePlate}</span></p>
                   {current.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota previa:</b> {current.notes}</p>}
                 </div>

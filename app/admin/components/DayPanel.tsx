@@ -3,6 +3,7 @@
 import { useState } from "react";
 import StatusBadge from "../../components/StatusBadge";
 import type { BlockedDay, StaffMember } from "../../lib/admin-types";
+import { formatRut, whatsappUrl } from "../../lib/rut";
 import { useDaySchedule } from "../../lib/use-day-schedule";
 import type { AgendaItem } from "../../lib/workshop-types";
 import ReasonField from "./ReasonField";
@@ -96,13 +97,37 @@ export default function DayPanel({ date, dayBlock, items, staff, onBlockDay, onU
           <ul className="day-appts">
             {items.map((item) => {
               const closed = item.status === "finalizada" || item.status === "cancelada";
+              const wa = whatsappUrl(item.clientPhone);
               return (
                 <li className="day-appt" key={item.id}>
                   <div className="day-appt-top">
                     <strong className="day-appt-time">{item.timeSlot}</strong>
                     <StatusBadge status={item.status} />
                   </div>
-                  <p><b>{item.serviceName}</b> · {item.clientName}{item.vehiclePlate ? ` · ${item.vehiclePlate}` : ""}</p>
+                  <p>
+                    <b>{item.serviceName}</b> · {item.clientName}
+                    {item.clientRut ? ` (${formatRut(item.clientRut)})` : ""}
+                    {item.vehiclePlate ? ` · ${item.vehiclePlate}` : ""}
+                  </p>
+                  {(item.clientPhone || !item.clientEmail) && (
+                    <p className="cell-sub">
+                      {!item.clientEmail && <span>Sin correo{item.clientPhone ? " · " : ""}</span>}
+                      {item.clientPhone && (
+                        <>
+                          <a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a>{" "}
+                          <a href={`tel:${item.clientPhone}`}>Llamar</a>
+                          {wa && (
+                            <>
+                              {" · "}
+                              <a href={wa} target="_blank" rel="noopener noreferrer">
+                                WhatsApp
+                              </a>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </p>
+                  )}
                   <div className="day-appt-actions">
                     <select
                       aria-label={`Mecánico de la cita de las ${item.timeSlot}`}

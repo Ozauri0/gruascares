@@ -3,7 +3,7 @@ import { HOME_FOR_ROLE, areasFor, fetchSession, fetchSessionRole, guardDecision,
 
 describe("INT-4: decisión de acceso por rol", () => {
   test("sin sesión todo va a /login", () => {
-    for (const path of ["/portal", "/portal/citas", "/mecanico", "/admin", "/admin/usuarios"]) {
+    for (const path of ["/portal", "/portal/citas", "/mecanico", "/admin", "/admin/usuarios", "/atencion-presencial"]) {
       expect(guardDecision(path, null)).toEqual({ type: "login" });
     }
   });
@@ -12,6 +12,14 @@ describe("INT-4: decisión de acceso por rol", () => {
     expect(guardDecision("/agendar", null)).toEqual({ type: "login" });
     for (const role of ["usuario", "mecanico", "vendedor", "admin"] as const) {
       expect(guardDecision("/agendar", role)).toEqual({ type: "allow" });
+    }
+  });
+
+  test("/atencion-presencial permite a personal (mecánico, vendedor, admin) y redirige a cliente", () => {
+    expect(guardDecision("/atencion-presencial", null)).toEqual({ type: "login" });
+    expect(guardDecision("/atencion-presencial", "usuario")).toEqual({ type: "redirect", to: "/portal" });
+    for (const role of ["mecanico", "vendedor", "admin"] as const) {
+      expect(guardDecision("/atencion-presencial", role)).toEqual({ type: "allow" });
     }
   });
 
@@ -53,7 +61,7 @@ describe("INT-4: decisión de acceso por rol", () => {
   });
 
   test("admin accede a todo", () => {
-    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/portal", "/vendedor"]) {
+    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/portal", "/vendedor", "/atencion-presencial"]) {
       expect(guardDecision(path, "admin")).toEqual({ type: "allow" });
     }
   });

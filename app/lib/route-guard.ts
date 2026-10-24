@@ -48,7 +48,8 @@ export function areasFor(user: { role: Role; roles?: Role[] }): Role[] {
 export type Session = { role: Role; roles: Role[] };
 
 /**
- * /admin → solo admin; /mecanico → mecánico o admin; /vendedor → vendedor o admin; /portal → cualquier sesión.
+ * /admin → solo admin; /mecanico → mecánico o admin; /vendedor → vendedor o admin;
+ * /atencion-presencial → mecánico, vendedor o admin; /portal → cualquier sesión.
  * Con varios roles basta con tener uno de los permitidos; si no, vuelve al inicio del rol principal.
  */
 export function guardDecision(pathname: string, role: Role | null, roles?: Role[]): GuardDecision {
@@ -60,6 +61,7 @@ export function guardDecision(pathname: string, role: Role | null, roles?: Role[
   if (isUnder("/admin") && !has("admin")) return deny;
   if (isUnder("/mecanico") && !has("mecanico", "admin")) return deny;
   if (isUnder("/vendedor") && !has("vendedor", "admin")) return deny;
+  if (isUnder("/atencion-presencial") && !has("mecanico", "vendedor", "admin")) return deny;
   return { type: "allow" };
 }
 

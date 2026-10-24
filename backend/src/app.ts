@@ -10,6 +10,7 @@ import appointmentRouter from "./routes/appointment.routes.js";
 import vehicleRouter from "./routes/vehicle.routes.js";
 import mechanicRouter from "./routes/mechanic.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import clientRouter from "./routes/client.routes.js";
 import { getPublicContent } from "./controllers/content.controller.js";
 import { getPublicCatalog } from "./controllers/catalog.controller.js";
 import { createRateLimiters, RATE_LIMITS } from "./middlewares/rate-limit.js";
@@ -110,6 +111,7 @@ export function createApp(options: AppOptions = {}): Express {
     app.use("/api/email", emailRouter);
   }
   app.use("/api/appointments", appointmentRouter);
+  app.use("/api/clients", clientRouter);
   app.use("/api/vehicles", vehicleRouter);
   app.use("/api/mechanic", mechanicRouter);
   app.get("/api/catalog", limiters.catalog, getPublicCatalog);

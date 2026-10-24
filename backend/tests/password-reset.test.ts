@@ -21,7 +21,7 @@ beforeEach(async () => {
 
 const post = (path: string, body: unknown, headers: Record<string, string> = { "Content-Type": "application/json" }) =>
   fetch(`${server.url}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
-const login = (email: string, password: string) => post("/api/auth/login", { email, password });
+const login = (email: string | null, password: string) => post("/api/auth/login", { email, password });
 
 /** Pide el enlace y devuelve el token que viaja en el correo. */
 async function requestToken(email: string): Promise<string> {
@@ -40,7 +40,7 @@ async function requestToken(email: string): Promise<string> {
 
 describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
   test("flujo completo: solicitar, restablecer, entrar con la nueva y no con la antigua", async () => {
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     expect(token.length).toBeGreaterThanOrEqual(40);
 
     const reset = await post("/api/auth/reset-password", { token, password: "nueva-clave-segura-1" });
@@ -50,7 +50,7 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
   });
 
   test("solo se guarda el hash del token (nunca el token)", async () => {
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     const rows = await sql`select token_hash from password_reset_tokens`;
     expect(rows).toHaveLength(1);
     expect(rows[0].token_hash).not.toContain(token);
@@ -76,23 +76,23 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
   });
 
   test("el token es de un solo uso", async () => {
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     expect((await post("/api/auth/reset-password", { token, password: "nueva-clave-segura-1" })).status).toBe(200);
     expect((await post("/api/auth/reset-password", { token, password: "otra-clave-segura-2" })).status).toBe(400);
     expect((await login(seed.clientA.email, "nueva-clave-segura-1")).status).toBe(200);
   });
 
   test("un enlace nuevo invalida los anteriores", async () => {
-    const first = await requestToken(seed.clientA.email);
+    const first = await requestToken(seed.clientA.email!);
     testOutbox.length = 0;
-    const second = await requestToken(seed.clientA.email);
+    const second = await requestToken(seed.clientA.email!);
     expect(second).not.toBe(first);
     expect((await post("/api/auth/reset-password", { token: first, password: "nueva-clave-segura-1" })).status).toBe(400);
     expect((await post("/api/auth/reset-password", { token: second, password: "nueva-clave-segura-1" })).status).toBe(200);
   });
 
   test("tokens vencidos, inventados o malformados se rechazan", async () => {
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     await sql`update password_reset_tokens set expires_at = now() - interval '1 minute'`;
     expect((await post("/api/auth/reset-password", { token, password: "nueva-clave-segura-1" })).status).toBe(400);
     expect((await post("/api/auth/reset-password", { token: "x".repeat(43), password: "nueva-clave-segura-1" })).status).toBe(400);
@@ -102,7 +102,7 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
   });
 
   test("aplica la política de contraseñas y no consume el token si falla", async () => {
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     expect((await post("/api/auth/reset-password", { token, password: "corta" })).status).toBe(400);
     expect((await post("/api/auth/reset-password", { token, password: "a".repeat(73) })).status).toBe(400);
     expect((await post("/api/auth/reset-password", { token, password: "nueva-clave-segura-1" })).status).toBe(200); // sigue sirviendo
@@ -111,13 +111,13 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
   test("restablecer cierra todas las sesiones abiertas", async () => {
     const session = cookieFor(seed.clientA);
     expect((await fetch(`${server.url}/api/auth/me`, { headers: session })).status).toBe(200);
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     await post("/api/auth/reset-password", { token, password: "nueva-clave-segura-1" });
     expect((await fetch(`${server.url}/api/auth/me`, { headers: session })).status).toBe(401);
   });
 
   test("dos usos simultáneos del mismo token: solo uno gana", async () => {
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     const results = await Promise.all(Array.from({ length: 5 }, (_, i) => post("/api/auth/reset-password", { token, password: `clave-simultanea-${i}-x` })));
     expect(results.map((r) => r.status).sort()).toEqual([200, 400, 400, 400, 400]);
   });
@@ -129,7 +129,7 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
   });
 
   test("la solicitud y el restablecimiento quedan auditados, sin guardar el token", async () => {
-    const token = await requestToken(seed.clientA.email);
+    const token = await requestToken(seed.clientA.email!);
     await post("/api/auth/reset-password", { token, password: "nueva-clave-segura-1" });
     for (let i = 0; i < 30; i++) {
       const rows = await sql`select action, details from audit_logs where action like 'PASSWORD_RESET%'`;
@@ -144,7 +144,7 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
 
   test("el correo escapa el nombre y usa la URL pública configurada", async () => {
     await sql`update users set name = '<img src=x onerror=alert(1)>' where id = ${seed.clientA.id}`;
-    await requestToken(seed.clientA.email);
+    await requestToken(seed.clientA.email!);
     const mail = testOutbox.find((m) => m.to === seed.clientA.email)!;
     expect(mail.html).not.toContain("<img src=x");
     expect(mail.html).toContain("&lt;img");
@@ -153,7 +153,7 @@ describe.skipIf(!dbReady)("INT-10: recuperación de contraseña", () => {
 });
 
 describe.skipIf(!dbReady)("INT-10: PATCH /api/auth/me", () => {
-  const patch = (user: { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" }, body: unknown) =>
+  const patch = (user: { id: string; email: string | null; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" }, body: unknown) =>
     fetch(`${server.url}/api/auth/me`, { method: "PATCH", headers: cookieFor(user), body: JSON.stringify(body) });
 
   test("edita nombre y teléfono, sin tocar correo ni rol", async () => {
@@ -165,10 +165,10 @@ describe.skipIf(!dbReady)("INT-10: PATCH /api/auth/me", () => {
     expect(row).toMatchObject({ role: "usuario", email: seed.clientA.email });
   });
 
-  test("teléfono null o vacío lo borra; la sesión sigue activa", async () => {
-    await patch(seed.clientA, { phone: "+56 9 1" });
-    const res = await patch(seed.clientA, { phone: "" });
-    expect(((await res.json()) as any).user.phone).toBeNull();
+  test("teléfono vacío o null se rechaza porque es obligatorio; actualizarlo mantiene la sesión", async () => {
+    expect((await patch(seed.clientA, { phone: "+56 9 8888 9999" })).status).toBe(200);
+    expect((await patch(seed.clientA, { phone: "" })).status).toBe(400);
+    expect((await patch(seed.clientA, { phone: null })).status).toBe(400);
     expect((await fetch(`${server.url}/api/auth/me`, { headers: cookieFor(seed.clientA) })).status).toBe(200);
   });
 

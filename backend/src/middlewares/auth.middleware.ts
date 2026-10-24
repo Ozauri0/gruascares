@@ -49,7 +49,7 @@ async function resolveUser(token: string): Promise<JWTPayload | null> {
 
   return {
     userId: user.id,
-    email: user.email,
+    email: user.email ?? "",
     name: user.name,
     role: user.role,
     roles: rolesOf(user),

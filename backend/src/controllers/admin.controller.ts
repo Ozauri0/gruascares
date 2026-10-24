@@ -191,14 +191,14 @@ export async function getAdminMetrics(_req: Request, res: Response) {
       })
       .from(sql`(select 1) as one`);
 
-    // 9. Agenda de hoy (cuenta o invitado), en orden de hora
+    // 9. Agenda de hoy, en orden de hora
     const todayAgenda = await db
       .select({
         id: appointments.id,
         timeSlot: appointments.timeSlot,
         status: appointments.status,
         serviceName: services.name,
-        clientName: sql<string>`coalesce(${users.name}, ${appointments.guestName}, 'Cliente sin nombre')`,
+        clientName: sql<string>`coalesce(${users.name}, 'Cliente sin nombre')`,
         vehiclePlate: vehicles.plate,
       })
       .from(appointments)
@@ -795,10 +795,10 @@ export async function rescheduleAppointment(req: Request, res: Response) {
       req,
     });
 
-    const to = current.clientEmail ?? before.guestEmail;
+    const to = current.clientEmail;
     if (to) {
       sendAppointmentRescheduledEmail(to, {
-        name: current.clientName ?? before.guestName ?? "cliente",
+        name: current.clientName ?? "cliente",
         serviceName: current.serviceName,
         previousDate: before.scheduledDate,
         previousTimeSlot: before.timeSlot,
@@ -1079,9 +1079,10 @@ export async function exportAppointments(req: Request, res: Response) {
         location: appointments.location,
         notes: appointments.notes,
         createdAt: appointments.createdAt,
-        clientName: sql<string | null>`coalesce(${users.name}, ${appointments.guestName})`,
-        clientEmail: sql<string | null>`coalesce(${users.email}, ${appointments.guestEmail})`,
-        clientPhone: sql<string | null>`coalesce(${users.phone}, ${appointments.guestPhone})`,
+        clientRut: users.rut,
+        clientName: users.name,
+        clientEmail: users.email,
+        clientPhone: users.phone,
         vehiclePlate: vehicles.plate,
         vehicleBrand: vehicles.brand,
         vehicleModel: vehicles.model,

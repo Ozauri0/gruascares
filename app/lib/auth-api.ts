@@ -5,6 +5,7 @@ import { api, apiGet, apiPost, ApiError } from "./api";
 import { toSessionUser } from "./api-adapters";
 import type { ApiUser } from "./api-types";
 import type { SessionUser, UserRole } from "./portal-types";
+import { normalizeRut } from "./rut";
 
 type UserResponse = { user: ApiUser };
 
@@ -28,13 +29,19 @@ export async function loginRequest(email: string, password: string): Promise<Ses
   return toSessionUser(user);
 }
 
-export type RegisterInput = { name: string; email: string; password: string; phone?: string };
+export type RegisterInput = { name: string; rut: string; email: string; phone: string; password: string };
 
 /** El registro no abre sesión: la cuenta queda pendiente hasta confirmar el enlace que llega al correo. */
 export async function registerRequest(input: RegisterInput): Promise<{ email: string }> {
-  const body = { ...input, phone: input.phone?.trim() || undefined };
+  const body = {
+    name: input.name,
+    rut: normalizeRut(input.rut),
+    email: input.email,
+    phone: input.phone.trim(),
+    password: input.password,
+  };
   const { user } = await apiPost<UserResponse>("/api/auth/register", body, { redirectOnUnauthorized: false });
-  return { email: user.email };
+  return { email: user.email ?? input.email };
 }
 
 /** Confirma el correo con el token del enlace recibido. */

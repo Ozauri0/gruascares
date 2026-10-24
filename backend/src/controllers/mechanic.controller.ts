@@ -82,9 +82,11 @@ export async function getMechanicAgenda(req: Request, res: Response) {
         mechanicId: appointments.mechanicId,
         mechanicName: assignedMechanic.name,
         clientId: appointments.userId,
-        clientName: sql<string>`coalesce(${users.name}, ${appointments.guestName})`,
-        clientEmail: sql<string>`coalesce(${users.email}, ${appointments.guestEmail})`,
-        clientPhone: sql<string | null>`coalesce(${users.phone}, ${appointments.guestPhone})`,
+        clientRut: users.rut,
+        clientName: users.name,
+        clientEmail: users.email,
+        clientPhone: users.phone,
+        clientHasAccount: sql<boolean>`${users.passwordHash} is not null`,
         vehicle: {
           id: vehicles.id,
           plate: vehicles.plate,
@@ -120,11 +122,18 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       .limit(limit)
       .offset(offset);
 
-    // El cliente puede ser una cuenta registrada o una solicitud de invitado (datos de contacto en la cita).
-    const agenda = agendaList.map(({ clientId, clientName, clientEmail, clientPhone, report, ...rest }) => ({
+    const agenda = agendaList.map(({ clientId, clientRut, clientName, clientEmail, clientPhone, clientHasAccount, report, ...rest }) => ({
       ...rest,
       report: report && report.id ? report : null,
-      client: { id: clientId, name: clientName, email: clientEmail, phone: clientPhone, isGuest: clientId === null },
+      client: {
+        id: clientId,
+        rut: clientRut,
+        name: clientName ?? "Cliente",
+        email: clientEmail,
+        phone: clientPhone,
+        isGuest: false,
+        hasAccount: Boolean(clientHasAccount),
+      },
     }));
 
     return res.json({
@@ -162,16 +171,16 @@ async function loadAppointmentContext(id: string) {
 
 type AppointmentContext = NonNullable<Awaited<ReturnType<typeof loadAppointmentContext>>>;
 
-/** Envía al cliente (cuenta o invitado) la hoja de atención finalizada. */
+/** Envía al cliente la hoja de atención finalizada (solo si tiene correo registrado). */
 function notifyServiceCompleted(
   ctx: AppointmentContext,
   mechanicName: string,
   report: { observations: string; mileageAtService: number | null; partsReplaced: string | null; recommendations: string | null }
 ) {
-  const to = ctx.client?.email ?? ctx.appointment.guestEmail;
+  const to = ctx.client?.email;
   if (!to) return;
   sendServiceCompletedEmail(to, {
-    name: ctx.client?.name ?? ctx.appointment.guestName ?? "Cliente",
+    name: ctx.client?.name ?? "Cliente",
     serviceName: ctx.service?.name || "Servicio Técnico",
     vehiclePlate: ctx.vehicle?.plate || "S/P",
     vehicleInfo: ctx.vehicle ? `${ctx.vehicle.brand} ${ctx.vehicle.model}` : "Vehículo registrado",
@@ -184,13 +193,13 @@ function notifyServiceCompleted(
   }).catch((err) => console.error("Error al enviar correo de atención finalizada:", err));
 }
 
-/** Avisa al cliente (cuenta o invitado) cuando el taller confirma o cancela su solicitud. */
+/** Avisa al cliente cuando el taller confirma o cancela su solicitud (solo si tiene correo registrado). */
 function notifyDecision(ctx: AppointmentContext, kind: "confirmada" | "cancelada") {
-  const to = ctx.client?.email ?? ctx.appointment.guestEmail;
+  const to = ctx.client?.email;
   if (!to) return;
   const date = new Date(`${ctx.appointment.scheduledDate}T12:00:00Z`).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
   sendAppointmentDecisionEmail(to, kind, {
-    name: ctx.client?.name ?? ctx.appointment.guestName ?? "Cliente",
+    name: ctx.client?.name ?? "Cliente",
     serviceName: ctx.service?.name || "Servicio",
     scheduledDate: date,
     timeSlot: ctx.appointment.timeSlot,

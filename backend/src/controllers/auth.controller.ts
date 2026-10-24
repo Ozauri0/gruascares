@@ -1,15 +1,16 @@
 import { rolesOf, withRoles } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { createHash, randomBytes } from "crypto";
-import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { appointments, emailVerificationTokens, passwordResetTokens, revokedTokens, users } from "../db/schema.js";
+import { emailVerificationTokens, passwordResetTokens, revokedTokens, users } from "../db/schema.js";
 import { generateToken, verifyToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
 import { sendEmailVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../services/email/email.service.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong } from "../utils/validate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { hashPassword, validatePassword, verifyPassword } from "../utils/password.js";
+import { isValidRut, normalizeRut } from "../utils/rut.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { DEMO_ACCOUNTS, isDemoEmail } from "../config/demo.js";
 import type { UserRole } from "../types/auth.js";
@@ -37,7 +38,7 @@ async function issueEmailVerification(userId: string, email: string, name: strin
 
 export async function register(req: Request, res: Response) {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, rut, email, password, phone } = req.body ?? {};
 
     // 1. Validaciones básicas de entrada
     if (!name || typeof name !== "string" || name.trim().length < 2) {
@@ -47,10 +48,24 @@ export async function register(req: Request, res: Response) {
       });
     }
 
+    if (!rut || typeof rut !== "string" || !isValidRut(rut)) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Debe ingresar un RUT chileno válido",
+      });
+    }
+
     if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({
         error: "Bad Request",
         message: "Debe ingresar un correo electrónico válido",
+      });
+    }
+
+    if (!phone || typeof phone !== "string" || phone.trim().length < 6) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "El teléfono es obligatorio",
       });
     }
 
@@ -68,66 +83,139 @@ export async function register(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: tooLong });
     }
 
+    const normalizedRut = normalizeRut(rut);
     const normalizedEmail = email.toLowerCase().trim();
+    const cleanPhone = phone.trim();
 
-    // 2. Verificar si el correo ya existe
-    const existing = await db
-      .select({ id: users.id })
+    // 2. Verificar si el RUT ya existe (cuenta activa o perfil presencial sin contraseña)
+    const [existingByRut] = await db
+      .select()
       .from(users)
-      .where(eq(users.email, normalizedEmail))
+      .where(eq(users.rut, normalizedRut))
       .limit(1);
 
-    if (existing.length > 0) {
+    if (existingByRut && existingByRut.passwordHash !== null) {
+      return res.status(409).json({
+        error: "Conflict",
+        message: "Ya existe una cuenta registrada con este RUT",
+      });
+    }
+
+    // 3. Verificar si el correo ya está ocupado por otro usuario
+    const [existingByEmail] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        existingByRut
+          ? and(eq(users.email, normalizedEmail), ne(users.id, existingByRut.id))
+          : eq(users.email, normalizedEmail)
+      )
+      .limit(1);
+
+    if (existingByEmail) {
       return res.status(409).json({
         error: "Conflict",
         message: "Ya existe una cuenta registrada con este correo electrónico",
       });
     }
 
-    // 3. Hashear contraseña
+    // 4. Hashear contraseña
     const passwordHash = await hashPassword(password);
 
-    // 4. Insertar usuario con rol 'usuario'
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        name: name.trim(),
-        email: normalizedEmail,
-        passwordHash,
-        role: "usuario",
-        phone: phone ? String(phone).trim() : null,
-      })
-      .returning({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        role: users.role,
-        phone: users.phone,
-        createdAt: users.createdAt,
-      });
+    let registeredUser: {
+      id: string;
+      rut: string;
+      name: string;
+      email: string | null;
+      role: UserRole;
+      phone: string;
+      createdAt: Date;
+    };
+    let claimed = false;
+
+    if (existingByRut) {
+      // Reclamo de perfil creado presencialmente (sin contraseña): se completa el mismo registro
+      // y queda pendiente de confirmar el correo antes de permitir iniciar sesión y ver el historial.
+      const [updated] = await db
+        .update(users)
+        .set({
+          name: name.trim(),
+          email: normalizedEmail,
+          phone: cleanPhone,
+          passwordHash,
+          emailVerifiedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(users.id, existingByRut.id), isNull(users.passwordHash)))
+        .returning({
+          id: users.id,
+          rut: users.rut,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+          phone: users.phone,
+          createdAt: users.createdAt,
+        });
+
+      if (!updated) {
+        return res.status(409).json({
+          error: "Conflict",
+          message: "Ya existe una cuenta registrada con este RUT",
+        });
+      }
+      registeredUser = updated;
+      claimed = true;
+    } else {
+      const [created] = await db
+        .insert(users)
+        .values({
+          rut: normalizedRut,
+          name: name.trim(),
+          email: normalizedEmail,
+          passwordHash,
+          role: "usuario",
+          phone: cleanPhone,
+        })
+        .returning({
+          id: users.id,
+          rut: users.rut,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+          phone: users.phone,
+          createdAt: users.createdAt,
+        });
+      registeredUser = created;
+    }
 
     logAudit({
-      userId: newUser.id,
-      userEmail: newUser.email,
+      userId: registeredUser.id,
+      userEmail: registeredUser.email,
       action: "USER_REGISTER",
       entityType: "user",
-      entityId: newUser.id,
+      entityId: registeredUser.id,
+      details: { rut: registeredUser.rut, claimed },
       req,
     });
 
     // 5. La cuenta queda pendiente: no hay sesión hasta que confirme el enlace que se le envía.
-    await issueEmailVerification(newUser.id, newUser.email, newUser.name);
+    await issueEmailVerification(registeredUser.id, normalizedEmail, registeredUser.name);
 
     return res.status(201).json({
       message: "Cuenta creada. Te enviamos un correo para confirmar tu dirección: ábrelo y sigue el enlace para activarla.",
       verificationRequired: true,
-      user: newUser,
+      claimed,
+      user: registeredUser,
     });
   } catch (error) {
     if (isUniqueViolation(error)) {
+      const text = String((error as any)?.detail || (error as any)?.constraint_name || (error as any)?.message || "");
+      const isRutConflict = text.toLowerCase().includes("rut");
       return res.status(409).json({
         error: "Conflict",
-        message: "Ya existe una cuenta registrada con este correo electrónico",
+        message: isRutConflict
+          ? "Ya existe una cuenta registrada con este RUT"
+          : "Ya existe una cuenta registrada con este correo electrónico",
       });
     }
     console.error("Error en register:", error);
@@ -151,19 +239,19 @@ export async function login(req: Request, res: Response) {
 
     const normalizedEmail = email.toLowerCase().trim().slice(0, MAX_LEN.email);
 
-    // 1. Buscar usuario y verificar la contraseña SIEMPRE (con hash ficticio si no existe):
-    // misma respuesta y mismo tiempo para "no existe" y "clave incorrecta".
+    // 1. Buscar usuario y verificar la contraseña SIEMPRE (con hash ficticio si no existe o si es perfil sin cuenta):
+    // misma respuesta y mismo tiempo para "no existe", "sin contraseña" y "clave incorrecta".
     const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
     const passwordMatch = await verifyPassword(password, user?.passwordHash);
 
-    if (!user || !passwordMatch) {
+    if (!user || !user.passwordHash || !passwordMatch) {
       logAudit({
         userId: user?.id,
         userEmail: normalizedEmail,
         action: "LOGIN_FAILED",
         entityType: "user",
         entityId: user?.id,
-        details: { reason: user ? "bad_password" : "unknown_user" },
+        details: { reason: user ? (user.passwordHash ? "bad_password" : "no_password_profile") : "unknown_user" },
         req,
       });
       return res.status(401).json({
@@ -193,7 +281,7 @@ export async function login(req: Request, res: Response) {
     // 4. Generar token y cookie
     const token = generateToken({
       userId: user.id,
-      email: user.email,
+      email: user.email ?? "",
       role: user.role,
       name: user.name,
       tokenVersion: user.tokenVersion,
@@ -212,6 +300,7 @@ export async function login(req: Request, res: Response) {
       message: "Inicio de sesión exitoso",
       user: {
         id: user.id,
+        rut: user.rut,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -240,6 +329,7 @@ export async function getMe(req: Request, res: Response) {
     const [user] = await db
       .select({
         id: users.id,
+        rut: users.rut,
         name: users.name,
         email: users.email,
         role: users.role,
@@ -346,7 +436,7 @@ export async function demoLogin(req: Request, res: Response) {
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
     // Solo cuentas del dominio reservado de demo y con el rol esperado (nunca cuentas reales).
-    if (!user || !user.isActive || !isDemoEmail(user.email) || user.role !== role) {
+    if (!user || !user.isActive || !user.email || !isDemoEmail(user.email) || user.role !== role) {
       return res.status(503).json({
         error: "Service Unavailable",
         message: "Los usuarios demo no están disponibles. Ejecuta `bun run db:seed` en el backend.",
@@ -372,7 +462,7 @@ export async function demoLogin(req: Request, res: Response) {
     return res.status(200).json({
       message: "Sesión demo iniciada",
       demo: true,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, roles: rolesOf(user), phone: user.phone },
+      user: { id: user.id, rut: user.rut, name: user.name, email: user.email, role: user.role, roles: rolesOf(user), phone: user.phone },
     });
   } catch (error) {
     console.error("Error en demoLogin:", error);
@@ -382,7 +472,7 @@ export async function demoLogin(req: Request, res: Response) {
 
 /**
  * PATCH /api/auth/me { name?, phone? }
- * Edita el perfil propio. El correo y el rol no se cambian desde aquí.
+ * Edita el perfil propio. El correo, el RUT y el rol no se cambian desde aquí.
  */
 export async function updateProfile(req: Request, res: Response) {
   try {
@@ -393,8 +483,8 @@ export async function updateProfile(req: Request, res: Response) {
     if (name !== undefined && (typeof name !== "string" || name.trim().length < 2)) {
       return res.status(400).json({ error: "Bad Request", message: "El nombre debe tener al menos 2 caracteres" });
     }
-    if (phone !== undefined && phone !== null && typeof phone !== "string") {
-      return res.status(400).json({ error: "Bad Request", message: "El teléfono debe ser texto" });
+    if (phone !== undefined && (typeof phone !== "string" || phone.trim().length < 6)) {
+      return res.status(400).json({ error: "Bad Request", message: "El teléfono es obligatorio y debe ser válido" });
     }
     const tooLong = findTooLong([
       ["El nombre", name, MAX_LEN.name],
@@ -406,13 +496,23 @@ export async function updateProfile(req: Request, res: Response) {
 
     const updates: Partial<typeof users.$inferInsert> = { updatedAt: new Date() };
     if (typeof name === "string") updates.name = name.trim();
-    if (phone !== undefined) updates.phone = typeof phone === "string" && phone.trim() ? phone.trim() : null;
+    if (typeof phone === "string") updates.phone = phone.trim();
 
     const [user] = await db
       .update(users)
       .set(updates)
       .where(eq(users.id, req.user!.userId))
-      .returning({ id: users.id, name: users.name, email: users.email, role: users.role, extraRoles: users.extraRoles, phone: users.phone, isActive: users.isActive, createdAt: users.createdAt });
+      .returning({
+        id: users.id,
+        rut: users.rut,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        extraRoles: users.extraRoles,
+        phone: users.phone,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+      });
 
     logAudit({ action: "PROFILE_UPDATED", entityType: "user", entityId: req.user!.userId, details: { fields: Object.keys(updates).filter((k) => k !== "updatedAt") }, req });
     return res.status(200).json({ message: "Perfil actualizado exitosamente", user: withRoles(user) });
@@ -443,7 +543,9 @@ export async function forgotPassword(req: Request, res: Response) {
     const normalizedEmail = email.toLowerCase().trim();
     const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
 
-    if (user && user.isActive) {
+    // Un perfil presencial (sin contraseña) solo pasa a ser cuenta cuando su dueño se registra con su RUT: el correo
+    // anotado a mano por el personal podría tener un error de tipeo y pertenecer a otra persona.
+    if (user && user.isActive && user.email && user.passwordHash) {
       const token = randomBytes(32).toString("base64url");
       await db.transaction(async (tx) => {
         // un solo enlace vigente por cuenta: los anteriores dejan de servir
@@ -498,7 +600,7 @@ export async function resetPassword(req: Request, res: Response) {
       const [user] = await tx
         .update(users)
         .set({ passwordHash, emailVerifiedAt: sql`coalesce(${users.emailVerifiedAt}, now())` as unknown as Date, tokenVersion: sql`${users.tokenVersion} + 1` as unknown as number, updatedAt: new Date() })
-        .where(and(eq(users.id, consumed.userId), eq(users.isActive, true)))
+        .where(and(eq(users.id, consumed.userId), eq(users.isActive, true), isNotNull(users.passwordHash)))
         .returning({ id: users.id, email: users.email });
       if (!user) return null;
 
@@ -524,7 +626,7 @@ export async function resetPassword(req: Request, res: Response) {
 
 /**
  * POST /api/auth/verify-email { token }
- * Confirma el correo con un enlace vigente de un solo uso, activa la cuenta y vincula sus solicitudes de invitado.
+ * Confirma el correo con un enlace vigente de un solo uso y activa la cuenta.
  */
 export async function verifyEmail(req: Request, res: Response) {
   const invalid = { error: "Bad Request", message: "El enlace no es válido o ya venció. Pide uno nuevo desde el inicio de sesión." };
@@ -546,17 +648,12 @@ export async function verifyEmail(req: Request, res: Response) {
         .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
         .where(eq(users.id, consumed.userId))
         .returning({ id: users.id, email: users.email, name: users.name });
-      if (!verified) return null;
+      if (!verified || !verified.email) return null;
 
-      // Solicitudes hechas como invitado con este correo pasan a su cuenta (ya probó que el correo es suyo).
-      await tx
-        .update(appointments)
-        .set({ userId: verified.id, guestName: null, guestEmail: null, guestPhone: null })
-        .where(and(isNull(appointments.userId), eq(sql`lower(${appointments.guestEmail})`, verified.email.toLowerCase())));
       return verified;
     });
 
-    if (!user) return res.status(400).json(invalid);
+    if (!user || !user.email) return res.status(400).json(invalid);
 
     logAudit({ userId: user.id, userEmail: user.email, action: "EMAIL_VERIFIED", entityType: "user", entityId: user.id, req });
     sendWelcomeEmail(user.email, user.name);
@@ -579,7 +676,7 @@ export async function resendVerification(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: "Debe ingresar un correo electrónico válido" });
     }
     const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim())).limit(1);
-    if (user && user.isActive && !user.emailVerifiedAt) {
+    if (user && user.isActive && !user.emailVerifiedAt && user.email && user.passwordHash) {
       await issueEmailVerification(user.id, user.email, user.name);
       logAudit({ userId: user.id, userEmail: user.email, action: "EMAIL_VERIFICATION_RESENT", entityType: "user", entityId: user.id, req });
     }

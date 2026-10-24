@@ -1,15 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import AdminNav from "../components/AdminNav";
 import { ApiError } from "../../lib/api";
 import RolePicker, { choiceFrom, toRoleList, type RoleChoice } from "../components/RolePicker";
-import type { SessionUser } from "../../lib/portal-types";
-import type { UserRole } from "../../lib/portal-types";
+import type { SessionUser, UserRole } from "../../lib/portal-types";
 import { useUsers } from "../../lib/use-users";
 import Skeleton from "../../components/Skeleton";
 import { useAuth } from "../../lib/auth";
+import { formatRut, isValidRut, whatsappUrl } from "../../lib/rut";
 
 const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
   { value: "todos", label: "Todos los roles" },
@@ -26,7 +27,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrador",
 };
 
-type StaffForm = { name: string; email: string; phone: string; password: string };
+type StaffForm = { name: string; rut: string; email: string; phone: string; password: string };
 
 export default function UsersPage() {
   const [query, setQuery] = useState("");
@@ -37,7 +38,7 @@ export default function UsersPage() {
   const [deleteError, setDeleteError] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<StaffForm>({ name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState<StaffForm>({ name: "", rut: "", email: "", phone: "", password: "" });
   const [newRoles, setNewRoles] = useState<RoleChoice>({ roles: ["mecanico"], primary: "mecanico" });
   const [editing, setEditing] = useState<SessionUser | null>(null);
   const [editRoles, setEditRoles] = useState<RoleChoice>({ roles: [], primary: null });
@@ -95,7 +96,9 @@ export default function UsersPage() {
   function validate(): boolean {
     const next: Partial<Record<keyof StaffForm, string>> = {};
     if (form.name.trim().length < 2) next.name = "El nombre es obligatorio.";
+    if (!isValidRut(form.rut)) next.rut = "Ingresa un RUT chileno válido (ej. 12.345.678-5).";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = "Ingresa un correo válido.";
+    if (form.phone.trim().length < 6) next.phone = "El teléfono es obligatorio.";
     if (form.password.length < 8) next.password = "Mínimo 8 caracteres (igual que en el backend).";
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -111,13 +114,24 @@ export default function UsersPage() {
         setErrors({ form: "Marca al menos un rol (mecánico, vendedor o administrador)." });
         return;
       }
-      await add({ ...form, roles: roles as ("mecanico" | "vendedor" | "admin")[], email: form.email.trim().toLowerCase() });
+      await add({
+        ...form,
+        rut: formatRut(form.rut),
+        roles: roles as ("mecanico" | "vendedor" | "admin")[],
+        email: form.email.trim().toLowerCase(),
+      });
       setModal(false);
-      setForm({ name: "", email: "", phone: "", password: "" });
+      setForm({ name: "", rut: "", email: "", phone: "", password: "" });
       setNewRoles({ roles: ["mecanico"], primary: "mecanico" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "No se pudo crear la cuenta.";
-      setErrors(err instanceof ApiError && err.status === 409 ? { email: message } : { form: message });
+      if (err instanceof ApiError && err.status === 409) {
+        if (/rut/i.test(message)) setErrors({ rut: message });
+        else if (/correo/i.test(message)) setErrors({ email: message });
+        else setErrors({ form: message });
+      } else {
+        setErrors({ form: message });
+      }
     } finally {
       setSaving(false);
     }
@@ -168,16 +182,19 @@ export default function UsersPage() {
               <div className="portal-toolbar-left">
                 <span className="portal-badge-counter">{loading ? "Cargando…" : error ? "No disponible" : `${total} ${total === 1 ? "usuario" : "usuarios"}`}</span>
               </div>
-              <button type="button" className="portal-add" onClick={() => { setErrors({}); setModal(true); }}>
-                + Agregar miembro al equipo
-              </button>
+              <div>
+                <Link className="toggle-btn" href="/atencion-presencial">Atención presencial por RUT</Link>{" "}
+                <button type="button" className="portal-add" onClick={() => { setErrors({}); setModal(true); }}>
+                  + Agregar miembro al equipo
+                </button>
+              </div>
             </div>
 
             <div className="filter-bar">
               <input
                 className="filter-search"
                 type="search"
-                placeholder="Buscar por nombre o correo…"
+                placeholder="Buscar por nombre, RUT o correo…"
                 aria-label="Buscar usuarios"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -213,26 +230,51 @@ export default function UsersPage() {
               <div className="table-scroll">
                 <table className="data-table">
                   <thead>
-                    <tr><th>Nombre</th><th>Contacto</th><th>Rol</th><th>Estado</th><th><span className="sr-only">Acciones</span></th></tr>
+                    <tr><th>Nombre / RUT</th><th>Contacto</th><th>Rol</th><th>Estado</th><th><span className="sr-only">Acciones</span></th></tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
-                      <tr key={user.id} className={user.isActive ? "" : "row-inactive"}>
-                        <td><strong>{user.name}</strong></td>
-                        <td><span className="cell-sub">{user.email}{user.phone ? ` · ${user.phone}` : ""}</span></td>
-                        <td><span className="role-badges">{(user.roles?.length ? user.roles : [user.role]).map((r, i) => <span key={r} className={`role-badge role-${r}`} title={i === 0 && (user.roles?.length ?? 0) > 1 ? "Rol principal (su inicio)" : undefined}>{ROLE_LABELS[r]}</span>)}</span></td>
-                        <td><span className={user.isActive ? "state-on" : "state-off"}>{user.isActive ? "Activo" : "Inactivo"}</span></td>
-                        <td>
-                          <button type="button" className="toggle-btn" onClick={() => openEdit(user)}>Roles</button>{" "}
-                          <button type="button" className="toggle-btn" onClick={() => void toggle(user.id, user.isActive)}>
-                            {user.isActive ? "Desactivar" : "Activar"}
-                          </button>
-                          {user.id !== me?.id && (
-                            <>{" "}<button type="button" className="toggle-btn danger" onClick={() => { setDeleteError(""); setDeleting(user); }}>Eliminar</button></>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {users.map((user) => {
+                      const wa = whatsappUrl(user.phone);
+                      return (
+                        <tr key={user.id} className={user.isActive ? "" : "row-inactive"}>
+                          <td>
+                            <strong>{user.name}</strong>
+                            {user.rut && <><br /><span className="cell-sub">{formatRut(user.rut)}</span></>}
+                          </td>
+                          <td>
+                            <span className="cell-sub">
+                              {user.email ? user.email : "Sin correo (presencial)"}
+                              {user.phone && (
+                                <>
+                                  {" · "}
+                                  <a href={`tel:${user.phone}`}>{user.phone}</a>
+                                  {" ("}
+                                  <a href={`tel:${user.phone}`}>Llamar</a>
+                                  {wa && (
+                                    <>
+                                      {" · "}
+                                      <a href={wa} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                                    </>
+                                  )}
+                                  {")"}
+                                </>
+                              )}
+                            </span>
+                          </td>
+                          <td><span className="role-badges">{(user.roles?.length ? user.roles : [user.role]).map((r, i) => <span key={r} className={`role-badge role-${r}`} title={i === 0 && (user.roles?.length ?? 0) > 1 ? "Rol principal (su inicio)" : undefined}>{ROLE_LABELS[r]}</span>)}</span></td>
+                          <td><span className={user.isActive ? "state-on" : "state-off"}>{user.isActive ? "Activo" : "Inactivo"}</span></td>
+                          <td>
+                            <button type="button" className="toggle-btn" onClick={() => openEdit(user)}>Roles</button>{" "}
+                            <button type="button" className="toggle-btn" onClick={() => void toggle(user.id, user.isActive)}>
+                              {user.isActive ? "Desactivar" : "Activar"}
+                            </button>
+                            {user.id !== me?.id && (
+                              <>{" "}<button type="button" className="toggle-btn danger" onClick={() => { setDeleteError(""); setDeleting(user); }}>Eliminar</button></>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -266,13 +308,16 @@ export default function UsersPage() {
               <button type="button" className="modal-close" aria-label="Cerrar" onClick={() => setModal(false)}>×</button>
             </div>
             <form onSubmit={submit} noValidate>
-              <label>Nombre completo *<input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Nombre y apellido" autoComplete="off" />{errors.name && <small className="field-error">{errors.name}</small>}</label>
               <div className="form-row">
-                <label>Correo *<input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="nombre@gruascares.cl" autoComplete="off" />{errors.email && <small className="field-error">{errors.email}</small>}</label>
-                <label>Teléfono<input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+56 9 ..." autoComplete="off" /></label>
+                <label>Nombre completo *<input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Nombre y apellido" autoComplete="off" />{errors.name && <small className="field-error">{errors.name}</small>}</label>
+                <label>RUT *<input value={form.rut} onChange={(e) => set("rut", e.target.value)} onBlur={() => { if (isValidRut(form.rut)) set("rut", formatRut(form.rut)); }} placeholder="12.345.678-5" autoComplete="off" />{errors.rut && <small className="field-error">{errors.rut}</small>}</label>
               </div>
               <div className="form-row">
-                                <label>Contraseña inicial *<input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />{errors.password && <small className="field-error">{errors.password}</small>}</label>
+                <label>Correo *<input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="nombre@gruascares.cl" autoComplete="off" />{errors.email && <small className="field-error">{errors.email}</small>}</label>
+                <label>Teléfono *<input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+56 9 ..." autoComplete="off" />{errors.phone && <small className="field-error">{errors.phone}</small>}</label>
+              </div>
+              <div className="form-row">
+                <label>Contraseña inicial *<input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />{errors.password && <small className="field-error">{errors.password}</small>}</label>
               </div>
               <RolePicker value={newRoles} onChange={setNewRoles} />
               {errors.form && <small className="field-error" role="alert">{errors.form}</small>}
@@ -310,7 +355,7 @@ export default function UsersPage() {
               <h2>Eliminar usuario</h2>
               <button type="button" className="modal-close" aria-label="Cerrar" disabled={deleteBusy} onClick={() => setDeleting(null)}>×</button>
             </div>
-            <p>¿Eliminar definitivamente a <b>{deleting.name}</b> ({deleting.email})?</p>
+            <p>¿Eliminar definitivamente a <b>{deleting.name}</b> ({deleting.email || formatRut(deleting.rut) || "sin correo"})?</p>
             <p className="cell-sub">Se borrarán también sus vehículos y sus citas. No se puede deshacer. Si solo quieres quitarle el acceso, usa «Desactivar».</p>
             {deleteError && <small className="field-error" role="alert">{deleteError}</small>}
             <div className="modal-actions">

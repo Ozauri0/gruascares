@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:tes
 import { sql } from "../src/db/connection.js";
 import { parsePagination } from "../src/utils/pagination.js";
 import { hashPassword, validatePassword, verifyPassword } from "../src/utils/password.js";
+import { makeValidRut } from "../src/utils/rut.js";
 import { cookieFor, dbReady, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
@@ -58,7 +59,7 @@ describe.skipIf(!dbReady)("SEC-9: login y paginación con BD", () => {
     seed = await seedBasics();
   });
 
-  const login = (email: string, password: unknown) =>
+  const login = (email: string | null, password: unknown) =>
     fetch(`${server.url}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -87,11 +88,18 @@ describe.skipIf(!dbReady)("SEC-9: login y paginación con BD", () => {
   });
 
   test("registro exige contraseñas de 8+ caracteres y hasta 72 bytes", async () => {
+    let idx = 300;
     const register = (password: string) =>
       fetch(`${server.url}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Persona Nueva", email: `n${password.length}@test.cl`, password }),
+        body: JSON.stringify({
+          name: "Persona Nueva",
+          rut: makeValidRut(idx++),
+          phone: "+56 9 4444 5555",
+          email: `n${password.length}@test.cl`,
+          password,
+        }),
       });
     expect((await register("corta12")).status).toBe(400);
     expect((await register("a".repeat(73))).status).toBe(400);

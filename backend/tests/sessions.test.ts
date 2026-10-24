@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import jwt from "jsonwebtoken";
 import { sql } from "../src/db/connection.js";
+import { makeValidRut } from "../src/utils/rut.js";
 import { cookieFor, dbReady, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, tokenFor, type TestServer } from "./helpers.js";
 
@@ -25,7 +26,7 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
   test("token válido de usuario activo accede", async () => {
     const res = await me(cookieFor(seed.clientA));
     expect(res.status).toBe(200);
-    expect(((await res.json() as any)).user.email).toBe(seed.clientA.email);
+    expect(((await res.json()) as any).user.email).toBe(seed.clientA.email);
   });
 
   test("usuario desactivado pierde el acceso de inmediato", async () => {
@@ -67,7 +68,7 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
       body: JSON.stringify({ email: seed.clientA.email, password: "password123" }),
     });
     expect(login.status).toBe(200);
-    expect(((await login.json() as any)).token).toBeUndefined(); // el token solo viaja en la cookie httpOnly
+    expect(((await login.json()) as any).token).toBeUndefined(); // el token solo viaja en la cookie httpOnly
     const cookie = /gc_token=([^;]+)/.exec(login.headers.get("set-cookie") ?? "")?.[1];
     expect(cookie).toBeTruthy();
     expect((await me({ Cookie: `gc_token=${cookie}` })).status).toBe(200);
@@ -88,7 +89,7 @@ describe.skipIf(!dbReady)("SEC-7: sesiones validadas contra la BD", () => {
     const res = await fetch(`${server.url}/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Nuevo", email: "nuevo@test.local", password: "clave1234" }),
+      body: JSON.stringify({ name: "Nuevo", rut: makeValidRut(400), phone: "+56 9 5555 6666", email: "nuevo@test.local", password: "clave1234" }),
     });
     expect(res.status).toBe(201);
     const body = (await res.json()) as any;

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { sql } from "../src/db/connection.js";
+import { makeValidRut } from "../src/utils/rut.js";
 import { cookieFor, dbReady, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
 
@@ -17,7 +17,7 @@ beforeEach(async () => {
   seed = await seedBasics();
 });
 
-type U = { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number };
+type U = { id: string; email: string | null; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number };
 const call = async (user: U, method: string, path: string, body?: unknown) => {
   const res = await fetch(`${server.url}${path}`, { method, headers: cookieFor(user), body: body === undefined ? undefined : JSON.stringify(body) });
   return { status: res.status, body: (await res.json().catch(() => ({}))) as any };
@@ -79,7 +79,14 @@ describe.skipIf(!dbReady)("usuarios con más de un rol", () => {
 
   test("admin como rol adicional cuenta para 'al menos un administrador'", async () => {
     // El admin principal se vuelve vendedor + admin adicional: sigue siendo admin y no se bloquea
-    const other = await call(seed.admin, "POST", "/api/admin/users", { name: "Ana Dos", email: "ana@test.local", password: "clave-inicial-1", roles: ["mecanico", "admin"] });
+    const other = await call(seed.admin, "POST", "/api/admin/users", {
+      name: "Ana Dos",
+      rut: makeValidRut(800),
+      phone: "+56 9 1111 2222",
+      email: "ana@test.local",
+      password: "clave-inicial-1",
+      roles: ["mecanico", "admin"],
+    });
     expect(other.status).toBe(201);
     expect(other.body.user.roles).toEqual(["mecanico", "admin"]);
     // Ahora hay dos admins (uno por rol adicional): el primero puede dejar de serlo
@@ -91,11 +98,29 @@ describe.skipIf(!dbReady)("usuarios con más de un rol", () => {
   });
 
   test("al crear personal se pueden indicar varios roles", async () => {
-    const res = await call(seed.admin, "POST", "/api/admin/users", { name: "Luis Dos", email: "luis@test.local", password: "clave-inicial-1", roles: ["vendedor", "mecanico"] });
+    const res = await call(seed.admin, "POST", "/api/admin/users", {
+      name: "Luis Dos",
+      rut: makeValidRut(801),
+      phone: "+56 9 1111 2222",
+      email: "luis@test.local",
+      password: "clave-inicial-1",
+      roles: ["vendedor", "mecanico"],
+    });
     expect(res.status).toBe(201);
     expect(res.body.user.role).toBe("vendedor");
     expect(res.body.user.roles).toEqual(["vendedor", "mecanico"]);
-    expect((await call(seed.admin, "POST", "/api/admin/users", { name: "Luis Tres", email: "l3@test.local", password: "clave-inicial-1", roles: ["usuario", "admin"] })).status).toBe(400);
+    expect(
+      (
+        await call(seed.admin, "POST", "/api/admin/users", {
+          name: "Luis Tres",
+          rut: makeValidRut(802),
+          phone: "+56 9 1111 2222",
+          email: "l3@test.local",
+          password: "clave-inicial-1",
+          roles: ["usuario", "admin"],
+        })
+      ).status
+    ).toBe(400);
   });
 
   test("el personal puede pedir solo sus propios vehículos (?mine=true) para usar el portal de cliente", async () => {

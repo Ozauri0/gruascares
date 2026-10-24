@@ -4,6 +4,7 @@ import { users, services, vehicles, appointments, serviceRecords, products } fro
 import { hashPassword } from "../utils/password.js";
 import { todayInSantiago } from "../utils/dates.js";
 import { DEMO_ACCOUNTS, DEMO_EMAIL_DOMAIN } from "../config/demo.js";
+import { makeValidRut } from "../utils/rut.js";
 
 /** Suma días a una fecha YYYY-MM-DD (aritmética de calendario, sin zonas horarias). */
 function addDays(isoDate: string, days: number): string {
@@ -51,19 +52,19 @@ async function seed() {
   // 1. Usuarios demo (dominio reservado .test)
   console.log("-> Usuarios demo...");
   const demoUsers = [
-    { name: "Administrador Demo", email: DEMO_ACCOUNTS.admin, role: "admin" as const, phone: "+56 9 9162 7809", password: "admin1234" },
-    { name: "Juan Paredes (Mecánico Demo)", email: DEMO_ACCOUNTS.mecanico, role: "mecanico" as const, phone: "+56 9 6832 7329", password: "mecanico1234" },
-    { name: "Valeria Soto (Vendedora Demo)", email: DEMO_ACCOUNTS.vendedor, role: "vendedor" as const, phone: "+56 9 9162 7809", password: "vendedor1234" },
-    { name: "Diego Fuentes (Mecánico Demo)", email: `mecanico2${DEMO_EMAIL_DOMAIN}`, role: "mecanico" as const, extraRoles: ["vendedor" as const], phone: "+56 9 6857 4677", password: "mecanico1234" },
-    { name: "María González (Cliente Demo)", email: DEMO_ACCOUNTS.usuario, role: "usuario" as const, phone: "+56 9 1234 5678", password: "cliente1234" },
-    { name: "Pedro Soto (Cliente Demo)", email: `cliente2${DEMO_EMAIL_DOMAIN}`, role: "usuario" as const, phone: "+56 9 8765 4321", password: "cliente1234" },
+    { rut: makeValidRut(1), name: "Administrador Demo", email: DEMO_ACCOUNTS.admin, role: "admin" as const, phone: "+56 9 9162 7809", password: "admin1234" },
+    { rut: makeValidRut(2), name: "Juan Paredes (Mecánico Demo)", email: DEMO_ACCOUNTS.mecanico, role: "mecanico" as const, phone: "+56 9 6832 7329", password: "mecanico1234" },
+    { rut: makeValidRut(3), name: "Valeria Soto (Vendedora Demo)", email: DEMO_ACCOUNTS.vendedor, role: "vendedor" as const, phone: "+56 9 9162 7809", password: "vendedor1234" },
+    { rut: makeValidRut(4), name: "Diego Fuentes (Mecánico Demo)", email: `mecanico2${DEMO_EMAIL_DOMAIN}`, role: "mecanico" as const, extraRoles: ["vendedor" as const], phone: "+56 9 6857 4677", password: "mecanico1234" },
+    { rut: makeValidRut(5), name: "María González (Cliente Demo)", email: DEMO_ACCOUNTS.usuario, role: "usuario" as const, phone: "+56 9 1234 5678", password: "cliente1234" },
+    { rut: makeValidRut(6), name: "Pedro Soto (Cliente Demo)", email: `cliente2${DEMO_EMAIL_DOMAIN}`, role: "usuario" as const, phone: "+56 9 8765 4321", password: "cliente1234" },
   ];
   for (const u of demoUsers) {
     const { password, ...values } = u;
-    await db.insert(users).values({ ...values, emailVerifiedAt: new Date(), passwordHash: await hashPassword(password) }).onConflictDoNothing({ target: users.email });
+    await db.insert(users).values({ ...values, emailVerifiedAt: new Date(), passwordHash: await hashPassword(password) }).onConflictDoNothing();
   }
   const byEmail = Object.fromEntries(
-    (await db.select().from(users).where(inArray(users.email, demoUsers.map((u) => u.email)))).map((u) => [u.email, u])
+    (await db.select().from(users).where(inArray(users.email, demoUsers.map((u) => u.email)))).map((u) => [u.email!, u])
   );
   const mecanico1 = byEmail[DEMO_ACCOUNTS.mecanico];
   const mecanico2 = byEmail[`mecanico2${DEMO_EMAIL_DOMAIN}`];
