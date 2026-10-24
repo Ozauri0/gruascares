@@ -2,9 +2,8 @@ import { hasRole } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, ne, sql, desc } from "drizzle-orm";
 import { lockSlotForBooking } from "../utils/locks.js";
-import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
-import { appointments, services, vehicles, users, serviceRecords, blockedDates } from "../db/schema.js";
+import { appointments, services, vehicles, users, serviceRecords, blockedDates, workers } from "../db/schema.js";
 import { isValidSlotFormat, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { sendAppointmentConfirmationEmail } from "../services/email/email.service.js";
 import { logAudit } from "../services/audit/audit.service.js";
@@ -640,7 +639,6 @@ export async function createAppointment(req: Request, res: Response) {
  */
 export async function getMyAppointments(req: Request, res: Response) {
   try {
-    const reportMechanic = alias(users, "report_mechanic");
     if (!req.user) {
       return res.status(401).json({ error: "Unauthorized", message: "No autenticado" });
     }
@@ -675,14 +673,14 @@ export async function getMyAppointments(req: Request, res: Response) {
           mileageAtService: serviceRecords.mileageAtService,
           recommendations: serviceRecords.recommendations,
           completedAt: serviceRecords.completedAt,
-          mechanicName: reportMechanic.name,
+          mechanicName: workers.name,
         },
       })
       .from(appointments)
       .innerJoin(services, eq(appointments.serviceId, services.id))
       .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
-      .leftJoin(reportMechanic, eq(serviceRecords.mechanicId, reportMechanic.id))
+      .leftJoin(workers, eq(serviceRecords.workerId, workers.id))
       .where(eq(appointments.userId, req.user.userId))
       .orderBy(desc(appointments.scheduledDate), desc(appointments.timeSlot));
 

@@ -36,7 +36,7 @@ describe.skipIf(!dbReady)("usuarios con más de un rol", () => {
 
     const mech = seed.mechanic; // misma sesión de antes: no se cierra al cambiar roles
     expect((await call(mech, "GET", "/api/admin/catalog")).status).toBe(200);
-    expect((await call(mech, "GET", "/api/mechanic/list")).status).toBe(200); // sigue siendo mecánico
+    expect((await call(mech, "GET", "/api/mechanic/agenda")).status).toBe(200); // sigue siendo mecánico
     expect((await call(mech, "GET", "/api/admin/metrics")).status).toBe(403); // sin acceso a lo demás
 
     const me = await call(mech, "GET", "/api/auth/me");
@@ -51,11 +51,12 @@ describe.skipIf(!dbReady)("usuarios con más de un rol", () => {
     expect((await call(seller, "GET", `/api/vehicles/${seed.vehicleA.id}`)).status).toBe(403);
   });
 
-  test("un vendedor que además es mecánico aparece en el personal de taller", async () => {
+  test("un vendedor que además es jefe de taller gestiona a los trabajadores del taller", async () => {
+    expect((await call(seed.seller, "GET", "/api/workers")).status).toBe(403);
     await setRoles(seed.seller.id, ["vendedor", "mecanico"]);
-    const { body } = await call(seed.admin, "GET", "/api/mechanic/list");
-    const found = body.staff.find((s: any) => s.id === seed.seller.id);
-    expect(found?.roles).toEqual(["vendedor", "mecanico"]);
+    const { status, body } = await call(seed.seller, "GET", "/api/workers");
+    expect(status).toBe(200);
+    expect(body.workers.map((w: any) => w.name).sort()).toEqual(["Camilo Mixto", "Pedro Taller"]);
   });
 
   test("filtra por rol incluyendo los adicionales", async () => {

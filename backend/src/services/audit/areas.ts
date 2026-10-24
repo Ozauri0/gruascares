@@ -13,6 +13,8 @@ type Matcher = { exact?: string[]; prefix?: string[]; suffix?: string[] };
 const AREA_MATCHERS: Record<AuditArea, Matcher> = {
   taller: {
     exact: ["APPOINTMENT_STATUS_CHANGE", "APPOINTMENT_FINALIZED", "TECHNICAL_REPORT_SAVED"],
+    // trabajadores (personal sin cuenta) que los jefes de taller y de grúas registran y asignan
+    prefix: ["WORKER_"],
     // vehículos o citas de un cliente creados, editados o borrados por el personal
     suffix: ["_BY_STAFF"],
   },
@@ -67,6 +69,10 @@ const LABELS: Record<string, string> = {
   APPOINTMENT_CREATE_GUEST: "Solicitud de cita de invitado",
   APPOINTMENT_CANCEL: "Canceló una cita",
   WALK_IN_CLIENT_CREATED: "Registró un cliente presencialmente",
+  WORKER_CREATED: "Registró un trabajador",
+  WORKER_UPDATED: "Editó un trabajador",
+  WORKER_ACTIVATED: "Reactivó un trabajador",
+  WORKER_DEACTIVATED: "Dio de baja a un trabajador",
   CATALOG_CREATED: "Creó un producto",
   CATALOG_UPDATED: "Editó un producto",
   CATALOG_DELETED: "Eliminó un producto",

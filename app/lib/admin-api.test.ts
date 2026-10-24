@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { toAdminMetrics } from "./api-adapters";
 import { ApiError } from "./api";
-import { assignMechanic, blockDay, blockSlot, bulkBlockDays, bulkUnblockDays, createSlot, deleteSlot, fetchDaySchedule, rescheduleAppointment, fetchAgendaRange, fetchMetrics, listBlockedDays, listStaff, unblockDay } from "./admin-api";
+import { assignWorker, blockDay, blockSlot, bulkBlockDays, bulkUnblockDays, createSlot, deleteSlot, fetchDaySchedule, rescheduleAppointment, fetchAgendaRange, fetchMetrics, listBlockedDays, unblockDay } from "./admin-api";
 import type { ApiAgendaItem, ApiMetrics } from "./api-types";
 
 type Call = { url: string; init: RequestInit };
@@ -108,16 +108,18 @@ describe("INT-9: calendario maestro", () => {
     expect(error.status).toBe(409);
   });
 
-  test("listStaff y assignMechanic", async () => {
-    respond(200, { staff: [{ id: "m1", name: "Juan", role: "mecanico" }] });
-    expect(await listStaff()).toEqual([{ id: "m1", name: "Juan", role: "mecanico" }]);
-    expect(calls[0].url).toBe("/api/mechanic/list");
-
+  test("assignWorker asigna al trabajador de la cita", async () => {
     respond(200, { appointment: {} });
-    await assignMechanic("a 1", "m1");
-    expect(calls[1].url).toBe("/api/admin/appointments/a%201/assign");
-    expect(calls[1].init.method).toBe("PATCH");
-    expect(JSON.parse(String(calls[1].init.body))).toEqual({ mechanicId: "m1" });
+    await assignWorker("a 1", "w1");
+    expect(calls[0].url).toBe("/api/admin/appointments/a%201/assign");
+    expect(calls[0].init.method).toBe("PATCH");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ workerId: "w1" });
+  });
+
+  test("fetchAgendaRange pide las dos áreas (es la vista del admin)", async () => {
+    respond(200, { total: 0, agenda: [] });
+    await fetchAgendaRange("2026-10-01", "2026-10-31");
+    expect(calls[0].url).toContain("area=todas");
   });
 });
 

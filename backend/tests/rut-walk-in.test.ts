@@ -249,7 +249,7 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
 
     // 2. El mecánico atiende la cita y guarda el informe técnico
     expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${appointmentId}/status`, { status: "confirmada" })).status).toBe(200);
-    expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${appointmentId}/status`, { status: "en_proceso" })).status).toBe(200);
+    expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${appointmentId}/status`, { status: "en_proceso", workerId: seed.mech.id })).status).toBe(200);
     expect(
       (
         await call(seed.mechanic, "POST", `/api/mechanic/appointments/${appointmentId}/report`, {

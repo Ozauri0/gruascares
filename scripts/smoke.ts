@@ -122,7 +122,9 @@ async function main() {
     const agenda = await mechanic.get(`/api/mechanic/agenda?date=${state.date}`);
     expect(agenda.body.agenda?.some((a: Json) => a.id === state.id), "la cita no aparece en la agenda del taller");
     expectStatus(await mechanic.patch(`/api/mechanic/appointments/${state.id}/status`, { status: "confirmada" }), 200, "confirmar");
-    expectStatus(await mechanic.patch(`/api/mechanic/appointments/${state.id}/status`, { status: "en_proceso" }), 200, "iniciar");
+    const team = await mechanic.get("/api/workers?area=serviteca&active=true");
+    expect(team.body.workers?.length > 0, "no hay mecánicos registrados (ejecuta `bun run db:seed`)");
+    expectStatus(await mechanic.patch(`/api/mechanic/appointments/${state.id}/status`, { status: "en_proceso", workerId: team.body.workers[0].id }), 200, "iniciar");
     const report = await mechanic.post(`/api/mechanic/appointments/${state.id}/report`, { observations: "Prueba de humo: trabajo completado sin novedades.", finalize: true });
     expectStatus(report, 201, "informe");
     expect(report.body.finalized === true, "debía finalizar la cita");

@@ -20,9 +20,11 @@ beforeEach(async () => {
   seed = await seedBasics();
 });
 
-async function createAppointment(status: string, over: { notes?: string; vehicleId?: string | null } = {}): Promise<string> {
-  const [row] = await sql`insert into appointments (user_id, vehicle_id, service_id, scheduled_date, time_slot, status, notes)
-    values (${seed.clientA.id}, ${over.vehicleId === undefined ? seed.vehicleA.id : over.vehicleId}, ${seed.serviceAceite.id}, ${futureDate()}, '10:30', ${status}, ${over.notes ?? null}) returning id`;
+async function createAppointment(status: string, over: { notes?: string; vehicleId?: string | null; workerId?: string | null } = {}): Promise<string> {
+  // Las citas que ya están en curso o terminadas tienen trabajador a cargo (las solicitadas, no).
+  const workerId = over.workerId === undefined ? (status === "solicitada" || status === "cancelada" ? null : seed.mech.id) : over.workerId;
+  const [row] = await sql`insert into appointments (user_id, vehicle_id, service_id, scheduled_date, time_slot, status, notes, worker_id)
+    values (${seed.clientA.id}, ${over.vehicleId === undefined ? seed.vehicleA.id : over.vehicleId}, ${seed.serviceAceite.id}, ${futureDate()}, '10:30', ${status}, ${over.notes ?? null}, ${workerId}) returning id`;
   return row.id as string;
 }
 
@@ -44,20 +46,27 @@ describe("BUG-4: tabla de transiciones", () => {
   });
 });
 
-describe.skipIf(!dbReady)("cambiar el mecánico a cargo desde el taller", () => {
-  const assign = (id: string, user: Parameters<typeof patchStatus>[1], mechanicId: string) =>
-    fetch(`${server.url}/api/mechanic/appointments/${id}/assign`, { method: "PATCH", headers: cookieFor(user), body: JSON.stringify({ mechanicId }) });
+describe.skipIf(!dbReady)("asignar el trabajador a cargo desde el taller", () => {
+  const assign = (id: string, user: Parameters<typeof patchStatus>[1], workerId: string) =>
+    fetch(`${server.url}/api/mechanic/appointments/${id}/assign`, { method: "PATCH", headers: cookieFor(user), body: JSON.stringify({ workerId }) });
 
-  test("un mecánico reasigna una cita solicitada o confirmada; no una finalizada ni a un cliente", async () => {
+  test("el jefe de taller asigna y reasigna una cita activa; no una finalizada, ni a un gruero, un inactivo o un inexistente", async () => {
     const id = await createAppointment("solicitada");
-    expect((await assign(id, seed.mechanic, seed.admin.id)).status).toBe(200);
-    expect((await sql`select mechanic_id from appointments where id = ${id}`)[0].mechanic_id).toBe(seed.admin.id);
+    expect((await assign(id, seed.mechanic, seed.mech.id)).status).toBe(200);
+    const [row] = await sql`select worker_id, managed_by from appointments where id = ${id}`;
+    expect(row.worker_id).toBe(seed.mech.id);
+    expect(row.managed_by).toBe(seed.mechanic.id); // queda registrado el jefe que la gestionó
+    expect((await assign(id, seed.mechanic, seed.both.id)).status).toBe(200); // un trabajador que es mecánico y gruero también sirve
 
-    expect((await assign(id, seed.mechanic, seed.clientA.id)).status).toBe(400); // un cliente no puede ser mecánico
-    expect((await assign(id, seed.clientA, seed.mechanic.id)).status).toBe(403); // ni un cliente reasignar
+    expect((await assign(id, seed.mechanic, seed.rigger.id)).status).toBe(400); // un gruero no atiende serviteca
+    expect((await assign(id, seed.mechanic, "00000000-0000-4000-8000-000000000000")).status).toBe(400);
+    expect((await assign(id, seed.mechanic, "no-uuid")).status).toBe(400);
+    expect((await assign(id, seed.clientA, seed.mech.id)).status).toBe(403); // ni un cliente asignar
+    await sql`update workers set is_active = false where id = ${seed.mech.id}`;
+    expect((await assign(id, seed.mechanic, seed.mech.id)).status).toBe(400);
 
     const done = await createAppointment("finalizada");
-    expect((await assign(done, seed.mechanic, seed.mechanic.id)).status).toBe(409);
+    expect((await assign(done, seed.mechanic, seed.both.id)).status).toBe(409);
   });
 });
 
@@ -71,7 +80,7 @@ describe.skipIf(!dbReady)("avisos al cliente al confirmar o cancelar", () => {
     expect(testOutbox[0].subject).toContain("confirmada");
     expect(testOutbox[0].html).toContain("confirmó");
 
-    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso" })).status).toBe(200);
+    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso", workerId: seed.mech.id })).status).toBe(200);
     expect(testOutbox).toHaveLength(1);
   });
 
@@ -84,13 +93,17 @@ describe.skipIf(!dbReady)("avisos al cliente al confirmar o cancelar", () => {
 });
 
 describe.skipIf(!dbReady)("BUG-4: cambios de estado", () => {
-  test("avanza por el flujo válido y asigna al mecánico que inicia la atención", async () => {
+  test("avanza por el flujo válido; para iniciar la atención hay que asignar al trabajador", async () => {
     const id = await createAppointment("solicitada");
     expect((await patchStatus(id, seed.mechanic, { status: "confirmada" })).status).toBe(200);
-    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso" })).status).toBe(200);
-    const [row] = await sql`select status, mechanic_id from appointments where id = ${id}`;
+    const sinTrabajador = await patchStatus(id, seed.mechanic, { status: "en_proceso" });
+    expect(sinTrabajador.status).toBe(400);
+    expect(((await sinTrabajador.json()) as any).message).toContain("trabajador");
+    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso", workerId: seed.mech.id })).status).toBe(200);
+    const [row] = await sql`select status, worker_id, managed_by from appointments where id = ${id}`;
     expect(row.status).toBe("en_proceso");
-    expect(row.mechanic_id).toBe(seed.mechanic.id);
+    expect(row.worker_id).toBe(seed.mech.id);
+    expect(row.managed_by).toBe(seed.mechanic.id);
   });
 
   test("rechaza saltos y retrocesos (409)", async () => {
@@ -108,14 +121,14 @@ describe.skipIf(!dbReady)("BUG-4: cambios de estado", () => {
     expect((await patchStatus(id, seed.mechanic, { status: "finalizada" })).status).toBe(400);
   });
 
-  test("mechanicId debe ser personal de taller activo", async () => {
+  test("workerId debe ser un trabajador activo del tipo del servicio", async () => {
     const id = await createAppointment("solicitada");
-    const asClient = await patchStatus(id, seed.mechanic, { status: "confirmada", mechanicId: seed.clientB.id });
-    expect(asClient.status).toBe(400);
-    await sql`update users set is_active = false where id = ${seed.mechanic.id}`;
-    const admin = await patchStatus(id, seed.admin, { status: "confirmada", mechanicId: seed.mechanic.id });
-    expect(admin.status).toBe(400);
-    expect((await patchStatus(id, seed.admin, { status: "confirmada", mechanicId: "no-uuid" })).status).toBe(400);
+    expect((await patchStatus(id, seed.mechanic, { status: "confirmada", workerId: seed.rigger.id })).status).toBe(400); // gruero en serviteca
+    expect((await patchStatus(id, seed.mechanic, { status: "confirmada", workerId: seed.clientB.id })).status).toBe(400); // una cuenta no es un trabajador
+    await sql`update workers set is_active = false where id = ${seed.mech.id}`;
+    expect((await patchStatus(id, seed.admin, { status: "confirmada", workerId: seed.mech.id })).status).toBe(400);
+    expect((await patchStatus(id, seed.admin, { status: "confirmada", workerId: "no-uuid" })).status).toBe(400);
+    expect((await patchStatus(id, seed.admin, { status: "confirmada", workerId: seed.both.id })).status).toBe(200);
   });
 
   test("las notas del taller se agregan sin borrar las del cliente", async () => {
@@ -225,20 +238,21 @@ describe.skipIf(!dbReady)("INT-8: agenda del mecánico", () => {
     return { status: res.status, body: (await res.json()) as any };
   };
 
-  test("incluye el mecánico asignado (id y nombre) y report null sin informe", async () => {
+  test("incluye el trabajador asignado (id y nombre), el jefe que la gestionó y report null sin informe", async () => {
     const withMechanic = await createAppointment("confirmada");
-    await sql`update appointments set mechanic_id = ${seed.mechanic.id} where id = ${withMechanic}`;
+    await sql`update appointments set managed_by = ${seed.mechanic.id} where id = ${withMechanic}`;
     const unassigned = await createAppointment("solicitada");
 
     const { status, body } = await agenda(seed.mechanic, `?date=${futureDate()}`);
     expect(status).toBe(200);
     const a = body.agenda.find((i: any) => i.id === withMechanic);
     const b = body.agenda.find((i: any) => i.id === unassigned);
-    expect(a.mechanicId).toBe(seed.mechanic.id);
-    expect(a.mechanicName).toBe("Mecanico Test");
+    expect(a.workerId).toBe(seed.mech.id);
+    expect(a.workerName).toBe("Pedro Taller");
+    expect(a.managedByName).toBe("Mecanico Test");
     expect(a.report).toBeNull();
-    expect(b.mechanicId).toBeNull();
-    expect(b.mechanicName).toBeNull();
+    expect(b.workerId).toBeNull();
+    expect(b.workerName).toBeNull();
   });
 
   test("un cliente no accede a la agenda del taller", async () => {
@@ -248,13 +262,13 @@ describe.skipIf(!dbReady)("INT-8: agenda del mecánico", () => {
   test("el flujo completo desde la agenda: confirmar, iniciar, informar y finalizar", async () => {
     const id = await createAppointment("solicitada");
     expect((await patchStatus(id, seed.mechanic, { status: "confirmada" })).status).toBe(200);
-    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso" })).status).toBe(200);
+    expect((await patchStatus(id, seed.mechanic, { status: "en_proceso", workerId: seed.mech.id })).status).toBe(200);
     const res = await postReport(id, seed.mechanic, { observations: "Trabajo terminado sin novedades", mileageAtService: 1200, finalize: true });
     expect(res.status).toBe(201);
     const { body } = await agenda(seed.mechanic, `?date=${futureDate()}`);
     const item = body.agenda.find((i: any) => i.id === id);
     expect(item.status).toBe("finalizada");
-    expect(item.mechanicName).toBe("Mecanico Test");
+    expect(item.workerName).toBe("Pedro Taller");
     expect(item.report.observations).toBe("Trabajo terminado sin novedades");
   });
 });

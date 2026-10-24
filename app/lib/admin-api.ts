@@ -2,7 +2,7 @@
 
 import { apiDelete, apiGet, apiPatch, apiPost, api } from "./api";
 import { toAdminMetrics, toAgendaItem } from "./api-adapters";
-import type { AdminMetrics, BlockedDay, DaySchedule, StaffMember } from "./admin-types";
+import type { AdminMetrics, BlockedDay, DaySchedule } from "./admin-types";
 import type { ApiAgendaItem, ApiBlockedDate, ApiMetrics } from "./api-types";
 import type { AgendaItem } from "./workshop-types";
 
@@ -18,7 +18,7 @@ export async function fetchAgendaRange(startDate: string, endDate: string, signa
   for (let page = 1; page <= 20; page++) {
     const data = await apiGet<{ total: number; agenda: ApiAgendaItem[] }>(
       "/api/mechanic/agenda",
-      { startDate, endDate, page, limit: PAGE_SIZE },
+      { startDate, endDate, page, limit: PAGE_SIZE, area: "todas" },
       { signal }
     );
     items.push(...data.agenda.map(toAgendaItem));
@@ -77,13 +77,8 @@ export async function unblockDay(id: string): Promise<void> {
   await apiDelete(`/api/admin/blocked-dates/${encodeURIComponent(id)}`);
 }
 
-export async function listStaff(signal?: AbortSignal, area?: "serviteca" | "grua"): Promise<StaffMember[]> {
-  const { staff } = await apiGet<{ staff: StaffMember[] }>("/api/mechanic/list", area ? { area } : undefined, { signal });
-  return staff;
-}
-
-export async function assignMechanic(appointmentId: string, mechanicId: string): Promise<void> {
-  await apiPatch(`/api/admin/appointments/${encodeURIComponent(appointmentId)}/assign`, { mechanicId });
+export async function assignWorker(appointmentId: string, workerId: string): Promise<void> {
+  await apiPatch(`/api/admin/appointments/${encodeURIComponent(appointmentId)}/assign`, { workerId });
 }
 
 /** Contenido editado de la web (solo lo que difiere de los textos originales). */

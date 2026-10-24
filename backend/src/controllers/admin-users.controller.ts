@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { appointments, serviceRecords, users, vehicles } from "../db/schema.js";
+import { appointments, users, vehicles } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { parsePagination } from "../utils/pagination.js";
@@ -313,29 +313,9 @@ export async function updateUser(req: Request, res: Response) {
 }
 
 /**
- * GET /api/mechanic/list
- * Personal activo del área (mecánicos o gruas, y administradores) para los selectores de asignación.
- */
-export async function listWorkshopStaff(req: Request, res: Response) {
-  try {
-    // ?area=grua lista a quienes atienden grúas; por defecto, el taller (serviteca).
-    const areaRole = req.query.area === "grua" ? "grua" : "mecanico";
-    const staff = await db
-      .select({ id: users.id, name: users.name, role: users.role, extraRoles: users.extraRoles })
-      .from(users)
-      .where(and(eq(users.isActive, true), or(eq(users.role, areaRole), eq(users.role, "admin"), sql`${users.extraRoles} && ARRAY[${areaRole}, 'admin']::user_role[]`)))
-      .orderBy(users.name);
-    return res.json({ staff: staff.map(withRoles) });
-  } catch (error) {
-    console.error("Error al listar personal de taller:", error);
-    return res.status(500).json({ error: "Internal Server Error", message: "Error al consultar el personal de taller" });
-  }
-}
-
-/**
  * DELETE /api/admin/users/:id
- * Elimina una cuenta de forma definitiva, con sus vehículos y citas (las atenciones pasadas de un mecánico
- * se conservan: si tiene informes técnicos no se borra, hay que desactivarlo). Nunca a uno mismo ni al último admin.
+ * Elimina una cuenta de forma definitiva, con sus vehículos y citas. Los informes y citas que gestionó como jefe de área
+ * se conservan (quedan sin autor). Nunca a uno mismo ni al último admin.
  */
 export async function deleteUser(req: Request, res: Response) {
   try {
@@ -360,14 +340,6 @@ export async function deleteUser(req: Request, res: Response) {
           .from(users)
           .where(and(or(eq(users.role, "admin"), sql`'admin' = ANY(${users.extraRoles})`), eq(users.isActive, true)));
         if (n <= 1) return { kind: "conflict" as const, message: "Debe quedar al menos un administrador activo" };
-      }
-
-      const [{ reports }] = await tx.select({ reports: sql<number>`count(*)::int` }).from(serviceRecords).where(eq(serviceRecords.mechanicId, id));
-      if (reports > 0) {
-        return {
-          kind: "conflict" as const,
-          message: `${target.name} tiene ${reports} informe(s) técnico(s) a su nombre: no se puede eliminar. Desactívalo para quitarle el acceso.`,
-        };
       }
 
       const [{ vehicleCount }] = await tx.select({ vehicleCount: sql<number>`count(*)::int` }).from(vehicles).where(eq(vehicles.userId, id));

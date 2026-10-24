@@ -3,6 +3,7 @@ import { relations, sql } from "drizzle-orm";
 
 // 1. Enums
 export const userRoleEnum = pgEnum("user_role", ["admin", "mecanico", "usuario", "vendedor", "grua"]);
+export const workerTypeEnum = pgEnum("worker_type", ["mecanico", "gruero"]);
 export const serviceCategoryEnum = pgEnum("service_category", ["grua", "serviteca"]);
 export const productArtEnum = pgEnum("product_art", ["tyre", "oil", "battery"]);
 export const appointmentStatusEnum = pgEnum("appointment_status", [
@@ -34,6 +35,25 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// 2b. Trabajadores: personal que hace los servicios (mecánicos y grueros). No tienen cuenta ni inician sesión;
+// los jefes de área (usuarios con rol) los registran y les asignan las solicitudes.
+export const workers = pgTable(
+  "workers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    rut: varchar("rut", { length: 15 }).notNull().unique(),
+    phone: varchar("phone", { length: 50 }),
+    // Puede ser mecánico, gruero o ambos.
+    types: workerTypeEnum("types").array().notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("workers_is_active_idx").on(table.isActive)]
+);
 
 // 3. Tabla Vehículos
 export const vehicles = pgTable(
@@ -83,7 +103,9 @@ export const appointments = pgTable(
     serviceId: uuid("service_id")
       .references(() => services.id, { onDelete: "restrict" })
       .notNull(),
-    mechanicId: uuid("mechanic_id").references(() => users.id, { onDelete: "set null" }),
+    // Trabajador (sin cuenta) que hace el servicio, y jefe de área (cuenta) que gestionó la solicitud por última vez.
+    workerId: uuid("worker_id").references(() => workers.id, { onDelete: "set null" }),
+    managedBy: uuid("managed_by").references(() => users.id, { onDelete: "set null" }),
     scheduledDate: date("scheduled_date").notNull(),
     timeSlot: varchar("time_slot", { length: 10 }).notNull(),
     status: appointmentStatusEnum("status").default("solicitada").notNull(),
@@ -108,9 +130,11 @@ export const serviceRecords = pgTable(
       .references(() => appointments.id, { onDelete: "cascade" })
       .notNull()
       .unique(),
-    mechanicId: uuid("mechanic_id")
-      .references(() => users.id, { onDelete: "restrict" })
+    workerId: uuid("worker_id")
+      .references(() => workers.id, { onDelete: "restrict" })
       .notNull(),
+    // Jefe de área (cuenta) que registró el informe.
+    authoredBy: uuid("authored_by").references(() => users.id, { onDelete: "set null" }),
     observations: text("observations").notNull(),
     partsReplaced: text("parts_replaced"),
     mileageAtService: integer("mileage_at_service"),
@@ -119,7 +143,7 @@ export const serviceRecords = pgTable(
   },
   (table) => [
     index("service_records_appointment_id_idx").on(table.appointmentId),
-    index("service_records_mechanic_id_idx").on(table.mechanicId),
+    index("service_records_worker_id_idx").on(table.workerId),
   ]
 );
 
@@ -127,7 +151,7 @@ export const serviceRecords = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   vehicles: many(vehicles),
   appointments: many(appointments, { relationName: "userAppointments" }),
-  assignedAppointments: many(appointments, { relationName: "mechanicAppointments" }),
+  managedAppointments: many(appointments, { relationName: "managedAppointments" }),
   serviceRecords: many(serviceRecords),
 }));
 
@@ -149,10 +173,14 @@ export const appointmentsRelations = relations(appointments, ({ one }) => ({
     references: [users.id],
     relationName: "userAppointments",
   }),
-  mechanic: one(users, {
-    fields: [appointments.mechanicId],
+  worker: one(workers, {
+    fields: [appointments.workerId],
+    references: [workers.id],
+  }),
+  manager: one(users, {
+    fields: [appointments.managedBy],
     references: [users.id],
-    relationName: "mechanicAppointments",
+    relationName: "managedAppointments",
   }),
   vehicle: one(vehicles, {
     fields: [appointments.vehicleId],
@@ -173,9 +201,9 @@ export const serviceRecordsRelations = relations(serviceRecords, ({ one }) => ({
     fields: [serviceRecords.appointmentId],
     references: [appointments.id],
   }),
-  mechanic: one(users, {
-    fields: [serviceRecords.mechanicId],
-    references: [users.id],
+  worker: one(workers, {
+    fields: [serviceRecords.workerId],
+    references: [workers.id],
   }),
 }));
 

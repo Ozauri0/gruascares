@@ -1,4 +1,4 @@
-import { reassignAppointmentMechanic } from "../controllers/admin.controller.js";
+import { assignAppointmentWorker } from "../controllers/admin.controller.js";
 import { Router } from "express";
 import {
   getMechanicAgenda,
@@ -6,7 +6,6 @@ import {
   saveTechnicalReport,
   getAppointmentReport,
 } from "../controllers/mechanic.controller.js";
-import { listWorkshopStaff } from "../controllers/admin-users.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -14,17 +13,14 @@ const router = Router();
 // Todas las rutas de mecánicos requieren autenticación
 router.use(authenticate);
 
-// 0. Personal activo del área (selector de asignación; ?area=grua)
-router.get("/list", authorizeRoles("mecanico", "grua", "admin"), listWorkshopStaff);
-
 // 1. Agenda del área (?area=serviteca | grua): jefes de taller, jefes de grúas y administradores
 router.get("/agenda", authorizeRoles("mecanico", "grua", "admin"), getMechanicAgenda);
 
 // 2. Transición de estado de cita desde la vista de taller
 router.patch("/appointments/:id/status", authorizeRoles("mecanico", "grua", "admin"), updateAppointmentStatus);
 
-// 2b. Cambiar el mecánico a cargo (mecánicos y administradores; solo citas que siguen activas)
-router.patch("/appointments/:id/assign", authorizeRoles("mecanico", "grua", "admin"), reassignAppointmentMechanic);
+// 2b. Asignar o cambiar el trabajador a cargo (jefe del área o admin; solo citas que siguen activas)
+router.patch("/appointments/:id/assign", authorizeRoles("mecanico", "grua", "admin"), assignAppointmentWorker);
 
 // 3. Registrar o actualizar hoja de atención técnica
 router.post("/appointments/:id/report", authorizeRoles("mecanico", "grua", "admin"), saveTechnicalReport);

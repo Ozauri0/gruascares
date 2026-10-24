@@ -1,7 +1,7 @@
 import type { UserRole } from "../src/types/auth.js";
 import { hashPassword } from "../src/utils/password.js";
 import { sql as rawSql, db } from "../src/db/connection.js";
-import { users, services, vehicles } from "../src/db/schema.js";
+import { users, services, vehicles, workers } from "../src/db/schema.js";
 import { generateToken } from "../src/utils/jwt.js";
 import { makeValidRut } from "../src/utils/rut.js";
 
@@ -13,6 +13,7 @@ export async function resetDb(): Promise<void> {
   );
 }
 
+export type WorkerRow = typeof workers.$inferSelect;
 export type SeedUser = typeof users.$inferSelect & { email: string };
 
 export interface Seed {
@@ -25,6 +26,10 @@ export interface Seed {
   seller: SeedUser;
   /** Jefe de grúas. */
   crane: SeedUser;
+  /** Trabajadores sin cuenta: un mecánico, un gruero y uno que es ambos. */
+  mech: WorkerRow;
+  rigger: WorkerRow;
+  both: WorkerRow;
   vehicleA: typeof vehicles.$inferSelect;
   vehicleB: typeof vehicles.$inferSelect;
 }
@@ -57,7 +62,15 @@ export async function seedBasics(): Promise<Seed> {
       { userId: clientB.id, plate: "WXYZ99", brand: "Ford", model: "Ranger", year: 2020, mileage: 2000 },
     ])
     .returning();
-  return { admin, mechanic, seller, crane, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
+  const [mech, rigger, both] = await db
+    .insert(workers)
+    .values([
+      { name: "Pedro Taller", rut: makeValidRut(21), phone: "+56 9 2000 0021", types: ["mecanico"] },
+      { name: "Jorge Gruero", rut: makeValidRut(22), phone: "+56 9 2000 0022", types: ["gruero"] },
+      { name: "Camilo Mixto", rut: makeValidRut(23), phone: "+56 9 2000 0023", types: ["mecanico", "gruero"] },
+    ])
+    .returning();
+  return { admin, mechanic, seller, crane, mech, rigger, both, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
 }
 
 export function cookieFor(user: { id: string; email: string | null; name: string; role: UserRole; tokenVersion?: number }): Record<string, string> {

@@ -45,7 +45,7 @@ export function toPortalVehicle(vehicle: ApiVehicle): PortalVehicle {
 export function toPortalReport(appointmentId: string, report: ApiReport): PortalReport {
   return {
     appointmentId,
-    mechanicName: report.mechanicName ?? report.mechanic?.name ?? DEFAULT_MECHANIC_NAME,
+    mechanicName: report.mechanicName ?? report.worker?.name ?? DEFAULT_MECHANIC_NAME,
     observations: report.observations,
     partsReplaced: report.partsReplaced ?? null,
     mileageAtService: report.mileageAtService ?? null,
@@ -88,8 +88,10 @@ export function toAgendaItem(item: ApiAgendaItem): AgendaItem {
     serviceName: item.service?.name ?? "Servicio",
     status: item.status,
     notes: item.notes ?? null,
-    mechanicId: item.mechanicId ?? null,
-    mechanicName: item.mechanicName ?? null,
+    category: item.service?.category ?? "serviteca",
+    workerId: item.workerId ?? null,
+    workerName: item.workerName ?? null,
+    managedByName: item.managedByName ?? null,
   };
 }
 

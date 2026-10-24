@@ -1,9 +1,10 @@
-import { AREA_ROLE, canWorkOn, hasRole, type ServiceCategory } from "../utils/roles.js";
+import { canWorkOn, type ServiceCategory } from "../utils/roles.js";
+import { findAssignableWorker } from "../utils/workers.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
-import { appointments, users, vehicles, services, serviceRecords } from "../db/schema.js";
+import { appointments, users, vehicles, services, serviceRecords, workers } from "../db/schema.js";
 import { sendAppointmentDecisionEmail, sendServiceCompletedEmail } from "../services/email/email.service.js";
 import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { logAudit } from "../services/audit/audit.service.js";
@@ -25,19 +26,25 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
  */
 export async function getMechanicAgenda(req: Request, res: Response) {
   try {
-    const { date, startDate, endDate, status, mechanicId, area: areaParam } = req.query;
+    const { date, startDate, endDate, status, workerId, area: areaParam } = req.query;
 
-    // Área: sin indicarla, la del rol de quien consulta (taller si tiene los dos).
-    const area: ServiceCategory | null =
-      areaParam === undefined ? (canWorkOn(req.user, "serviteca") ? "serviteca" : "grua") : areaParam === "serviteca" || areaParam === "grua" ? areaParam : null;
+    // Área: sin indicarla, la del rol de quien consulta (taller si tiene los dos). `todas` (solo admin) trae ambas.
+    const area: ServiceCategory | "todas" | null =
+      areaParam === undefined
+        ? canWorkOn(req.user, "serviteca")
+          ? "serviteca"
+          : "grua"
+        : areaParam === "serviteca" || areaParam === "grua" || areaParam === "todas"
+          ? areaParam
+          : null;
     if (!area) {
-      return res.status(400).json({ error: "Bad Request", message: "area debe ser 'serviteca' o 'grua'" });
+      return res.status(400).json({ error: "Bad Request", message: "area debe ser 'serviteca', 'grua' o 'todas'" });
     }
-    if (!canWorkOn(req.user, area)) {
+    if (area === "todas" ? !(canWorkOn(req.user, "serviteca") && canWorkOn(req.user, "grua")) : !canWorkOn(req.user, area)) {
       return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para ver las citas de esta área" });
     }
 
-    const conditions = [eq(services.category, area)];
+    const conditions = area === "todas" ? [] : [eq(services.category, area)];
 
     // Filtro por fecha específica
     if (date && typeof date === "string") {
@@ -64,18 +71,18 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       }
     }
 
-    // Filtro por mecánico asignado
-    if (mechanicId && typeof mechanicId === "string") {
-      if (!UUID_REGEX.test(mechanicId)) {
+    // Filtro por trabajador asignado
+    if (workerId && typeof workerId === "string") {
+      if (!UUID_REGEX.test(workerId)) {
         return res.status(400).json({
           error: "Bad Request",
-          message: "mechanicId debe ser un UUID válido",
+          message: "workerId debe ser un UUID válido",
         });
       }
-      conditions.push(eq(appointments.mechanicId, mechanicId));
+      conditions.push(eq(appointments.workerId, workerId));
     }
 
-    const assignedMechanic = alias(users, "assigned_mechanic");
+    const manager = alias(users, "appointment_manager");
     const { page, limit, offset } = parsePagination(req.query, { limit: 200, maxLimit: 500 });
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const [{ total }] = await db
@@ -94,8 +101,9 @@ export async function getMechanicAgenda(req: Request, res: Response) {
         notes: appointments.notes,
         createdAt: appointments.createdAt,
         updatedAt: appointments.updatedAt,
-        mechanicId: appointments.mechanicId,
-        mechanicName: assignedMechanic.name,
+        workerId: appointments.workerId,
+        workerName: workers.name,
+        managedByName: manager.name,
         clientId: appointments.userId,
         clientRut: users.rut,
         clientName: users.name,
@@ -131,7 +139,8 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
       .leftJoin(services, eq(appointments.serviceId, services.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
-      .leftJoin(assignedMechanic, eq(appointments.mechanicId, assignedMechanic.id))
+      .leftJoin(workers, eq(appointments.workerId, workers.id))
+      .leftJoin(manager, eq(appointments.managedBy, manager.id))
       .where(where)
       .orderBy(asc(appointments.scheduledDate), asc(appointments.timeSlot), asc(appointments.id))
       .limit(limit)
@@ -186,10 +195,16 @@ async function loadAppointmentContext(id: string) {
 
 type AppointmentContext = NonNullable<Awaited<ReturnType<typeof loadAppointmentContext>>>;
 
+/** Nombre del trabajador para el aviso al cliente. */
+async function workerNameOf(workerId: string): Promise<string> {
+  const [row] = await db.select({ name: workers.name }).from(workers).where(eq(workers.id, workerId)).limit(1);
+  return row?.name ?? "";
+}
+
 /** Envía al cliente la hoja de atención finalizada (solo si tiene correo registrado). */
 function notifyServiceCompleted(
   ctx: AppointmentContext,
-  mechanicName: string,
+  workerName: string,
   report: { observations: string; mileageAtService: number | null; partsReplaced: string | null; recommendations: string | null }
 ) {
   const to = ctx.client?.email;
@@ -199,7 +214,7 @@ function notifyServiceCompleted(
     serviceName: ctx.service?.name || "Servicio Técnico",
     vehiclePlate: ctx.vehicle?.plate || "S/P",
     vehicleInfo: ctx.vehicle ? `${ctx.vehicle.brand} ${ctx.vehicle.model}` : "Vehículo registrado",
-    mechanicName: mechanicName || "Equipo Técnico Grúas Cares",
+    mechanicName: workerName || "Equipo Técnico Grúas Cares",
     observations: report.observations,
     mileageAtService: report.mileageAtService,
     partsReplaced: report.partsReplaced,
@@ -240,7 +255,7 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: "ID de cita inválido: debe ser un UUID" });
     }
 
-    const { status, notes, mechanicId } = req.body ?? {};
+    const { status, notes, workerId } = req.body ?? {};
 
     if (!isAppointmentStatus(status)) {
       return res.status(400).json({
@@ -248,8 +263,8 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
         message: `El estado es obligatorio y debe ser uno de: [${APPOINTMENT_STATUSES.join(", ")}]`,
       });
     }
-    if (mechanicId !== undefined && mechanicId !== null && !isUuid(mechanicId)) {
-      return res.status(400).json({ error: "Bad Request", message: "mechanicId debe ser un UUID válido" });
+    if (workerId !== undefined && workerId !== null && !isUuid(workerId)) {
+      return res.status(400).json({ error: "Bad Request", message: "workerId debe ser un UUID válido" });
     }
     if (notes !== undefined && typeof notes !== "string") {
       return res.status(400).json({ error: "Bad Request", message: "notes debe ser texto" });
@@ -291,24 +306,17 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       }
     }
 
-    // Mecánico asignado: debe ser personal activo (mecánico o admin).
-    let assignedMechanicId = ctx.appointment.mechanicId;
-    if (mechanicId) {
-      const [mechanic] = await db
-        .select({ id: users.id, role: users.role, extraRoles: users.extraRoles, isActive: users.isActive })
-        .from(users)
-        .where(eq(users.id, mechanicId))
-        .limit(1);
-      const areaRole = AREA_ROLE[(ctx.service?.category ?? "serviteca") as ServiceCategory];
-      if (!mechanic || !mechanic.isActive || !hasRole({ role: mechanic.role, extraRoles: mechanic.extraRoles }, areaRole, "admin")) {
-        return res.status(400).json({
-          error: "Bad Request",
-          message: "El encargado indicado no existe, está inactivo o no pertenece a esta área",
-        });
+    // Trabajador a cargo: debe estar activo y ser del tipo del servicio (mecánico o gruero).
+    let assignedWorkerId = ctx.appointment.workerId;
+    if (workerId) {
+      const found = await findAssignableWorker(workerId, (ctx.service?.category ?? "serviteca") as ServiceCategory);
+      if ("error" in found) {
+        return res.status(400).json({ error: "Bad Request", message: found.error });
       }
-      assignedMechanicId = mechanic.id;
-    } else if (status === "en_proceso" && !assignedMechanicId) {
-      assignedMechanicId = currentUser.userId; // quien inicia la atención queda asignado
+      assignedWorkerId = found.worker.id;
+    }
+    if (status === "en_proceso" && !assignedWorkerId) {
+      return res.status(400).json({ error: "Bad Request", message: "Asigna al trabajador a cargo antes de iniciar la atención" });
     }
 
     // Las notas del taller se agregan sin borrar las que dejó el cliente.
@@ -318,7 +326,7 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
     // Actualización condicionada al estado leído: evita que dos operaciones simultáneas se pisen.
     const [updatedAppointment] = await db
       .update(appointments)
-      .set({ status, mechanicId: assignedMechanicId, notes: mergedNotes, updatedAt: new Date() })
+      .set({ status, workerId: assignedWorkerId, managedBy: currentUser.userId, notes: mergedNotes, updatedAt: new Date() })
       .where(and(eq(appointments.id, id), eq(appointments.status, previousStatus)))
       .returning();
 
@@ -330,7 +338,7 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
     }
 
     if (status === "finalizada" && existingRecord) {
-      notifyServiceCompleted(ctx, currentUser.name, existingRecord);
+      notifyServiceCompleted(ctx, await workerNameOf(existingRecord.workerId), existingRecord);
     }
     if (previousStatus === "solicitada" && (status === "confirmada" || status === "cancelada")) {
       notifyDecision(ctx, status);
@@ -340,7 +348,7 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       action: "APPOINTMENT_STATUS_CHANGE",
       entityType: "appointment",
       entityId: id,
-      details: { from: previousStatus, to: status, mechanicId: assignedMechanicId },
+      details: { from: previousStatus, to: status, workerId: assignedWorkerId },
       req,
     });
 
@@ -427,8 +435,12 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       });
     }
 
+    if (!ctx.appointment.workerId) {
+      return res.status(409).json({ error: "Conflict", message: "Asigna al trabajador a cargo antes de registrar el informe" });
+    }
     const reportValues = {
-      mechanicId: currentUser.userId,
+      workerId: ctx.appointment.workerId,
+      authoredBy: currentUser.userId,
       observations: observations.trim(),
       partsReplaced: optionalText(partsReplaced),
       mileageAtService: parsedMileage,
@@ -459,7 +471,7 @@ export async function saveTechnicalReport(req: Request, res: Response) {
       if (shouldFinalize && status === "en_proceso") {
         const [done] = await tx
           .update(appointments)
-          .set({ status: "finalizada", mechanicId: ctx.appointment.mechanicId ?? currentUser.userId, updatedAt: new Date() })
+          .set({ status: "finalizada", managedBy: currentUser.userId, updatedAt: new Date() })
           .where(and(eq(appointments.id, id), eq(appointments.status, "en_proceso")))
           .returning();
         if (done) {
@@ -472,7 +484,7 @@ export async function saveTechnicalReport(req: Request, res: Response) {
 
     // Correo solo en la primera finalización (no al corregir un informe ya finalizado).
     if (result.finalized) {
-      notifyServiceCompleted(ctx, currentUser.name, result.report);
+      notifyServiceCompleted(ctx, await workerNameOf(result.report.workerId), result.report);
     }
 
     logAudit({
@@ -550,14 +562,13 @@ export async function getAppointmentReport(req: Request, res: Response) {
         mileageAtService: serviceRecords.mileageAtService,
         recommendations: serviceRecords.recommendations,
         completedAt: serviceRecords.completedAt,
-        mechanic: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
+        worker: {
+          id: workers.id,
+          name: workers.name,
         },
       })
       .from(serviceRecords)
-      .leftJoin(users, eq(serviceRecords.mechanicId, users.id))
+      .leftJoin(workers, eq(serviceRecords.workerId, workers.id))
       .where(eq(serviceRecords.appointmentId, id))
       .limit(1);
 

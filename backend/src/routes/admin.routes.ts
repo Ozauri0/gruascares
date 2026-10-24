@@ -10,7 +10,7 @@ import {
   rescheduleAppointment,
   createTimeSlot,
   deleteTimeSlot,
-  reassignAppointmentMechanic,
+  assignAppointmentWorker,
   getAuditLogs,
   exportAppointments,
 } from "../controllers/admin.controller.js";
@@ -48,7 +48,7 @@ router.get("/schedule", getDaySchedule);
 router.post("/time-slots", createTimeSlot);
 router.delete("/time-slots/:id", deleteTimeSlot);
 router.patch("/appointments/:id/reschedule", rescheduleAppointment);
-router.patch("/appointments/:id/assign", reassignAppointmentMechanic);
+router.patch("/appointments/:id/assign", assignAppointmentWorker);
 
 // Gestión de usuarios y personal
 router.get("/users", listUsers);

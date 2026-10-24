@@ -14,7 +14,7 @@ export default function CalendarPage() {
   const [year, setYear] = useState(() => Number(todayInSantiago().slice(0, 4)));
   const [month, setMonth] = useState(() => Number(todayInSantiago().slice(5, 7)) - 1);
   const [selected, setSelected] = useState<string | null>(null);
-  const { byDay, blocked, staff, loading, error, reload, block, unblock, assign, reschedule } = useCalendar(year, month);
+  const { byDay, blocked, workers, loading, error, reload, block, unblock, assign, reschedule } = useCalendar(year, month);
   const panelRef = useRef<HTMLElement>(null);
 
   const blockedByDate = Object.fromEntries(blocked.map((b) => [b.date, b]));
@@ -115,7 +115,7 @@ export default function CalendarPage() {
                     date={selected}
                     dayBlock={blockedByDate[selected]}
                     items={byDay[selected] ?? []}
-                    staff={staff}
+                    workers={workers}
                     onBlockDay={(reason) => block(selected, reason)}
                     onUnblockDay={unblock}
                     onAssign={assign}

@@ -48,6 +48,9 @@ describe.skipIf(!dbReady)("rol grúa y panel de grúas separado del taller (#129
     expect(ids(await call(seed.admin, "GET", "/api/mechanic/agenda?area=grua"))).toEqual([grua]);
     expect(ids(await call(seed.admin, "GET", "/api/mechanic/agenda?area=serviteca"))).toEqual([taller]);
 
+    expect(ids(await call(seed.admin, "GET", "/api/mechanic/agenda?area=todas")).sort()).toEqual([grua, taller].sort()); // solo el admin ve las dos juntas
+    expect((await call(seed.crane, "GET", "/api/mechanic/agenda?area=todas")).status).toBe(403);
+    expect((await call(seed.mechanic, "GET", "/api/mechanic/agenda?area=todas")).status).toBe(403);
     expect((await call(seed.crane, "GET", "/api/mechanic/agenda?area=serviteca")).status).toBe(403);
     expect((await call(seed.mechanic, "GET", "/api/mechanic/agenda?area=grua")).status).toBe(403);
     expect((await call(seed.crane, "GET", "/api/mechanic/agenda?area=otra")).status).toBe(400);
@@ -60,7 +63,7 @@ describe.skipIf(!dbReady)("rol grúa y panel de grúas separado del taller (#129
 
     expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${grua}/status`, { status: "confirmada" })).status).toBe(403);
     expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${taller}/status`, { status: "confirmada" })).status).toBe(403);
-    expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${grua}/assign`, { mechanicId: seed.mechanic.id })).status).toBe(403);
+    expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${grua}/assign`, { workerId: seed.both.id })).status).toBe(403);
     expect((await call(seed.crane, "POST", `/api/mechanic/appointments/${taller}/report`, { observations: "intento de informe" })).status).toBe(403);
     expect((await call(seed.crane, "GET", `/api/mechanic/appointments/${taller}/report`)).status).toBe(403);
     const [{ status }] = await sql`select status from appointments where id = ${grua}`;
@@ -73,7 +76,9 @@ describe.skipIf(!dbReady)("rol grúa y panel de grúas separado del taller (#129
     expect(confirmed.status).toBe(200);
     expect(testOutbox.some((m) => m.to === "a@test.local")).toBe(true);
 
-    expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/assign`, { mechanicId: seed.crane.id })).status).toBe(200);
+    const noWorker = await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" });
+    expect(noWorker.status).toBe(400); // hay que asignar al gruero antes de iniciar
+    expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/assign`, { workerId: seed.rigger.id })).status).toBe(200);
     expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" })).status).toBe(200);
     const report = await call(seed.crane, "POST", `/api/mechanic/appointments/${id}/report`, { observations: "Traslado a taller sin novedades", mileageAtService: 1500 });
     expect(report.status).toBe(201);
@@ -82,25 +87,21 @@ describe.skipIf(!dbReady)("rol grúa y panel de grúas separado del taller (#129
     expect(status).toBe("finalizada");
   });
 
-  test("el encargado debe ser del área del servicio", async () => {
+  test("el trabajador asignado debe ser del tipo del servicio", async () => {
     const grua = await insert(seed.serviceGrua.id);
     const taller = await insert(seed.serviceAceite.id);
-    expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${grua}/assign`, { mechanicId: seed.mechanic.id })).status).toBe(400);
-    expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${taller}/assign`, { mechanicId: seed.crane.id })).status).toBe(400);
-    expect((await call(seed.admin, "PATCH", `/api/mechanic/appointments/${grua}/assign`, { mechanicId: seed.admin.id })).status).toBe(200);
-    expect((await call(seed.admin, "PATCH", `/api/admin/appointments/${taller}/assign`, { mechanicId: seed.crane.id })).status).toBe(400);
-    const status = await call(seed.crane, "PATCH", `/api/mechanic/appointments/${grua}/status`, { status: "confirmada", mechanicId: seed.mechanic.id });
+    const assign = (user: U, id: string, workerId: string, base = "mechanic") => call(user, "PATCH", `/api/${base}/appointments/${id}/assign`, { workerId });
+    expect((await assign(seed.crane, grua, seed.mech.id)).status).toBe(400); // un mecánico no hace grúas
+    expect((await assign(seed.mechanic, taller, seed.rigger.id)).status).toBe(400); // un gruero no hace serviteca
+    expect((await assign(seed.crane, grua, seed.rigger.id)).status).toBe(200);
+    expect((await assign(seed.admin, grua, seed.both.id)).status).toBe(200); // quien es mecánico y gruero sirve para ambos
+    expect((await assign(seed.admin, taller, seed.both.id, "admin")).status).toBe(200);
+    expect((await assign(seed.admin, taller, seed.rigger.id, "admin")).status).toBe(400);
+    const status = await call(seed.crane, "PATCH", `/api/mechanic/appointments/${grua}/status`, { status: "confirmada", workerId: seed.mech.id });
     expect(status.status).toBe(400);
-  });
-
-  test("el selector de personal lista a quienes atienden cada área", async () => {
-    const names = async (user: U, area: string) => (await call(user, "GET", `/api/mechanic/list?area=${area}`)).body.staff.map((s: any) => s.id);
-    const gruaStaff = await names(seed.crane, "grua");
-    expect(gruaStaff).toContain(seed.crane.id);
-    expect(gruaStaff).not.toContain(seed.mechanic.id);
-    const tallerStaff = await names(seed.mechanic, "serviteca");
-    expect(tallerStaff).toContain(seed.mechanic.id);
-    expect(tallerStaff).not.toContain(seed.crane.id);
+    const [row] = await sql`select worker_id, managed_by from appointments where id = ${grua}`;
+    expect(row.worker_id).toBe(seed.both.id);
+    expect(row.managed_by).toBe(seed.admin.id);
   });
 
   test("el admin asigna el rol grúa y el jefe no entra a la administración ni a ventas", async () => {

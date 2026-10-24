@@ -54,12 +54,12 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
     // 2) La agenda del taller la muestra sin mecánico asignado
     const agenda = await call(seed.mechanic, "GET", `/api/mechanic/agenda?date=${date}`);
     const item = agenda.body.agenda.find((a: any) => a.id === id);
-    expect(item).toMatchObject({ status: "solicitada", mechanicId: null });
+    expect(item).toMatchObject({ status: "solicitada", workerId: null });
     expect(item.client.name).toBe("Cliente A");
     expect(item.vehicle.plate).toBe("ABCD12");
 
-    // 3) El administrador asigna al mecánico; el mecánico confirma e inicia la atención
-    expect((await call(seed.admin, "PATCH", `/api/admin/appointments/${id}/assign`, { mechanicId: seed.mechanic.id })).status).toBe(200);
+    // 3) El administrador asigna al trabajador; el jefe de taller confirma e inicia la atención
+    expect((await call(seed.admin, "PATCH", `/api/admin/appointments/${id}/assign`, { workerId: seed.mech.id })).status).toBe(200);
     expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "confirmada" })).status).toBe(200);
     expect((await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" })).status).toBe(200);
 
@@ -82,7 +82,7 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
     const history = await call(seed.clientA, "GET", "/api/appointments/my");
     const done = history.body.appointments.find((a: any) => a.id === id);
     expect(done.status).toBe("finalizada");
-    expect(done.report).toMatchObject({ observations: "Cambio de aceite y filtro. Pastillas delanteras al 30%.", mechanicName: "Mecanico Test", mileageAtService: 1800 });
+    expect(done.report).toMatchObject({ observations: "Cambio de aceite y filtro. Pastillas delanteras al 30%.", mechanicName: "Pedro Taller", mileageAtService: 1800 });
     expect((await call(seed.clientA, "GET", `/api/appointments/${id}/report`)).status).toBe(200);
 
     // 7) El administrador lo ve reflejado en métricas y auditoría
@@ -127,7 +127,7 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
     const booked = await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot: "08:30" });
     const id = booked.body.appointment.id as string;
     await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "confirmada" });
-    await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" });
+    await call(seed.mechanic, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso", workerId: seed.mech.id });
     expect((await call(seed.clientA, "PATCH", `/api/appointments/${id}/cancel`)).status).toBe(409);
 
     const other = await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot: "09:30" });
@@ -153,7 +153,7 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
   test("permisos cruzados: cada rol y cada cliente solo accede a lo suyo", async () => {
     const booked = await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceAceite.id, scheduledDate: futureDate(7), timeSlot: "10:30", vehicleId: seed.vehicleA.id });
     const id = booked.body.appointment.id as string;
-    await sql`insert into service_records (appointment_id, mechanic_id, observations) values (${id}, ${seed.mechanic.id}, 'Informe privado de A')`;
+    await sql`insert into service_records (appointment_id, worker_id, authored_by, observations) values (${id}, ${seed.mech.id}, ${seed.mechanic.id}, 'Informe privado de A')`;
 
     // El cliente B no ve, cancela ni lee el informe de la cita de A; ni usa su vehículo
     expect((await call(seed.clientB, "GET", `/api/appointments/${id}`)).status).toBe(403);
@@ -166,7 +166,7 @@ describe.skipIf(!dbReady)("INT-12: flujo completo cliente → mecánico → info
     expect((await call(seed.clientB, "POST", "/api/appointments", { serviceId: seed.serviceAceite.id, scheduledDate: futureDate(8), timeSlot: "10:30", vehicleId: seed.vehicleA.id })).status).toBe(404);
 
     // Un cliente no entra a las rutas de taller ni de administración
-    for (const [method, path] of [["GET", "/api/mechanic/agenda"], ["GET", "/api/mechanic/list"], ["PATCH", `/api/mechanic/appointments/${id}/status`], ["POST", `/api/mechanic/appointments/${id}/report`], ["GET", "/api/admin/metrics"], ["GET", "/api/admin/users"], ["GET", "/api/admin/catalog"], ["GET", "/api/admin/export/appointments"], ["GET", "/api/email/preview/welcome"]] as const) {
+    for (const [method, path] of [["GET", "/api/mechanic/agenda"], ["GET", "/api/workers"], ["PATCH", `/api/mechanic/appointments/${id}/status`], ["POST", `/api/mechanic/appointments/${id}/report`], ["GET", "/api/admin/metrics"], ["GET", "/api/admin/users"], ["GET", "/api/admin/catalog"], ["GET", "/api/admin/export/appointments"], ["GET", "/api/email/preview/welcome"]] as const) {
       expect((await call(seed.clientB, method, path, method === "GET" ? undefined : {})).status).toBe(403);
     }
     // Un mecánico no entra a la administración

@@ -22,6 +22,9 @@ export const WORK_AREAS: Record<
     nextStepTitle: string;
     confirmHint: string;
     startHint: string;
+    needWorker: string;
+    workersTitle: string;
+    workerNoun: string;
   }
 > = {
   serviteca: {
@@ -35,31 +38,37 @@ export const WORK_AREAS: Record<
     agendaLoading: "la agenda del taller",
     unassigned: "Sin mecánico asignado",
     choosePrompt: "Elige un mecánico…",
-    changeAssignee: "Cambiar mecánico",
+    changeAssignee: "Asignar mecánico",
     inProgressLabel: "En taller",
     stepLabel: "En Taller",
     sheetAria: "Ficha técnica de atención en taller",
     nextStepTitle: "Siguiente paso en el taller:",
     confirmHint: "Confirma la cita para asignarle box y repuestos.",
     startHint: "Indica que el vehículo ya ingresó y se comenzó el trabajo.",
+    needWorker: "Elige al mecánico a cargo (abajo) antes de iniciar la atención.",
+    workersTitle: "Mecánicos del taller",
+    workerNoun: "mecánico",
   },
   grua: {
     eyebrow: "Servicio de grúas",
     titleLead: "Agenda de",
     titleEm: "grúas.",
     pendingHint: "Todas las solicitudes de grúa (traslados de autos, contenedores y más), de cualquier fecha, para que las confirmes o canceles y asignes a quien las hará.",
-    assigneeLabel: "Encargado del servicio",
-    sheetButton: "Ficha y encargado",
+    assigneeLabel: "Gruero a cargo",
+    sheetButton: "Ficha y gruero",
     agendaAria: "Agenda de grúas",
     agendaLoading: "la agenda de grúas",
-    unassigned: "Sin encargado asignado",
-    choosePrompt: "Elige un encargado…",
-    changeAssignee: "Cambiar encargado",
+    unassigned: "Sin gruero asignado",
+    choosePrompt: "Elige un gruero…",
+    changeAssignee: "Asignar gruero",
     inProgressLabel: "En servicio",
     stepLabel: "En servicio",
     sheetAria: "Ficha de atención del servicio de grúa",
     nextStepTitle: "Siguiente paso del servicio:",
     confirmHint: "Confirma el servicio para asignar el equipo y coordinar con el cliente.",
     startHint: "Indica que la grúa ya salió y el servicio comenzó.",
+    needWorker: "Elige al gruero a cargo (abajo) antes de iniciar el servicio.",
+    workersTitle: "Grueros",
+    workerNoun: "gruero",
   },
 };

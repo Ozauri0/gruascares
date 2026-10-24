@@ -51,9 +51,9 @@ describe("INT-1: adaptadores API → UI", () => {
     expect(vehicleLabel(null)).toBe("Sin vehículo registrado");
   });
 
-  test("informe: usa el nombre del mecánico si viene, o un nombre por defecto", () => {
+  test("informe: usa el nombre del trabajador si viene, o un nombre por defecto", () => {
     const report = { observations: "Todo OK", partsReplaced: null, mileageAtService: 1000, recommendations: null, completedAt: "2026-10-20T12:00:00Z" };
-    expect(toPortalReport("a1", { ...report, mechanic: { id: "m1", name: "Juan" } }).mechanicName).toBe("Juan");
+    expect(toPortalReport("a1", { ...report, worker: { id: "w1", name: "Juan" } }).mechanicName).toBe("Juan");
     expect(toPortalReport("a1", report).mechanicName).toBe("Equipo Grúas Cares");
     expect(toPortalReportOrNull(myAppointment)).toBeNull();
     expect(toPortalReportOrNull({ ...myAppointment, report })?.appointmentId).toBe("a1");
@@ -101,8 +101,10 @@ describe("INT-1: adaptadores API → UI", () => {
       serviceName: "Grúa",
       status: "solicitada",
       notes: null,
-      mechanicId: null,
-      mechanicName: null,
+      category: "grua",
+      workerId: null,
+      workerName: null,
+      managedByName: null,
     });
   });
 
