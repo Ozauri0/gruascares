@@ -80,8 +80,11 @@ describe.skipIf(!dbReady)("rol grúa y panel de grúas separado del taller (#129
     expect(noWorker.status).toBe(400); // hay que asignar al gruero antes de iniciar
     expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/assign`, { workerId: seed.rigger.id })).status).toBe(200);
     expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" })).status).toBe(200);
-    const report = await call(seed.crane, "POST", `/api/mechanic/appointments/${id}/report`, { observations: "Traslado a taller sin novedades", mileageAtService: 1500 });
+    const report = await call(seed.crane, "POST", `/api/mechanic/appointments/${id}/report`, { observations: "Traslado a taller sin novedades", mileageAtService: 1500, partsReplaced: "Cadena", recommendations: "Revisar" });
     expect(report.status).toBe(201);
+    // La ficha de grúa es solo un comentario: no guarda kilometraje, repuestos ni recomendaciones (#142)
+    const [saved] = await sql`select observations, mileage_at_service, parts_replaced, recommendations from service_records where appointment_id = ${id}`;
+    expect(saved).toMatchObject({ observations: "Traslado a taller sin novedades", mileage_at_service: null, parts_replaced: null, recommendations: null });
     expect((await call(seed.clientA, "GET", `/api/mechanic/appointments/${id}/report`)).status).toBe(200); // el cliente ve su informe
     const [{ status }] = await sql`select status from appointments where id = ${id}`;
     expect(status).toBe("finalizada");
