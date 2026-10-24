@@ -99,7 +99,7 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 ### ADR 009: Los bloques horarios los define el backend
 - **Fecha**: 2026-10-15
 - **Estado**: Aceptado
-- **Contexto**: El frontend generaba 21 bloques ficticios (08:00–18:00 cada 30 min) y el backend ofrece 8 (`DEFAULT_TIME_SLOTS`: 08:30, 09:30, 10:30, 11:30, 14:00, 15:00, 16:00, 17:00) con capacidad por bloque, bloqueos del administrador y hora de Chile.
+- **Contexto**: El frontend generaba 21 bloques ficticios (08:00–18:00 cada 30 min) y el backend ofrecía 8 (`DEFAULT_TIME_SLOTS`; desde ADR 015 son 12: 08:30 a 19:30 cada hora) con capacidad por bloque, bloqueos del administrador y hora de Chile.
 - **Decisión**: `GET /api/appointments/availability` es la única fuente de verdad. `/agendar` pinta los bloques que devuelve (disponible, ocupado, ya transcurrido o bloqueado con motivo) y se eliminó el generador de bloques del frontend. Los bloques predefinidos están en `backend/src/config/constants.ts` y el admin añade los propios por día (ADR 011).
 - **Consecuencias**: la web nunca ofrece un horario que el backend rechazaría; si el taller quiere otros bloques se cambia en un solo lugar (a futuro, desde el panel de administración).
 
@@ -144,3 +144,9 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Contexto**: Las solicitudes de invitado se aceptaban con un correo sin verificar: cualquiera podía llenar los cupos de la agenda con citas falsas (solo limitado por IP) y el taller recibía solicitudes y enviaba correos a direcciones de terceros.
 - **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. `/agendar` es una ruta protegida: sin sesión redirige a `/login?redirect=…` y se vuelve a la ruta tras iniciar sesión (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora). Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
 - **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo). Para emergencias se mantiene el teléfono 24/7 visible.
+
+### ADR 015: Horario base 08:30–19:30 y tope de 4 citas por horario
+- **Fecha**: 2026-10-24
+- **Estado**: Aceptado (issue #126)
+- **Contexto**: El cliente pidió horarios de la serviteca de 08:30 a 19:30 (hora de Chile), uno por hora. Los 8 bloques anteriores tenían una pausa de almuerzo y un tope de 2 citas.
+- **Decisión**: `DEFAULT_TIME_SLOTS` (`backend/src/config/constants.ts`) pasa a 12 bloques: 08:30, 09:30, … 19:30, todos los días, para serviteca y grúa. `MAX_CONCURRENT_APPOINTMENTS_PER_SLOT` sube a 4: al llegar a 4 el horario aparece lleno (`available: false`) y no admite más solicitudes ni reprogramaciones; el candado por (fecha, bloque) evita pasar del tope con reservas simultáneas. Las citas ya existentes en horarios antiguos se conservan. Ambos valores viven solo en ese archivo, porque el cliente puede cambiarlos.

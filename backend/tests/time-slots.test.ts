@@ -31,6 +31,15 @@ describe.skipIf(!dbReady)("horarios por día", () => {
     expect((await call(null, "GET", `/api/admin/schedule?date=${date}`)).status).toBe(401);
   });
 
+  test("horario base: de 08:30 a 19:30, uno por hora, con 4 cupos cada uno (#126)", async () => {
+    const avail = await call(null, "GET", `/api/appointments/availability?date=${futureDate(8)}`);
+    expect(avail.body.slots.map((s: any) => s.time)).toEqual([
+      "08:30", "09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30", "16:30", "17:30", "18:30", "19:30",
+    ]);
+    expect(avail.body.capacityPerSlot).toBe(4);
+    expect(avail.body.slots.every((s: any) => s.available && s.capacityRemaining === 4)).toBe(true);
+  });
+
   test("un horario creado aparece en la disponibilidad, admite citas y solo existe ese día", async () => {
     const date = futureDate(8);
     const created = await call(seed.admin, "POST", "/api/admin/time-slots", { date, timeSlot: "13:00" });
@@ -144,19 +153,20 @@ describe.skipIf(!dbReady)("bloqueo masivo y cambio de hora", () => {
     expect(blocked.status).toBe(409);
     expect(blocked.body.message).toContain("bahía en mantención");
 
-    await book(seed.clientA, other, "14:00");
-    await book(seed.clientB, other, "14:00"); // una misma persona no puede ocupar dos veces el horario
-    expect((await patch({ scheduledDate: other, timeSlot: "14:00" })).status).toBe(409); // lleno
+    for (const user of [seed.clientB, seed.seller, seed.mechanic, seed.admin]) {
+      expect((await book(user, other, "14:30")).status).toBe(201); // 4 personas distintas llenan el horario
+    }
+    expect((await patch({ scheduledDate: other, timeSlot: "14:30" })).status).toBe(409); // lleno
 
-    const done = await patch({ scheduledDate: other, timeSlot: "15:00" });
+    const done = await patch({ scheduledDate: other, timeSlot: "15:30" });
     expect(done.status).toBe(200);
     expect(done.body.appointment.scheduledDate).toBe(other);
-    expect(done.body.appointment.timeSlot).toBe("15:00");
+    expect(done.body.appointment.timeSlot).toBe("15:30");
     expect(done.body.notified).toBe(true);
 
     // Liberó su cupo anterior y una cita finalizada o cancelada ya no se mueve.
     expect((await book(seed.clientA, date, "10:30")).status).toBe(201);
     await call(seed.clientA, "PATCH", `/api/appointments/${id}/cancel`);
-    expect((await patch({ scheduledDate: other, timeSlot: "16:00" })).status).toBe(409);
+    expect((await patch({ scheduledDate: other, timeSlot: "16:30" })).status).toBe(409);
   });
 });

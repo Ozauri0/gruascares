@@ -121,7 +121,7 @@ async function seed() {
 
     await db.insert(appointments).values([
       { userId: cliente1.id, vehicleId: vehicleByPlate["ABCD12"].id, serviceId: mantencion.id, scheduledDate: addDays(today, 1), timeSlot: "09:30", status: "confirmada", mechanicId: mecanico1.id, location: "Taller Villarrica", notes: "Revisar frenos traseros." },
-      { userId: cliente1.id, vehicleId: vehicleByPlate["EFGH34"].id, serviceId: grua.id, scheduledDate: addDays(today, 3), timeSlot: "15:00", status: "solicitada", location: "Ruta Villarrica – Pucón km 8" },
+      { userId: cliente1.id, vehicleId: vehicleByPlate["EFGH34"].id, serviceId: grua.id, scheduledDate: addDays(today, 3), timeSlot: "15:30", status: "solicitada", location: "Ruta Villarrica – Pucón km 8" },
       { userId: cliente2.id, vehicleId: vehicleByPlate["JKLM56"].id, serviceId: aceite.id, scheduledDate: addDays(today, 1), timeSlot: "10:30", status: "solicitada" },
       { userId: cliente2.id, vehicleId: vehicleByPlate["JKLM56"].id, serviceId: mantencion.id, scheduledDate: addDays(today, 2), timeSlot: "11:30", status: "confirmada", mechanicId: mecanico2.id },
     ]);
