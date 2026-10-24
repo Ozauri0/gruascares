@@ -17,6 +17,10 @@ const image = (key: string, label: string, def: string, hint?: string): ContentF
 
 /** Imágenes locales que se pueden elegir desde la galería del panel. */
 export const GALLERY_IMAGES = [
+  "/images/portada-01.webp",
+  "/images/portada-02.webp",
+  "/images/portada-03.webp",
+  "/images/portada-04.webp",
   "/images/carousel-01.webp",
   "/images/carousel-02.webp",
   "/images/carousel-03.webp",
@@ -32,7 +36,7 @@ export const GALLERY_IMAGES = [
 ];
 
 const slide = (n: number, label: string, detail: string): ContentField[] => [
-  image(`hero.slide${n}.image`, `Imagen ${n}`, `/images/carousel-0${n}.webp`),
+  image(`hero.slide${n}.image`, `Imagen ${n}`, `/images/portada-0${n}.webp`),
   text(`hero.slide${n}.label`, `Título ${n}`, label),
   text(`hero.slide${n}.detail`, `Detalle ${n}`, detail),
 ];
