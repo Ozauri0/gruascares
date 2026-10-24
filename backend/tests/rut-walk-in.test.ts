@@ -111,7 +111,7 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
     expect(dupRut.status).toBe(409);
   });
 
-  test("solo ventas crea perfil presencial sin correo ni contraseña; mecánico, grúa, admin y cliente reciben 403 (#144)", async () => {
+  test("ventas y admin crean perfil presencial sin correo ni contraseña; mecánico, grúa y cliente reciben 403 (#144)", async () => {
     const rutVentas = makeValidRut(910);
     const rutAdmin = makeValidRut(911);
 
@@ -150,14 +150,12 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
       hasAccount: false,
     });
 
-    // El admin tampoco: el RUT en mostrador es solo del perfil de ventas
-    expect((await call(seed.admin, "POST", "/api/clients", { name: "Sra. Rosa", rut: rutAdmin, phone: "+56 9 5555 2222", email: "rosa@test.cl" })).status).toBe(403);
-    // Un jefe de taller con rol de ventas adicional sí puede
-    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.mechanic.id}`, { roles: ["mecanico", "vendedor"] })).status).toBe(200);
-    const byMixed = await call(seed.mechanic, "POST", "/api/clients", { name: "Sra. Rosa", rut: rutAdmin, phone: "+56 9 5555 2222", email: "rosa@test.cl" });
-    expect(byMixed.status).toBe(201);
-    expect(byMixed.body.client).toMatchObject({ rut: rutAdmin, email: "rosa@test.cl", hasAccount: false });
-    await call(seed.admin, "PATCH", `/api/admin/users/${seed.mechanic.id}`, { roles: ["mecanico"] });
+    // Admin crea perfil con correo opcional
+    const byAdmin = await call(seed.admin, "POST", "/api/clients", { name: "Sra. Rosa", rut: rutAdmin, phone: "+56 9 5555 2222", email: "rosa@test.cl" });
+    expect(byAdmin.status).toBe(201);
+    expect(byAdmin.body.client).toMatchObject({ rut: rutAdmin, email: "rosa@test.cl", hasAccount: false });
+    // La grúa tampoco
+    expect((await call(seed.crane, "POST", "/api/clients", { name: "X", rut: makeValidRut(912), phone: "+56 9 5555 3333" })).status).toBe(403);
 
     // Sin contraseña no puede iniciar sesión
     const loginAttempt = await call(null, "POST", "/api/auth/login", {
@@ -166,9 +164,9 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
     });
     expect(loginAttempt.status).toBe(401);
 
-    // Búsqueda por RUT: solo ventas
+    // Búsqueda por RUT: ventas y admin; taller y grúas no
     expect((await call(seed.mechanic, "GET", `/api/clients/by-rut?rut=${rutVentas}`)).status).toBe(403);
-    expect((await call(seed.admin, "GET", `/api/clients/by-rut?rut=${rutVentas}`)).status).toBe(403);
+    expect((await call(seed.admin, "GET", `/api/clients/by-rut?rut=${rutVentas}`)).status).toBe(200);
     const lookup = await call(seed.seller, "GET", `/api/clients/by-rut?rut=${encodeURIComponent(formatRut(rutVentas))}`);
     expect(lookup.status).toBe(200);
     expect(lookup.body.client.id).toBe(bySeller.body.client.id);
@@ -186,10 +184,11 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
       vehicleId: seed.vehicleA.id,
       notes: "Ingresado por taller con RUT",
     };
-    // Agendar por RUT es solo de ventas: mecánico, grúa y admin reciben 403 (#144)
-    for (const actor of [seed.mechanic, seed.crane, seed.admin]) {
+    // Agendar por RUT es de ventas y admin: mecánico y grúa reciben 403 (#144)
+    for (const actor of [seed.mechanic, seed.crane]) {
       expect((await call(actor, "POST", "/api/appointments", body)).status).toBe(403);
     }
+    expect((await call(seed.admin, "POST", "/api/appointments", { rut: formatRut(seed.clientB.rut), serviceId: seed.serviceAceite.id, scheduledDate: date, timeSlot: "11:30" })).status).toBe(201);
     const booked = await call(seed.seller, "POST", "/api/appointments", body);
     expect(booked.status).toBe(201);
     expect(booked.body.appointment.userId).toBe(seed.clientA.id);

@@ -24,11 +24,11 @@ describe("INT-4: decisión de acceso por rol", () => {
     expect(canManageStaff({ role: "vendedor", roles: ["vendedor", "mecanico"] })).toBe(true);
   });
 
-  test("/atencion-presencial es solo del perfil de ventas; el resto vuelve a su inicio", () => {
+  test("/atencion-presencial es de ventas y del admin; taller y grúas vuelven a su inicio", () => {
     expect(guardDecision("/atencion-presencial", null)).toEqual({ type: "login" });
     expect(guardDecision("/atencion-presencial", "usuario")).toEqual({ type: "redirect", to: "/portal" });
-    expect(guardDecision("/atencion-presencial", "vendedor")).toEqual({ type: "allow" });
-    for (const role of ["mecanico", "grua", "admin"] as const) {
+    for (const role of ["vendedor", "admin"] as const) expect(guardDecision("/atencion-presencial", role)).toEqual({ type: "allow" });
+    for (const role of ["mecanico", "grua"] as const) {
       expect(guardDecision("/atencion-presencial", role)).toEqual({ type: "redirect", to: HOME_FOR_ROLE[role] });
     }
     // Un mecánico que además es vendedor sí puede
@@ -86,7 +86,7 @@ describe("INT-4: decisión de acceso por rol", () => {
   });
 
   test("admin accede a todo", () => {
-    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/grua", "/portal", "/vendedor"]) {
+    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/grua", "/portal", "/vendedor", "/atencion-presencial"]) {
       expect(guardDecision(path, "admin")).toEqual({ type: "allow" });
     }
   });

@@ -116,7 +116,7 @@ describe.skipIf(!dbReady)("rol grúa y panel de grúas separado del taller (#129
 
     expect((await call(seed.crane, "GET", "/api/admin/users")).status).toBe(403);
     expect((await call(seed.crane, "GET", "/api/admin/products")).status).toBe(403);
-    expect((await call(seed.crane, "POST", "/api/clients", { name: "X", rut: "12345678-5", phone: "+56 9 1" })).status).toBe(403); // crear perfiles: solo ventas (#144)
+    expect((await call(seed.crane, "POST", "/api/clients", { name: "X", rut: "12345678-5", phone: "+56 9 1" })).status).toBe(403); // crear perfiles: solo ventas y admin (#144)
     expect((await call(seed.crane, "GET", "/api/clients/by-rut?rut=" + seed.clientA.rut)).status).toBe(403); // el RUT en mostrador es solo de ventas (#144)
   });
 });
