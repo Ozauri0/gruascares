@@ -31,13 +31,13 @@ function manageableTypes(roles: string[]): WorkerType[] {
  * Equipo del área: los trabajadores no tienen cuenta; el jefe los registra aquí para poder asignarles las solicitudes.
  * `onChange` avisa al tablero para que refresque el selector de «quién se encarga».
  */
-export default function WorkersPanel({ area, onChange }: { area: WorkArea; onChange: () => void }) {
+export default function WorkersPanel({ area, onChange = () => {}, defaultOpen = false }: { area: WorkArea; onChange?: () => void; defaultOpen?: boolean }) {
   const { user } = useAuth();
   const copy = WORK_AREAS[area];
   const mine = user ? manageableTypes(rolesOf(user)) : [];
   const areaType = WORKER_TYPE_FOR_AREA[area];
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -127,9 +127,11 @@ export default function WorkersPanel({ area, onChange }: { area: WorkArea; onCha
           <h2 className="pending-title">{copy.workersTitle}</h2>
           <span className="portal-badge-counter">Personal sin cuenta · lo asignas a cada solicitud</span>
         </div>
-        <button type="button" className="toggle-btn" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-          {open ? "Ocultar equipo" : "Gestionar equipo"}
-        </button>
+        {!defaultOpen && (
+          <button type="button" className="toggle-btn" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+            {open ? "Ocultar equipo" : "Gestionar equipo"}
+          </button>
+        )}
       </div>
 
       {open && (

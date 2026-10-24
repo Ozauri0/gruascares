@@ -30,6 +30,11 @@ export const AREA_LABEL: Record<Role, string> = {
   admin: "Administración",
 };
 
+/** Quién gestiona personal (trabajadores sin cuenta): los jefes de taller y de grúas, y el admin. */
+export function canManageStaff(user: { role: Role; roles?: Role[] }): boolean {
+  return rolesOf(user).some((r) => r === "mecanico" || r === "grua" || r === "admin");
+}
+
 /** Roles de un usuario: el principal (su inicio) primero, luego los adicionales. */
 export function rolesOf(user: { role: Role; roles?: Role[] }): Role[] {
   return [...new Set([user.role, ...(user.roles ?? [])])];
@@ -52,7 +57,7 @@ export type Session = { role: Role; roles: Role[] };
 
 /**
  * /admin → solo admin; /mecanico → mecánico o admin; /vendedor → vendedor o admin;
- * /grua → grúa o admin; /atencion-presencial → solo vendedor (#144); /portal → cualquier sesión.
+ * /grua → grúa o admin; /personal → jefes de taller, de grúas o admin; /atencion-presencial → solo vendedor (#144); /portal → cualquier sesión.
  * Con varios roles basta con tener uno de los permitidos; si no, vuelve al inicio del rol principal.
  */
 export function guardDecision(pathname: string, role: Role | null, roles?: Role[]): GuardDecision {
@@ -65,6 +70,7 @@ export function guardDecision(pathname: string, role: Role | null, roles?: Role[
   if (isUnder("/mecanico") && !has("mecanico", "admin")) return deny;
   if (isUnder("/vendedor") && !has("vendedor", "admin")) return deny;
   if (isUnder("/grua") && !has("grua", "admin")) return deny;
+  if (isUnder("/personal") && !has("mecanico", "grua", "admin")) return deny;
   if (isUnder("/atencion-presencial") && !has("vendedor")) return deny;
   return { type: "allow" };
 }
