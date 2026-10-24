@@ -45,19 +45,20 @@ function ClientContactLine({ item }: { item: AgendaItem }) {
           <>
             {" · "}
             <Icon name="phone" />
-            <a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a>{" "}
-            <a className="toggle-btn" href={`tel:${item.clientPhone}`}>Llamar</a>
-            {wa && (
-              <>
-                {" "}
-                <a className="toggle-btn" href={wa} target="_blank" rel="noopener noreferrer">
-                  WhatsApp
-                </a>
-              </>
-            )}
+            <a href={`tel:${item.clientPhone}`}>{item.clientPhone}</a>
           </>
         )}
       </p>
+      {item.clientPhone && (
+        <div className="contact-actions">
+          <a className="toggle-btn" href={`tel:${item.clientPhone}`}>Llamar</a>
+          {wa && (
+            <a className="toggle-btn" href={wa} target="_blank" rel="noopener noreferrer">
+              WhatsApp
+            </a>
+          )}
+        </div>
+      )}
       {!item.clientEmail && (
         <p className="portal-meta">
           <span className="role-badge role-vendedor">Sin correo · contactar por teléfono o WhatsApp</span>
