@@ -6,6 +6,7 @@ import LogoutButton from "../components/LogoutButton";
 import StatusBadge from "../components/StatusBadge";
 import { useAdminMetrics } from "../lib/use-admin-metrics";
 import { formatPlate } from "../lib/plate";
+import { reportUrl } from "../lib/reports";
 
 import AdminNav from "./components/AdminNav";
 import Skeleton from "../components/Skeleton";
@@ -21,6 +22,8 @@ export default function AdminPage() {
     if (exportTo) params.set("endDate", exportTo);
     return `/api/admin/export/appointments?${params.toString()}`;
   };
+  const [reportFrom, setReportFrom] = useState("");
+  const [reportTo, setReportTo] = useState("");
   const maxCategory = metrics ? Math.max(1, ...metrics.byCategory.map((item) => item.count)) : 1;
   return (
     <>
@@ -103,6 +106,21 @@ export default function AdminPage() {
                   <div className="export-actions">
                     <a className="button button-sm" href={exportUrl("csv")} download>Descargar CSV</a>
                     <a className="button button-sm button-secondary" href={exportUrl("json")} download>Descargar JSON</a>
+                  </div>
+                </div>
+              </section>
+
+              <section className="export-card" aria-label="Reportes de taller y grúas">
+                <div>
+                  <h2>Reportes de rendimiento (Excel)</h2>
+                  <p>Una planilla por área con cada servicio —quién lo pidió, qué trabajador se encargó, qué jefe lo gestionó y su informe técnico— y una hoja resumen por trabajador para medir su desempeño. Sin fechas, se incluye todo.</p>
+                </div>
+                <div className="export-fields">
+                  <label>Desde<input type="date" value={reportFrom} max={reportTo || undefined} onChange={(e) => setReportFrom(e.target.value)} /></label>
+                  <label>Hasta<input type="date" value={reportTo} min={reportFrom || undefined} onChange={(e) => setReportTo(e.target.value)} /></label>
+                  <div className="export-actions">
+                    <a className="button button-sm" href={reportUrl("taller", reportFrom, reportTo)} download>Reporte de taller</a>
+                    <a className="button button-sm" href={reportUrl("grua", reportFrom, reportTo)} download>Reporte de grúas</a>
                   </div>
                 </div>
               </section>

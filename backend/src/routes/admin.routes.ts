@@ -14,6 +14,7 @@ import {
   getAuditLogs,
   exportAppointments,
 } from "../controllers/admin.controller.js";
+import { downloadAreaReport } from "../controllers/reports.controller.js";
 import { discardDraft, getDraft, publishDraft, saveDraft, updateContent, uploadImage } from "../controllers/content.controller.js";
 import { createProduct, deleteProduct, getAdminCatalog, updateProduct } from "../controllers/catalog.controller.js";
 import { createStaffUser, deleteUser, listUsers, updateUser } from "../controllers/admin-users.controller.js";
@@ -66,5 +67,8 @@ router.post("/content/publish", publishDraft);
 // 3. [T1.10] Auditoría y Respaldo de Datos
 router.get("/audit-logs", getAuditLogs);
 router.get("/export/appointments", exportAppointments);
+
+// Reportes Excel de taller y grúas (quién pidió, quién se encargó, informe técnico y resumen por trabajador)
+router.get("/reports/:area", downloadAreaReport);
 
 export default router;
