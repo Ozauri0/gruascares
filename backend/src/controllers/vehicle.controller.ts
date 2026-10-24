@@ -180,7 +180,7 @@ export async function createVehicle(req: Request, res: Response) {
 
     // Si es personal (admin, mecánico o vendedor) y envía userId, puede registrar vehículos a nombre de un cliente
     let ownerUserId = currentUser.userId;
-    if (targetUserId && hasRole(currentUser, "admin", "mecanico", "vendedor")) {
+    if (targetUserId && hasRole(currentUser, "admin", "mecanico", "grua", "vendedor")) {
       if (!UUID_REGEX.test(targetUserId)) {
         return res.status(400).json({
           error: "Bad Request",

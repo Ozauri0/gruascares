@@ -1,4 +1,4 @@
-// Agenda y fichas técnicas del taller contra el backend (rutas /api/mechanic/*, solo mecánico o admin).
+// Agenda y fichas técnicas del taller y de grúas contra el backend (rutas /api/mechanic/*, solo su jefe de área o admin).
 
 import { apiGet, apiPatch, apiPost } from "./api";
 import { toAgendaItem } from "./api-adapters";
@@ -6,13 +6,14 @@ import type { ApiAgendaItem } from "./api-types";
 import { todayInSantiago } from "./dates";
 import type { AppointmentStatus } from "./portal-types";
 import type { AgendaItem } from "./workshop-types";
+import type { WorkArea } from "./work-areas";
 
 /** Días hacia atrás que se incluyen cuando se ve la agenda completa (atenciones recientes y todo lo que viene). */
 const HISTORY_DAYS = 30;
 
-/** Agenda del taller: un día concreto, o (sin fecha) todas las citas desde hace un mes en adelante, de cualquier estado. */
-export async function fetchAgenda(date?: string, signal?: AbortSignal, today: string = todayInSantiago()): Promise<AgendaItem[]> {
-  const query = date ? { date } : { startDate: shiftDay(today, -HISTORY_DAYS), limit: 500 };
+/** Agenda del área: un día concreto, o (sin fecha) todas las citas desde hace un mes en adelante, de cualquier estado. */
+export async function fetchAgenda(date?: string, signal?: AbortSignal, today: string = todayInSantiago(), area: WorkArea = "serviteca"): Promise<AgendaItem[]> {
+  const query = date ? { date, area } : { startDate: shiftDay(today, -HISTORY_DAYS), limit: 500, area };
   const { agenda } = await apiGet<{ agenda: ApiAgendaItem[] }>("/api/mechanic/agenda", query, { signal });
   return agenda.map(toAgendaItem);
 }
@@ -24,12 +25,12 @@ function shiftDay(iso: string, days: number): string {
 }
 
 /** Todas las solicitudes sin confirmar, de cualquier fecha (la más próxima primero). */
-export async function fetchPendingRequests(signal?: AbortSignal): Promise<AgendaItem[]> {
-  const { agenda } = await apiGet<{ agenda: ApiAgendaItem[] }>("/api/mechanic/agenda", { status: "solicitada", limit: 200 }, { signal });
+export async function fetchPendingRequests(signal?: AbortSignal, area: WorkArea = "serviteca"): Promise<AgendaItem[]> {
+  const { agenda } = await apiGet<{ agenda: ApiAgendaItem[] }>("/api/mechanic/agenda", { status: "solicitada", limit: 200, area }, { signal });
   return agenda.map(toAgendaItem);
 }
 
-/** Cambia el mecánico a cargo de una cita que sigue activa (solicitada, confirmada o en taller). */
+/** Cambia el encargado de una cita que sigue activa (solicitada, confirmada o en taller). */
 export async function assignAppointmentMechanic(id: string, mechanicId: string): Promise<void> {
   await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/assign`, { mechanicId });
 }

@@ -77,8 +77,8 @@ export async function unblockDay(id: string): Promise<void> {
   await apiDelete(`/api/admin/blocked-dates/${encodeURIComponent(id)}`);
 }
 
-export async function listStaff(signal?: AbortSignal): Promise<StaffMember[]> {
-  const { staff } = await apiGet<{ staff: StaffMember[] }>("/api/mechanic/list", undefined, { signal });
+export async function listStaff(signal?: AbortSignal, area?: "serviteca" | "grua"): Promise<StaffMember[]> {
+  const { staff } = await apiGet<{ staff: StaffMember[] }>("/api/mechanic/list", area ? { area } : undefined, { signal });
   return staff;
 }
 

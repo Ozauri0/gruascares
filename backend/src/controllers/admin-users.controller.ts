@@ -10,9 +10,9 @@ import { rolesOf, withRoles } from "../utils/roles.js";
 import { isValidRut, normalizeRut } from "../utils/rut.js";
 import { EMAIL_REGEX, MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 
-const ROLES = ["admin", "mecanico", "usuario", "vendedor"] as const;
+const ROLES = ["admin", "mecanico", "usuario", "vendedor", "grua"] as const;
 type Role = (typeof ROLES)[number];
-const STAFF_ROLES = ["mecanico", "vendedor", "admin"] as const;
+const STAFF_ROLES = ["mecanico", "grua", "vendedor", "admin"] as const;
 
 /** Valida una lista de roles: sin repetidos y sin mezclar "usuario" (cliente) con roles de personal. */
 function parseRoles(value: unknown, allowed: readonly Role[]): Role[] | { error: string } {
@@ -314,14 +314,16 @@ export async function updateUser(req: Request, res: Response) {
 
 /**
  * GET /api/mechanic/list
- * Personal de taller activo (mecánicos y administradores) para los selectores de asignación.
+ * Personal activo del área (mecánicos o gruas, y administradores) para los selectores de asignación.
  */
-export async function listWorkshopStaff(_req: Request, res: Response) {
+export async function listWorkshopStaff(req: Request, res: Response) {
   try {
+    // ?area=grua lista a quienes atienden grúas; por defecto, el taller (serviteca).
+    const areaRole = req.query.area === "grua" ? "grua" : "mecanico";
     const staff = await db
       .select({ id: users.id, name: users.name, role: users.role, extraRoles: users.extraRoles })
       .from(users)
-      .where(and(eq(users.isActive, true), or(eq(users.role, "mecanico"), eq(users.role, "admin"), sql`${users.extraRoles} && ARRAY['mecanico', 'admin']::user_role[]`)))
+      .where(and(eq(users.isActive, true), or(eq(users.role, areaRole), eq(users.role, "admin"), sql`${users.extraRoles} && ARRAY[${areaRole}, 'admin']::user_role[]`)))
       .orderBy(users.name);
     return res.json({ staff: staff.map(withRoles) });
   } catch (error) {

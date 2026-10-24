@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ApiError } from "./api";
-import { changeAppointmentStatus, fetchAgenda, saveReportAndFinish } from "./workshop-api";
+import { changeAppointmentStatus, fetchAgenda, fetchPendingRequests, saveReportAndFinish } from "./workshop-api";
 
 type Call = { url: string; init: RequestInit };
 const realFetch = globalThis.fetch;
@@ -36,7 +36,7 @@ describe("INT-8: taller contra la API", () => {
       ],
     });
     const agenda = await fetchAgenda("2026-10-20");
-    expect(calls[0].url).toBe("/api/mechanic/agenda?date=2026-10-20");
+    expect(calls[0].url).toBe("/api/mechanic/agenda?date=2026-10-20&area=serviteca");
     expect(agenda[0]).toMatchObject({ clientName: "María González", vehiclePlate: "ABCD12", vehicleLabel: "Toyota Hilux 2021", mechanicName: "Juan Paredes" });
     expect(agenda[1]).toMatchObject({ clientName: "Invitado", clientPhone: "", vehicleLabel: "Sin vehículo registrado", mechanicName: null });
   });
@@ -44,7 +44,16 @@ describe("INT-8: taller contra la API", () => {
   test("fetchAgenda sin fecha trae todas las citas desde hace 30 días, de cualquier estado", async () => {
     respond(200, { agenda: [] });
     await fetchAgenda(undefined, undefined, "2026-10-16");
-    expect(calls[0].url).toBe("/api/mechanic/agenda?startDate=2026-09-16&limit=500");
+    expect(calls[0].url).toBe("/api/mechanic/agenda?startDate=2026-09-16&limit=500&area=serviteca");
+  });
+
+  test("fetchAgenda y las solicitudes de grúas piden su propia área", async () => {
+    respond(200, { agenda: [] });
+    await fetchAgenda("2026-10-20", undefined, undefined, "grua");
+    expect(calls[0].url).toBe("/api/mechanic/agenda?date=2026-10-20&area=grua");
+    respond(200, { agenda: [] });
+    await fetchPendingRequests(undefined, "grua");
+    expect(calls[1].url).toBe("/api/mechanic/agenda?status=solicitada&limit=200&area=grua");
   });
 
   test("changeAppointmentStatus hace PATCH a la ruta del taller", async () => {

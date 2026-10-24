@@ -10,7 +10,7 @@ import { logAudit } from "../services/audit/audit.service.js";
 /**
  * GET /api/clients/by-rut?rut=... (o /api/clients/by-rut/:rut)
  * Busca un cliente por RUT y devuelve sus datos y vehículos.
- * Accesible para ventas (vendedor), taller (mecanico) y administración (admin).
+ * Accesible para ventas (vendedor), taller (mecanico), grúas (grua) y administración (admin).
  */
 export async function getClientByRut(req: Request, res: Response) {
   try {

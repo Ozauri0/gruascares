@@ -1,4 +1,4 @@
-import { hasRole } from "../utils/roles.js";
+import { AREA_ROLE, canWorkOn, hasRole, type ServiceCategory } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, ne, sql, or, ilike, notInArray } from "drizzle-orm";
 import { db } from "../db/connection.js";
@@ -102,6 +102,7 @@ export async function getAdminMetrics(_req: Request, res: Response) {
       mecanico: 0,
       usuario: 0,
       vendedor: 0,
+      grua: 0,
     };
     let totalUsers = 0;
 
@@ -857,10 +858,10 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
       });
     }
 
-    if (!hasRole(mechanic, "mecanico", "admin")) {
+    if (!hasRole(mechanic, "mecanico", "grua", "admin")) {
       return res.status(400).json({
         error: "Bad Request",
-        message: "El usuario asignado debe tener rol de mecánico o administrador",
+        message: "El usuario asignado debe tener rol de mecánico, grúa o administrador",
       });
     }
 
@@ -882,6 +883,19 @@ export async function reassignAppointmentMechanic(req: Request, res: Response) {
       return res.status(404).json({
         error: "Not Found",
         message: "La cita solicitada no existe",
+      });
+    }
+
+    // El encargado debe ser del área del servicio (mecánico para serviteca, grúa para grúas) y quien asigna, de esa área.
+    const [svc] = await db.select({ category: services.category }).from(services).where(eq(services.id, existingAppointment.serviceId)).limit(1);
+    const category = (svc?.category ?? "serviteca") as ServiceCategory;
+    if (!canWorkOn(req.user, category)) {
+      return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para gestionar las citas de esta área" });
+    }
+    if (!hasRole(mechanic, AREA_ROLE[category], "admin")) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: category === "grua" ? "Para un servicio de grúa el encargado debe tener rol de grúa o administrador" : "Para un servicio de taller el encargado debe tener rol de mecánico o administrador",
       });
     }
 

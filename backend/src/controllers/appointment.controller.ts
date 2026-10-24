@@ -252,7 +252,7 @@ export async function createAppointment(req: Request, res: Response) {
 
     // 3. Determinar titular de la cita:
     // - Si el usuario solicita para sí mismo, se usa req.user.
-    // - Si se envía userId/clientId, rut o client, debe ser personal autorizado (vendedor, mecanico o admin).
+    // - Si se envía userId/clientId, rut o client, debe ser personal autorizado (vendedor, mecanico, grua o admin).
     const actor = req.user!;
     const explicitClientId = requestedUserId ?? requestedClientId;
     const rawRut = requestedRut ?? requestedClient?.rut;
@@ -268,7 +268,7 @@ export async function createAppointment(req: Request, res: Response) {
     let bookedByStaff = false;
 
     if (isBookingForOther) {
-      if (!hasRole(actor, "vendedor", "mecanico", "admin")) {
+      if (!hasRole(actor, "vendedor", "mecanico", "grua", "admin")) {
         return res.status(403).json({
           error: "Forbidden",
           message: "No tienes permiso para agendar citas a nombre de otro cliente",

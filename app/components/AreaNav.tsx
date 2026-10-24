@@ -6,7 +6,7 @@ import { useAuth } from "../lib/auth";
 import { AREA_LABEL, HOME_FOR_ROLE, areasFor, type Role } from "../lib/route-guard";
 import Icon, { type IconName } from "./Icon";
 
-const AREA_ICON: Record<Role, IconName> = { admin: "shield", mecanico: "wrench", vendedor: "tag", usuario: "user" };
+const AREA_ICON: Record<Role, IconName> = { admin: "shield", mecanico: "wrench", grua: "truck", vendedor: "tag", usuario: "user" };
 
 /** Barra para moverse entre las áreas a las que tiene acceso quien trabaja en la empresa (no se muestra a un cliente). */
 export default function AreaNav() {

@@ -18,7 +18,7 @@ beforeEach(async () => {
   seed = await seedBasics();
 });
 
-type U = { id: string; email: string | null; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number };
+type U = { id: string; email: string | null; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" | "grua" | "grua"; tokenVersion?: number };
 const call = async (user: U, method: string, path: string, body?: unknown) => {
   const res = await fetch(`${server.url}${path}`, { method, headers: cookieFor(user), body: body === undefined ? undefined : JSON.stringify(body) });
   return { status: res.status, body: (await res.json()) as any };
@@ -28,8 +28,8 @@ describe.skipIf(!dbReady)("INT-10: GET /api/admin/users", () => {
   test("lista con total y sin datos sensibles", async () => {
     const { status, body } = await call(seed.admin, "GET", "/api/admin/users");
     expect(status).toBe(200);
-    expect(body.total).toBe(5);
-    expect(body.users).toHaveLength(5);
+    expect(body.total).toBe(6);
+    expect(body.users).toHaveLength(6);
     for (const user of body.users) {
       expect(user.passwordHash).toBeUndefined();
       expect(user.password_hash).toBeUndefined();
@@ -44,7 +44,7 @@ describe.skipIf(!dbReady)("INT-10: GET /api/admin/users", () => {
     expect((await call(seed.admin, "GET", "/api/admin/users?active=false")).body.total).toBe(1);
     expect((await call(seed.admin, "GET", "/api/admin/users?q=cliente%20a")).body.users.map((u: any) => u.email)).toEqual(["a@test.local"]);
     expect((await call(seed.admin, "GET", `/api/admin/users?q=${encodeURIComponent(seed.clientA.rut)}`)).body.users.map((u: any) => u.email)).toEqual(["a@test.local"]);
-    expect((await call(seed.admin, "GET", "/api/admin/users?q=TEST.LOCAL")).body.total).toBe(5);
+    expect((await call(seed.admin, "GET", "/api/admin/users?q=TEST.LOCAL")).body.total).toBe(6);
     // % y _ son texto literal: no devuelven todo
     expect((await call(seed.admin, "GET", "/api/admin/users?q=%25")).body.total).toBe(0);
     expect((await call(seed.admin, "GET", "/api/admin/users?q=_")).body.total).toBe(0);
@@ -53,7 +53,7 @@ describe.skipIf(!dbReady)("INT-10: GET /api/admin/users", () => {
   test("pagina y valida filtros", async () => {
     const page = (await call(seed.admin, "GET", "/api/admin/users?limit=2&page=2")).body;
     expect(page.users).toHaveLength(2);
-    expect(page.total).toBe(5);
+    expect(page.total).toBe(6);
     expect((await call(seed.admin, "GET", "/api/admin/users?role=root")).status).toBe(400);
     expect((await call(seed.admin, "GET", "/api/admin/users?active=quizas")).status).toBe(400);
   });

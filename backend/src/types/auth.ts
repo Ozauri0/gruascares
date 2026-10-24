@@ -1,6 +1,6 @@
 import { Request } from "express";
 
-export type UserRole = "admin" | "mecanico" | "usuario" | "vendedor";
+export type UserRole = "admin" | "mecanico" | "usuario" | "vendedor" | "grua";
 
 export interface JWTPayload {
   userId: string;

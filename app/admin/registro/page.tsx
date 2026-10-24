@@ -26,7 +26,7 @@ const LEVELS: { value: ActivityLevel | "todos"; label: string }[] = [
 
 const AREA_NAME: Record<ActivityArea, string> = { taller: "Taller", ventas: "Ventas", administracion: "Administración", clientes: "Clientes", cuentas: "Cuentas", sistema: "Sistema" };
 const LEVEL_NAME: Record<ActivityLevel, string> = { info: "Normal", warn: "Aviso", error: "Error" };
-const ROLE_NAME: Record<string, string> = { admin: "Administrador", mecanico: "Mecánico", vendedor: "Vendedor", usuario: "Cliente" };
+const ROLE_NAME: Record<string, string> = { admin: "Administrador", mecanico: "Mecánico", grua: "Grúas", vendedor: "Vendedor", usuario: "Cliente" };
 
 const dateFmt = new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago" });
 

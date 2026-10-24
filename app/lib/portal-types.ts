@@ -4,7 +4,7 @@
 // GET /api/appointments -> { appointments: PortalAppointment[] }
 // GET /api/vehicles -> { vehicles: PortalVehicle[] }
 
-export type UserRole = "admin" | "mecanico" | "usuario" | "vendedor";
+export type UserRole = "admin" | "mecanico" | "usuario" | "vendedor" | "grua";
 
 export type SessionUser = {
   id: string;

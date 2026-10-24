@@ -1,3 +1,4 @@
+import type { UserRole } from "../src/types/auth.js";
 import { hashPassword } from "../src/utils/password.js";
 import { sql as rawSql, db } from "../src/db/connection.js";
 import { users, services, vehicles } from "../src/db/schema.js";
@@ -22,6 +23,8 @@ export interface Seed {
   serviceGrua: typeof services.$inferSelect;
   serviceAceite: typeof services.$inferSelect;
   seller: SeedUser;
+  /** Jefe de grúas. */
+  crane: SeedUser;
   vehicleA: typeof vehicles.$inferSelect;
   vehicleB: typeof vehicles.$inferSelect;
 }
@@ -29,7 +32,7 @@ export interface Seed {
 /** Datos mínimos y deterministas para las pruebas de integración. */
 export async function seedBasics(): Promise<Seed> {
   const hash = await hashPassword("password123");
-  const [admin, mechanic, clientA, clientB, seller] = (await db
+  const [admin, mechanic, clientA, clientB, seller, crane] = (await db
     .insert(users)
     .values([
       { name: "Admin Test", rut: makeValidRut(1), phone: "+56 9 1000 0001", email: "admin@test.local", passwordHash: hash, role: "admin", emailVerifiedAt: new Date() },
@@ -37,6 +40,7 @@ export async function seedBasics(): Promise<Seed> {
       { name: "Cliente A", rut: makeValidRut(3), phone: "+56 9 1000 0003", email: "a@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
       { name: "Cliente B", rut: makeValidRut(4), phone: "+56 9 1000 0004", email: "b@test.local", passwordHash: hash, role: "usuario", emailVerifiedAt: new Date() },
       { name: "Vendedor Test", rut: makeValidRut(5), phone: "+56 9 1000 0005", email: "vendedor@test.local", passwordHash: hash, role: "vendedor", emailVerifiedAt: new Date() },
+      { name: "Grua Test", rut: makeValidRut(6), phone: "+56 9 1000 0006", email: "grua@test.local", passwordHash: hash, role: "grua", emailVerifiedAt: new Date() },
     ])
     .returning()) as SeedUser[];
   const [serviceGrua, serviceAceite] = await db
@@ -53,10 +57,10 @@ export async function seedBasics(): Promise<Seed> {
       { userId: clientB.id, plate: "WXYZ99", brand: "Ford", model: "Ranger", year: 2020, mileage: 2000 },
     ])
     .returning();
-  return { admin, mechanic, seller, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
+  return { admin, mechanic, seller, crane, clientA, clientB, serviceGrua, serviceAceite, vehicleA, vehicleB };
 }
 
-export function cookieFor(user: { id: string; email: string | null; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number }): Record<string, string> {
+export function cookieFor(user: { id: string; email: string | null; name: string; role: UserRole; tokenVersion?: number }): Record<string, string> {
   const token = generateToken({ userId: user.id, email: user.email ?? "", name: user.name, role: user.role, tokenVersion: user.tokenVersion ?? 0 });
   return { Cookie: `gc_token=${token}`, "Content-Type": "application/json" };
 }

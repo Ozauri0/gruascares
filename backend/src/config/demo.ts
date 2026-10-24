@@ -12,6 +12,7 @@ export const DEMO_ACCOUNTS: Record<UserRole, string> = {
   mecanico: `mecanico${DEMO_EMAIL_DOMAIN}`,
   admin: `admin${DEMO_EMAIL_DOMAIN}`,
   vendedor: `vendedor${DEMO_EMAIL_DOMAIN}`,
+  grua: `grua${DEMO_EMAIL_DOMAIN}`,
 };
 
 export function isDemoEmail(email: string): boolean {

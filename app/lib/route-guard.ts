@@ -5,17 +5,18 @@
 // httpOnly `gc_token`: así respeta al instante desactivaciones y cambios de rol, y el frontend no necesita
 // conocer JWT_SECRET.
 
-export type Role = "admin" | "mecanico" | "usuario" | "vendedor";
+export type Role = "admin" | "mecanico" | "usuario" | "vendedor" | "grua";
 
 export const HOME_FOR_ROLE: Record<Role, string> = {
   usuario: "/portal",
   mecanico: "/mecanico",
   admin: "/admin",
   vendedor: "/vendedor",
+  grua: "/grua",
 };
 
 export function isRole(value: unknown): value is Role {
-  return value === "admin" || value === "mecanico" || value === "usuario" || value === "vendedor";
+  return value === "admin" || value === "mecanico" || value === "usuario" || value === "vendedor" || value === "grua";
 }
 
 export type GuardDecision = { type: "allow" } | { type: "login" } | { type: "redirect"; to: string };
@@ -24,6 +25,7 @@ export type GuardDecision = { type: "allow" } | { type: "login" } | { type: "red
 export const AREA_LABEL: Record<Role, string> = {
   usuario: "Mi cuenta",
   mecanico: "Taller",
+  grua: "Grúas",
   vendedor: "Ventas",
   admin: "Administración",
 };
@@ -40,6 +42,7 @@ export function areasFor(user: { role: Role; roles?: Role[] }): Role[] {
   const areas: Role[] = [];
   if (has("admin")) areas.push("admin");
   if (has("mecanico", "admin")) areas.push("mecanico");
+  if (has("grua", "admin")) areas.push("grua");
   if (has("vendedor", "admin")) areas.push("vendedor");
   areas.push("usuario");
   return areas;
@@ -49,7 +52,7 @@ export type Session = { role: Role; roles: Role[] };
 
 /**
  * /admin → solo admin; /mecanico → mecánico o admin; /vendedor → vendedor o admin;
- * /atencion-presencial → mecánico, vendedor o admin; /portal → cualquier sesión.
+ * /grua → grúa o admin; /atencion-presencial → mecánico, grúa, vendedor o admin; /portal → cualquier sesión.
  * Con varios roles basta con tener uno de los permitidos; si no, vuelve al inicio del rol principal.
  */
 export function guardDecision(pathname: string, role: Role | null, roles?: Role[]): GuardDecision {
@@ -61,7 +64,8 @@ export function guardDecision(pathname: string, role: Role | null, roles?: Role[
   if (isUnder("/admin") && !has("admin")) return deny;
   if (isUnder("/mecanico") && !has("mecanico", "admin")) return deny;
   if (isUnder("/vendedor") && !has("vendedor", "admin")) return deny;
-  if (isUnder("/atencion-presencial") && !has("mecanico", "vendedor", "admin")) return deny;
+  if (isUnder("/grua") && !has("grua", "admin")) return deny;
+  if (isUnder("/atencion-presencial") && !has("mecanico", "grua", "vendedor", "admin")) return deny;
   return { type: "allow" };
 }
 

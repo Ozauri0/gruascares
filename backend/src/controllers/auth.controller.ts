@@ -428,7 +428,7 @@ export async function demoLogin(req: Request, res: Response) {
     if (!role || !Object.prototype.hasOwnProperty.call(DEMO_ACCOUNTS, role)) {
       return res.status(400).json({
         error: "Bad Request",
-        message: "role debe ser uno de: usuario, mecanico, vendedor, admin",
+        message: "role debe ser uno de: usuario, mecanico, vendedor, grua, admin",
       });
     }
 

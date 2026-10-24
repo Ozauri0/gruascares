@@ -40,7 +40,7 @@ describe.skipIf(!dbReady)("INT-10: catálogo", () => {
     seed = await seedBasics();
   });
 
-  type U = { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" };
+  type U = { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" | "grua" };
   const admin = (user: U, method: string, path: string, body?: unknown) =>
     fetch(`${server.url}${path}`, { method, headers: cookieFor(user), body: body === undefined ? undefined : JSON.stringify(body) });
   const product = { name: "Neumático 295/80", description: "Para camión", price: 189990, stock: 8, category: "top ventas", art: "tyre", featured: true };
