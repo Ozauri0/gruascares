@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { createHash, randomBytes } from "crypto";
 import { and, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { emailVerificationTokens, passwordResetTokens, revokedTokens, users } from "../db/schema.js";
+import { appointments, emailVerificationTokens, passwordResetTokens, revokedTokens, users, vehicles } from "../db/schema.js";
 import { generateToken, verifyToken } from "../utils/jwt.js";
 import { config } from "../config/env.js";
 import { sendEmailVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../services/email/email.service.js";
@@ -11,6 +11,7 @@ import { EMAIL_REGEX, MAX_LEN, findTooLong } from "../utils/validate.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { hashPassword, validatePassword, verifyPassword } from "../utils/password.js";
 import { isValidRut, normalizeRut } from "../utils/rut.js";
+import { phoneKey } from "../utils/phone.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { DEMO_ACCOUNTS, isDemoEmail } from "../config/demo.js";
 import type { UserRole } from "../types/auth.js";
@@ -94,11 +95,25 @@ export async function register(req: Request, res: Response) {
       .where(eq(users.rut, normalizedRut))
       .limit(1);
 
-    if (existingByRut && existingByRut.passwordHash !== null) {
-      return res.status(409).json({
+    // Un RUT con cuenta, y un perfil presencial cuyo teléfono no coincide, reciben exactamente la misma respuesta:
+    // así no se puede averiguar qué RUT tienen perfil, ni reclamar el de otra persona sabiendo solo su RUT.
+    const cannotRegister = () =>
+      res.status(409).json({
         error: "Conflict",
-        message: "Ya existe una cuenta registrada con este RUT",
+        message:
+          "No pudimos registrarte con esos datos. Si ya tienes una cuenta, inicia sesión. Si te atendieron en el taller, usa el mismo teléfono que dejaste allí.",
       });
+
+    if (existingByRut && existingByRut.passwordHash !== null) {
+      return cannotRegister();
+    }
+    if (existingByRut) {
+      const given = phoneKey(cleanPhone);
+      const onFile = phoneKey(existingByRut.phone);
+      if (!given || !onFile || given !== onFile) {
+        logAudit({ userEmail: normalizedEmail, action: "PROFILE_CLAIM_REJECTED", entityType: "user", entityId: existingByRut.id, details: { rut: normalizedRut, reason: "phone_mismatch" }, req });
+        return cannotRegister();
+      }
     }
 
     // 3. Verificar si el correo ya está ocupado por otro usuario
@@ -158,13 +173,23 @@ export async function register(req: Request, res: Response) {
         });
 
       if (!updated) {
-        return res.status(409).json({
-          error: "Conflict",
-          message: "Ya existe una cuenta registrada con este RUT",
-        });
+        return cannotRegister();
       }
       registeredUser = updated;
       claimed = true;
+
+      // Quedan a la vista del personal los reclamos de perfiles que ya traían vehículos o atenciones.
+      const [{ vehicleCount }] = await db.select({ vehicleCount: sql<number>`count(*)::int` }).from(vehicles).where(eq(vehicles.userId, updated.id));
+      const [{ appointmentCount }] = await db.select({ appointmentCount: sql<number>`count(*)::int` }).from(appointments).where(eq(appointments.userId, updated.id));
+      logAudit({
+        userId: updated.id,
+        userEmail: normalizedEmail,
+        action: "PROFILE_CLAIMED",
+        entityType: "user",
+        entityId: updated.id,
+        details: { rut: normalizedRut, vehicles: vehicleCount, appointments: appointmentCount },
+        req,
+      });
     } else {
       const [created] = await db
         .insert(users)
@@ -214,7 +239,7 @@ export async function register(req: Request, res: Response) {
       return res.status(409).json({
         error: "Conflict",
         message: isRutConflict
-          ? "Ya existe una cuenta registrada con este RUT"
+          ? "No pudimos registrarte con esos datos. Si ya tienes una cuenta, inicia sesión. Si te atendieron en el taller, usa el mismo teléfono que dejaste allí."
           : "Ya existe una cuenta registrada con este correo electrónico",
       });
     }

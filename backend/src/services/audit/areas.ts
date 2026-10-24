@@ -25,13 +25,14 @@ const AREA_MATCHERS: Record<AuditArea, Matcher> = {
   },
   cuentas: {
     prefix: ["LOGIN", "PASSWORD_"],
-    exact: ["DEMO_LOGIN", "LOGOUT_ALL", "PROFILE_UPDATED", "USER_REGISTER", "EMAIL_VERIFIED", "EMAIL_VERIFICATION_RESENT"],
+    exact: ["DEMO_LOGIN", "LOGOUT_ALL", "PROFILE_UPDATED", "USER_REGISTER", "PROFILE_CLAIMED", "PROFILE_CLAIM_REJECTED", "EMAIL_VERIFIED", "EMAIL_VERIFICATION_RESENT"],
   },
   clientes: { exact: ["APPOINTMENT_CREATE", "APPOINTMENT_CREATE_GUEST", "APPOINTMENT_CANCEL", "VEHICLE_CREATED", "VEHICLE_UPDATED", "VEHICLE_DELETED"] },
   sistema: { exact: ["SERVER_ERROR", "MAINTENANCE_PURGE"] },
 };
 
-const WARN_ACTIONS = new Set(["LOGIN_FAILED", "LOGIN_BLOCKED"]);
+// Avisos para el personal: ingresos fallidos y reclamos de perfiles presenciales (aceptados o rechazados).
+const WARN_ACTIONS = new Set(["LOGIN_FAILED", "LOGIN_BLOCKED", "PROFILE_CLAIMED", "PROFILE_CLAIM_REJECTED"]);
 
 function matches(action: string, m: Matcher): boolean {
   return !!m.exact?.includes(action) || !!m.prefix?.some((p) => action.startsWith(p)) || !!m.suffix?.some((x) => action.endsWith(x));
@@ -100,6 +101,8 @@ const LABELS: Record<string, string> = {
   VEHICLE_UPDATED_BY_STAFF: "Editó un vehículo de un cliente",
   VEHICLE_DELETED_BY_STAFF: "Eliminó un vehículo de un cliente",
   USER_REGISTER: "Se registró una cuenta",
+  PROFILE_CLAIMED: "Reclamó un perfil creado presencialmente",
+  PROFILE_CLAIM_REJECTED: "Intento rechazado de reclamar un perfil presencial",
   EMAIL_VERIFIED: "Confirmó su correo",
   EMAIL_VERIFICATION_RESENT: "Pidió un nuevo enlace de confirmación",
   LOGIN: "Inició sesión",

@@ -3,16 +3,18 @@ import { rateLimit, ipKeyGenerator, type RateLimitRequestHandler, type Store, ty
 import { RedisStore } from "rate-limit-redis";
 import { createClient } from "redis";
 import { config } from "../config/env.js";
+import { normalizeRut } from "../utils/rut.js";
 
 const MINUTE = 60 * 1000;
 
 type Limit = { windowMs: number; max: number };
 
 /** Límites por defecto (ventana en ms, máximo de peticiones). Ajustables sin tocar los controladores. */
-export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" | "publicAppointment" | "availability" | "catalog" | "content" | "forgotPassword" | "resetPassword", Limit> = {
+export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" | "registerPerRut" | "publicAppointment" | "availability" | "catalog" | "content" | "forgotPassword" | "resetPassword", Limit> = {
   loginPerAccount: { windowMs: 15 * MINUTE, max: 10 }, // IP + correo
   loginPerIp: { windowMs: 15 * MINUTE, max: 100 },
   register: { windowMs: 60 * MINUTE, max: 10 },
+  registerPerRut: { windowMs: 60 * MINUTE, max: 6 }, // por RUT, desde cualquier red: frena adivinar el teléfono de un perfil presencial
   publicAppointment: { windowMs: 60 * MINUTE, max: 30 }, // por red; ahora todas las solicitudes exigen sesión
   availability: { windowMs: MINUTE, max: 60 },
   catalog: { windowMs: MINUTE, max: 120 },
@@ -125,6 +127,11 @@ function build(limit: Limit, message: string, keyGenerator?: (req: Request) => s
   return strict && store ? failClosed(limiter, "No pudimos verificar tus intentos ahora. Inténtalo de nuevo en unos minutos.") : limiter;
 }
 
+function rutOf(req: Request): string {
+  const rut = req.body?.rut;
+  return typeof rut === "string" ? normalizeRut(rut).slice(0, 15) : "";
+}
+
 function emailOf(req: Request): string {
   const email = req.body?.email;
   return typeof email === "string" ? email.toLowerCase().trim().slice(0, 255) : "";
@@ -148,6 +155,13 @@ export function createRateLimiters(overrides: Partial<typeof RATE_LIMITS> = {}, 
     ),
     loginPerIp: build(limits.loginPerIp, "Demasiados intentos desde esta red. Inténtalo más tarde.", undefined, store("loginPerIp"), true),
     register: build(limits.register, "Demasiados registros desde esta red. Inténtalo más tarde.", undefined, store("register"), true),
+    registerPerRut: build(
+      limits.registerPerRut,
+      "Hubo demasiados intentos de registro con ese RUT. Inténtalo más tarde o consulta en el local.",
+      (req) => `rut|${rutOf(req)}`,
+      store("registerPerRut"),
+      true
+    ),
     publicAppointment: build(
       limits.publicAppointment,
       "Has enviado muchas solicitudes de agendamiento. Si es urgente, llámanos al +56 9 9162 7809.",
