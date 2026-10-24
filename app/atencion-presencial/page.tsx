@@ -27,7 +27,7 @@ import {
 
 export default function WalkInPage() {
   const { user } = useAuth();
-  const canCreateClient = Boolean(user && rolesOf(user).some((r) => r === "vendedor"));
+  const canCreateClient = Boolean(user && rolesOf(user).some((r) => r === "vendedor" || r === "admin"));
 
   // Búsqueda por RUT
   const [rutQuery, setRutQuery] = useState("");
