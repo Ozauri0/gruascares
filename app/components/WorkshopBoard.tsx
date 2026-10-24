@@ -7,6 +7,7 @@ import AreaNav from "./AreaNav";
 import LogoutButton from "./LogoutButton";
 import StatusBadge from "./StatusBadge";
 import { todayInSantiago } from "../lib/dates";
+import { matchesFilter, type AgendaFilter } from "../lib/agenda-filter";
 import { formatRut, whatsappUrl } from "../lib/rut";
 import { useAgenda } from "../lib/use-agenda";
 import { usePendingRequests } from "../lib/use-pending-requests";
@@ -71,11 +72,12 @@ function ClientContactLine({ item }: { item: AgendaItem }) {
 /** Panel de un área de trabajo: solicitudes por confirmar arriba y agenda de todos los días (serviteca o grúas). */
 export default function WorkshopBoard({ area }: { area: WorkArea }) {
   const copy = WORK_AREAS[area];
-  const FILTERS: { value: AppointmentStatus | "todas"; label: string }[] = [
+  const FILTERS: { value: AgendaFilter; label: string }[] = [
     { value: "todas", label: "Todas" },
     { value: "confirmada", label: "Confirmadas" },
     { value: "en_proceso", label: copy.inProgressLabel },
     { value: "finalizada", label: "Finalizadas" },
+    { value: "cancelada", label: "Canceladas" },
   ];
   const { agenda, loading, error, reload } = useAgenda("", area); // todos los días
   const pending = usePendingRequests(area);
@@ -85,7 +87,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [workerChoice, setWorkerChoice] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [filter, setFilter] = useState<AppointmentStatus | "todas">("todas");
+  const [filter, setFilter] = useState<AgendaFilter>("todas");
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ReportDraft>({ mileage: "", observations: "", parts: "", recommendations: "" });
   const [draftError, setDraftError] = useState("");
@@ -96,7 +98,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   // Las solicitudes sin confirmar se atienden arriba; aquí va el resto de la agenda.
   const scheduled = agenda.filter((item) => item.status !== "solicitada");
   const visible = scheduled
-    .filter((item) => filter === "todas" || item.status === filter)
+    .filter((item) => matchesFilter(item.status, filter))
     .sort((a, b) => a.date.localeCompare(b.date) || a.timeSlot.localeCompare(b.timeSlot));
 
   // Citas agrupadas por día, para ver de un vistazo qué días y horarios tienen atención.
@@ -325,7 +327,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
             <aside className="workshop-side">
               <div className="workshop-filters" role="tablist" aria-label="Filtrar por estado">
                 {FILTERS.map((option) => {
-                  const count = scheduled.filter((item) => option.value === "todas" || item.status === option.value).length;
+                  const count = scheduled.filter((item) => matchesFilter(item.status, option.value)).length;
                   return (
                     <button
                       key={option.value}
