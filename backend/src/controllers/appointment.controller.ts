@@ -267,10 +267,10 @@ export async function createAppointment(req: Request, res: Response) {
     let bookedByStaff = false;
 
     if (isBookingForOther) {
-      if (!hasRole(actor, "vendedor", "mecanico", "grua", "admin")) {
+      if (!hasRole(actor, "vendedor")) {
         return res.status(403).json({
           error: "Forbidden",
-          message: "No tienes permiso para agendar citas a nombre de otro cliente",
+          message: "Agendar a nombre de otro cliente (por RUT) es solo del perfil de ventas",
         });
       }
       bookedByStaff = true;
@@ -303,11 +303,11 @@ export async function createAppointment(req: Request, res: Response) {
           clientEmail = existingClient.email;
           clientRut = existingClient.rut;
         } else {
-          // Crear perfiles nuevos queda solo para ventas (vendedor) y admin
-          if (!hasRole(actor, "vendedor", "admin")) {
+          // Ya solo ventas llega hasta aquí; se deja la guarda por si se abre la regla de arriba
+          if (!hasRole(actor, "vendedor")) {
             return res.status(403).json({
               error: "Forbidden",
-              message: "Crear perfiles nuevos de clientes está reservado para ventas y administración",
+              message: "Crear perfiles nuevos de clientes está reservado para ventas",
             });
           }
 

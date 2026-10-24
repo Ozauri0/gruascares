@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import AdminNav from "../components/AdminNav";
@@ -185,7 +184,6 @@ export default function UsersPage() {
                 <span className="portal-badge-counter">{loading ? "Cargando…" : error ? "No disponible" : `${total} ${total === 1 ? "usuario" : "usuarios"}`}</span>
               </div>
               <div>
-                <Link className="toggle-btn" href="/atencion-presencial">Atención presencial por RUT</Link>{" "}
                 <button type="button" className="portal-add" onClick={() => { setErrors({}); setModal(true); }}>
                   + Agregar miembro al equipo
                 </button>
