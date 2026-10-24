@@ -98,11 +98,12 @@ No reintroducir claims no comprobados como años de experiencia, cobertura nacio
 Los assets se descargan localmente para evitar pixelación y dependencia de URLs externas.
 
 - `public/images/logo.png`: logo original.
-- `public/images/carousel-01.webp` a `carousel-04.webp`: imágenes originales del carrusel detectado en `.single-slide`.
+- `public/images/portada-01.webp` a `portada-04.webp`: imágenes de portada del carrusel del hero (fotos propias, 2000 px de ancho).
+- `public/images/carousel-01.webp` a `carousel-04.webp`: imágenes originales del carrusel de la web antigua; ya no se usan en el hero, pero se conservan y siguen en la galería del editor.
 - `public/images/service-*.jpg`: imágenes de secciones y servicios originales.
 - `public/favicon.svg`: favicon del mockup.
 
-El carrusel del hero debe usar únicamente las imágenes `carousel-*.webp`. No incluir el logo en el carrusel.
+El carrusel del hero debe usar únicamente las imágenes `portada-*.webp`. No incluir el logo en el carrusel.
 
 ## Catalog And Cart
 
