@@ -118,6 +118,7 @@ export default function RegisterPage() {
                       Teléfono *
                       <input required type="tel" placeholder="+56 9 ..." value={phone} onChange={(e) => setPhone(e.target.value)} />
                       {errors.phone && <small className="field-error">{errors.phone}</small>}
+                      <small className="cf-hint">Si ya te atendieron en el taller, usa el mismo teléfono que dejaste allí: así verás tu historial y tus vehículos.</small>
                     </label>
                     <label>
                       Contraseña *

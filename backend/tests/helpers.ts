@@ -17,6 +17,7 @@ export async function startServer(options: AppOptions = {}): Promise<TestServer>
       loginPerAccount: high,
       loginPerIp: high,
       register: high,
+      registerPerRut: high,
       publicAppointment: high,
       availability: high,
       catalog: high,
