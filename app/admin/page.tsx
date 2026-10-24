@@ -9,6 +9,7 @@ import { formatPlate } from "../lib/plate";
 import { reportUrl } from "../lib/reports";
 
 import AdminNav from "./components/AdminNav";
+import WorkerStatsPanel from "./components/WorkerStatsPanel";
 import Skeleton from "../components/Skeleton";
 
 // Panel de administración (T2.10): métricas reales de GET /api/admin/metrics.
@@ -109,6 +110,8 @@ export default function AdminPage() {
                   </div>
                 </div>
               </section>
+
+              <WorkerStatsPanel />
 
               <section className="export-card" aria-label="Reportes de taller y grúas">
                 <div>

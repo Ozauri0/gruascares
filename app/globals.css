@@ -1073,3 +1073,4 @@ body>footer{flex-shrink:0}
 .booking-account{margin:0 0 4px;padding:12px 14px;border-radius:12px;background:#f4f4f4;font-size:14px;line-height:1.5;color:#333}
 .booking-account small{color:#8a5a00}
 .booking-gate .success-actions{margin:18px 0}
+.worker-stats{display:grid;align-items:stretch}.worker-stats-head{display:flex;flex-wrap:wrap;gap:16px 24px;justify-content:space-between;align-items:end}.worker-stats-month{min-width:130px;text-align:center}.worker-stats .export-actions{display:flex;gap:8px;align-items:center}
