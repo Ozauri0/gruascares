@@ -1,7 +1,7 @@
 import { rolesOf, withRoles } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { createHash, randomBytes } from "crypto";
-import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { emailVerificationTokens, passwordResetTokens, revokedTokens, users } from "../db/schema.js";
 import { generateToken, verifyToken } from "../utils/jwt.js";
@@ -543,7 +543,9 @@ export async function forgotPassword(req: Request, res: Response) {
     const normalizedEmail = email.toLowerCase().trim();
     const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
 
-    if (user && user.isActive && user.email) {
+    // Un perfil presencial (sin contraseña) solo pasa a ser cuenta cuando su dueño se registra con su RUT: el correo
+    // anotado a mano por el personal podría tener un error de tipeo y pertenecer a otra persona.
+    if (user && user.isActive && user.email && user.passwordHash) {
       const token = randomBytes(32).toString("base64url");
       await db.transaction(async (tx) => {
         // un solo enlace vigente por cuenta: los anteriores dejan de servir
@@ -598,7 +600,7 @@ export async function resetPassword(req: Request, res: Response) {
       const [user] = await tx
         .update(users)
         .set({ passwordHash, emailVerifiedAt: sql`coalesce(${users.emailVerifiedAt}, now())` as unknown as Date, tokenVersion: sql`${users.tokenVersion} + 1` as unknown as number, updatedAt: new Date() })
-        .where(and(eq(users.id, consumed.userId), eq(users.isActive, true)))
+        .where(and(eq(users.id, consumed.userId), eq(users.isActive, true), isNotNull(users.passwordHash)))
         .returning({ id: users.id, email: users.email });
       if (!user) return null;
 

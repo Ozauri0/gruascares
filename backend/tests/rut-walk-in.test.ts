@@ -359,4 +359,33 @@ describe.skipIf(!dbReady)("RUT en usuarios, reclamo de perfiles y atención pres
     }
     throw new Error("faltan eventos de auditoría WALK_IN_CLIENT_CREATED / APPOINTMENT_CREATE_BY_STAFF");
   });
+
+  test("un perfil presencial con correo mal anotado no se puede tomar con «olvidé mi contraseña»", async () => {
+    const rut = makeValidRut(950);
+    const created = await call(seed.seller, "POST", "/api/clients", {
+      name: "Juan Pérez",
+      rut,
+      phone: "+56 9 5555 0000",
+      email: "otra.persona@example.com",
+    });
+    expect(created.status).toBe(201);
+    testOutbox.length = 0;
+
+    const forgot = await call(null, "POST", "/api/auth/forgot-password", { email: "otra.persona@example.com" });
+    expect(forgot.status).toBe(200); // misma respuesta que para cualquier correo: no revela nada
+    expect(testOutbox).toHaveLength(0);
+    const tokens = await sql`select count(*)::int as n from password_reset_tokens`;
+    expect(tokens[0].n).toBe(0);
+
+    // El perfil sigue sin contraseña y se puede reclamar con el RUT
+    const claim = await call(null, "POST", "/api/auth/register", {
+      name: "Juan Pérez",
+      rut,
+      email: "juan.perez@example.com",
+      phone: "+56 9 5555 0000",
+      password: "ClaveSegura123!",
+    });
+    expect(claim.status).toBe(201);
+    expect(claim.body.claimed).toBe(true);
+  });
 });
