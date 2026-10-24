@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchPendingRequests } from "./workshop-api";
 import type { AgendaItem } from "./workshop-types";
+import type { WorkArea } from "./work-areas";
 
 /** Solicitudes por confirmar de todas las fechas; se recarga con `reload` tras confirmar o cancelar. */
-export function usePendingRequests() {
+export function usePendingRequests(area: WorkArea = "serviteca") {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -13,7 +14,7 @@ export function usePendingRequests() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchPendingRequests(controller.signal)
+    fetchPendingRequests(controller.signal, area)
       .then((list) => {
         setItems(list);
         setError("");
@@ -27,7 +28,7 @@ export function usePendingRequests() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [nonce]);
+  }, [area, nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   return { items, loading, error, reload };

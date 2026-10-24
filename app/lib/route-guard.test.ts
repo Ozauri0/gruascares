@@ -15,10 +15,10 @@ describe("INT-4: decisión de acceso por rol", () => {
     }
   });
 
-  test("/atencion-presencial permite a personal (mecánico, vendedor, admin) y redirige a cliente", () => {
+  test("/atencion-presencial permite a personal (mecánico, grúa, vendedor, admin) y redirige a cliente", () => {
     expect(guardDecision("/atencion-presencial", null)).toEqual({ type: "login" });
     expect(guardDecision("/atencion-presencial", "usuario")).toEqual({ type: "redirect", to: "/portal" });
-    for (const role of ["mecanico", "vendedor", "admin"] as const) {
+    for (const role of ["mecanico", "grua", "vendedor", "admin"] as const) {
       expect(guardDecision("/atencion-presencial", role)).toEqual({ type: "allow" });
     }
   });
@@ -57,11 +57,24 @@ describe("INT-4: decisión de acceso por rol", () => {
     expect(areasFor({ role: "usuario" })).toEqual(["usuario"]);
     expect(areasFor({ role: "vendedor" })).toEqual(["vendedor", "usuario"]);
     expect(areasFor({ role: "mecanico", roles: ["mecanico", "vendedor"] })).toEqual(["mecanico", "vendedor", "usuario"]);
-    expect(areasFor({ role: "admin" })).toEqual(["admin", "mecanico", "vendedor", "usuario"]);
+    expect(areasFor({ role: "grua" })).toEqual(["grua", "usuario"]);
+    expect(areasFor({ role: "admin" })).toEqual(["admin", "mecanico", "grua", "vendedor", "usuario"]);
+  });
+
+  test("/grua: solo el rol grúa y el admin; mecánico, vendedor y cliente vuelven a su inicio", () => {
+    expect(guardDecision("/grua", null)).toEqual({ type: "login" });
+    expect(guardDecision("/grua", "grua")).toEqual({ type: "allow" });
+    expect(guardDecision("/grua", "mecanico")).toEqual({ type: "redirect", to: "/mecanico" });
+    expect(guardDecision("/grua", "vendedor")).toEqual({ type: "redirect", to: "/vendedor" });
+    expect(guardDecision("/grua", "usuario")).toEqual({ type: "redirect", to: "/portal" });
+    expect(guardDecision("/mecanico", "grua")).toEqual({ type: "redirect", to: "/grua" });
+    expect(guardDecision("/admin", "grua")).toEqual({ type: "redirect", to: "/grua" });
+    // con varios roles basta con tener el de grúas
+    expect(guardDecision("/grua", "mecanico", ["mecanico", "grua"])).toEqual({ type: "allow" });
   });
 
   test("admin accede a todo", () => {
-    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/portal", "/vendedor", "/atencion-presencial"]) {
+    for (const path of ["/admin", "/admin/catalogo", "/mecanico", "/grua", "/portal", "/vendedor", "/atencion-presencial"]) {
       expect(guardDecision(path, "admin")).toEqual({ type: "allow" });
     }
   });

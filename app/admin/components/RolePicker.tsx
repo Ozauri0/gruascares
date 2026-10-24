@@ -3,9 +3,10 @@
 import type { UserRole } from "../../lib/portal-types";
 import { AREA_LABEL } from "../../lib/route-guard";
 
-export type StaffRole = "mecanico" | "vendedor" | "admin";
+export type StaffRole = "mecanico" | "grua" | "vendedor" | "admin";
 export const STAFF_ROLES: { value: StaffRole; label: string; hint: string }[] = [
-  { value: "mecanico", label: "Mecánico", hint: "Agenda y informes del taller" },
+  { value: "mecanico", label: "Jefe de taller", hint: "Agenda, solicitudes e informes del taller" },
+  { value: "grua", label: "Jefe de grúas", hint: "Solicitudes, asignación y servicios de grúa" },
   { value: "vendedor", label: "Vendedor", hint: "Catálogo, precios y stock" },
   { value: "admin", label: "Administrador", hint: "Todo el panel" },
 ];

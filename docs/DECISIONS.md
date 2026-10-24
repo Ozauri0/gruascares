@@ -150,3 +150,10 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Estado**: Aceptado (issue #126)
 - **Contexto**: El cliente pidió horarios de la serviteca de 08:30 a 19:30 (hora de Chile), uno por hora. Los 8 bloques anteriores tenían una pausa de almuerzo y un tope de 2 citas.
 - **Decisión**: `DEFAULT_TIME_SLOTS` (`backend/src/config/constants.ts`) pasa a 12 bloques: 08:30, 09:30, … 19:30, todos los días, para serviteca y grúa. `MAX_CONCURRENT_APPOINTMENTS_PER_SLOT` sube a 4: al llegar a 4 el horario aparece lleno (`available: false`) y no admite más solicitudes ni reprogramaciones; el candado por (fecha, bloque) evita pasar del tope con reservas simultáneas. Las citas ya existentes en horarios antiguos se conservan. Ambos valores viven solo en ese archivo, porque el cliente puede cambiarlos.
+
+### ADR 016: Rol `grua` y panel de grúas separado del taller
+- **Fecha**: 2026-10-24
+- **Estado**: Aceptado (issue #129)
+- **Contexto**: Taller y grúas compartían el panel del mecánico. El cliente quiere vistas separadas: el servicio de grúa (trasladar un auto, un contenedor, etc.) lo gestiona un jefe propio.
+- **Decisión**: nuevo rol `grua` (migración 0014; también como rol adicional). `/grua` y `/mecanico` usan el mismo tablero (`WorkshopBoard`) con textos propios; cada uno muestra solo las citas de su categoría (`grua` / `serviteca`). El backend lo impone: `GET /api/mechanic/agenda?area=` responde 403 a quien no es de esa área, y estado, informe técnico y asignación exigen `canWorkOn(usuario, categoría)` (jefe del área o admin). El encargado de una cita debe tener el rol del área (mecánico para serviteca, grúa para grúas) o ser admin. El admin ve ambas áreas. El rol grúa puede buscar clientes por RUT y agendarles citas, pero no crear perfiles (solo ventas y admin).
+- **Consecuencias**: hoy el encargado sigue siendo una cuenta con rol; los trabajadores sin cuenta llegan con el issue #130, que reemplaza esta asignación. La auditoría de grúas queda en el área «Taller».

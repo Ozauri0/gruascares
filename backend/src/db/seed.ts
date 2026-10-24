@@ -52,13 +52,15 @@ async function seed() {
   // 1. Usuarios demo (dominio reservado .test)
   console.log("-> Usuarios demo...");
   const demoUsers = [
-    { rut: makeValidRut(1), name: "Administrador Demo", email: DEMO_ACCOUNTS.admin, role: "admin" as const, phone: "+56 9 9162 7809", password: "admin1234" },
-    { rut: makeValidRut(2), name: "Juan Paredes (Mecánico Demo)", email: DEMO_ACCOUNTS.mecanico, role: "mecanico" as const, phone: "+56 9 6832 7329", password: "mecanico1234" },
-    { rut: makeValidRut(3), name: "Valeria Soto (Vendedora Demo)", email: DEMO_ACCOUNTS.vendedor, role: "vendedor" as const, phone: "+56 9 9162 7809", password: "vendedor1234" },
-    { rut: makeValidRut(4), name: "Diego Fuentes (Mecánico Demo)", email: `mecanico2${DEMO_EMAIL_DOMAIN}`, role: "mecanico" as const, extraRoles: ["vendedor" as const], phone: "+56 9 6857 4677", password: "mecanico1234" },
-    { rut: makeValidRut(5), name: "María González (Cliente Demo)", email: DEMO_ACCOUNTS.usuario, role: "usuario" as const, phone: "+56 9 1234 5678", password: "cliente1234" },
-    { rut: makeValidRut(6), name: "Pedro Soto (Cliente Demo)", email: `cliente2${DEMO_EMAIL_DOMAIN}`, role: "usuario" as const, phone: "+56 9 8765 4321", password: "cliente1234" },
+    { rut: makeValidRut(9001), name: "Administrador Demo", email: DEMO_ACCOUNTS.admin, role: "admin" as const, phone: "+56 9 9162 7809", password: "admin1234" },
+    { rut: makeValidRut(9002), name: "Juan Paredes (Mecánico Demo)", email: DEMO_ACCOUNTS.mecanico, role: "mecanico" as const, phone: "+56 9 6832 7329", password: "mecanico1234" },
+    { rut: makeValidRut(9003), name: "Valeria Soto (Vendedora Demo)", email: DEMO_ACCOUNTS.vendedor, role: "vendedor" as const, phone: "+56 9 9162 7809", password: "vendedor1234" },
+    { rut: makeValidRut(9004), name: "Diego Fuentes (Mecánico Demo)", email: `mecanico2${DEMO_EMAIL_DOMAIN}`, role: "mecanico" as const, extraRoles: ["vendedor" as const], phone: "+56 9 6857 4677", password: "mecanico1234" },
+    { rut: makeValidRut(9005), name: "María González (Cliente Demo)", email: DEMO_ACCOUNTS.usuario, role: "usuario" as const, phone: "+56 9 1234 5678", password: "cliente1234" },
+    { rut: makeValidRut(9007), name: "Marcos Rivas (Jefe de Grúas Demo)", email: DEMO_ACCOUNTS.grua, role: "grua" as const, phone: "+56 9 6857 4677", password: "grua1234" },
+    { rut: makeValidRut(9006), name: "Pedro Soto (Cliente Demo)", email: `cliente2${DEMO_EMAIL_DOMAIN}`, role: "usuario" as const, phone: "+56 9 8765 4321", password: "cliente1234" },
   ];
+  // Los RUT demo parten de 10009001: la migración 0013 reparte RUT de relleno desde 10000001 a cuentas ya existentes.
   for (const u of demoUsers) {
     const { password, ...values } = u;
     await db.insert(users).values({ ...values, emailVerifiedAt: new Date(), passwordHash: await hashPassword(password) }).onConflictDoNothing();
@@ -131,6 +133,7 @@ async function seed() {
   console.log(`   - Admin:    ${DEMO_ACCOUNTS.admin} (clave: admin1234)`);
   console.log(`   - Vendedor: ${DEMO_ACCOUNTS.vendedor} (clave: vendedor1234)`);
   console.log(`   - Mecánico: ${DEMO_ACCOUNTS.mecanico} (clave: mecanico1234)`);
+  console.log(`   - Grúa:     ${DEMO_ACCOUNTS.grua} (clave: grua1234)`);
   console.log(`   - Mecánico + vendedor (dos roles): mecanico2${DEMO_EMAIL_DOMAIN} (clave: mecanico1234)`);
   console.log(`   - Cliente:  ${DEMO_ACCOUNTS.usuario} (clave: cliente1234)`);
 

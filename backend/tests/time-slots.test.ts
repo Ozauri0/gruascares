@@ -17,7 +17,7 @@ beforeEach(async () => {
   seed = await seedBasics();
 });
 
-type U = { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor"; tokenVersion?: number };
+type U = { id: string; email: string; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" | "grua" | "grua"; tokenVersion?: number };
 const call = async (user: U | null, method: string, path: string, body?: unknown) => {
   const headers = user ? cookieFor(user) : { "Content-Type": "application/json" };
   const res = await fetch(`${server.url}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });

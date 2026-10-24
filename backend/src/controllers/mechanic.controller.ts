@@ -1,4 +1,4 @@
-import { hasRole } from "../utils/roles.js";
+import { AREA_ROLE, canWorkOn, hasRole, type ServiceCategory } from "../utils/roles.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -20,13 +20,24 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 
 /**
  * GET /api/mechanic/agenda
- * Agenda del personal técnico con filtros por fecha, rango de fechas, estado y mecánico.
+ * Agenda del área con filtros por fecha, rango de fechas, estado y encargado.
+ * ?area=serviteca (por defecto para el taller) o ?area=grua: solo ve su área quien tiene el rol (el admin ve ambas).
  */
 export async function getMechanicAgenda(req: Request, res: Response) {
   try {
-    const { date, startDate, endDate, status, mechanicId } = req.query;
+    const { date, startDate, endDate, status, mechanicId, area: areaParam } = req.query;
 
-    const conditions = [];
+    // Área: sin indicarla, la del rol de quien consulta (taller si tiene los dos).
+    const area: ServiceCategory | null =
+      areaParam === undefined ? (canWorkOn(req.user, "serviteca") ? "serviteca" : "grua") : areaParam === "serviteca" || areaParam === "grua" ? areaParam : null;
+    if (!area) {
+      return res.status(400).json({ error: "Bad Request", message: "area debe ser 'serviteca' o 'grua'" });
+    }
+    if (!canWorkOn(req.user, area)) {
+      return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para ver las citas de esta área" });
+    }
+
+    const conditions = [eq(services.category, area)];
 
     // Filtro por fecha específica
     if (date && typeof date === "string") {
@@ -67,7 +78,11 @@ export async function getMechanicAgenda(req: Request, res: Response) {
     const assignedMechanic = alias(users, "assigned_mechanic");
     const { page, limit, offset } = parsePagination(req.query, { limit: 200, maxLimit: 500 });
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-    const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(appointments).where(where);
+    const [{ total }] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(appointments)
+      .innerJoin(services, eq(appointments.serviceId, services.id))
+      .where(where);
 
     const agendaList = await db
       .select({
@@ -249,6 +264,10 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       return res.status(404).json({ error: "Not Found", message: "La cita solicitada no existe" });
     }
 
+    if (!canWorkOn(currentUser, (ctx.service?.category ?? "serviteca") as ServiceCategory)) {
+      return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para gestionar las citas de esta área" });
+    }
+
     const previousStatus = ctx.appointment.status;
     if (!canTransition(previousStatus, status)) {
       const allowed = ALLOWED_TRANSITIONS[previousStatus];
@@ -280,10 +299,11 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
         .from(users)
         .where(eq(users.id, mechanicId))
         .limit(1);
-      if (!mechanic || !mechanic.isActive || !hasRole({ role: mechanic.role, extraRoles: mechanic.extraRoles }, "mecanico", "admin")) {
+      const areaRole = AREA_ROLE[(ctx.service?.category ?? "serviteca") as ServiceCategory];
+      if (!mechanic || !mechanic.isActive || !hasRole({ role: mechanic.role, extraRoles: mechanic.extraRoles }, areaRole, "admin")) {
         return res.status(400).json({
           error: "Bad Request",
-          message: "El mecánico indicado no existe, está inactivo o no tiene rol de taller",
+          message: "El encargado indicado no existe, está inactivo o no pertenece a esta área",
         });
       }
       assignedMechanicId = mechanic.id;
@@ -385,6 +405,10 @@ export async function saveTechnicalReport(req: Request, res: Response) {
     const ctx = await loadAppointmentContext(id);
     if (!ctx) {
       return res.status(404).json({ error: "Not Found", message: "La cita indicada no existe" });
+    }
+
+    if (!canWorkOn(currentUser, (ctx.service?.category ?? "serviteca") as ServiceCategory)) {
+      return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para gestionar las citas de esta área" });
     }
 
     const status = ctx.appointment.status;
@@ -495,8 +519,10 @@ export async function getAppointmentReport(req: Request, res: Response) {
       .select({
         id: appointments.id,
         userId: appointments.userId,
+        category: services.category,
       })
       .from(appointments)
+      .innerJoin(services, eq(appointments.serviceId, services.id))
       .where(eq(appointments.id, id))
       .limit(1);
 
@@ -507,8 +533,8 @@ export async function getAppointmentReport(req: Request, res: Response) {
       });
     }
 
-    // Control de acceso: dueño de la cita o personal mecánico/admin
-    if (!hasRole(currentUser, "admin", "mecanico") && appointment.userId !== currentUser.userId) {
+    // Control de acceso: dueño de la cita o jefe del área correspondiente / admin
+    if (!canWorkOn(currentUser, appointment.category) && appointment.userId !== currentUser.userId) {
       return res.status(403).json({
         error: "Forbidden",
         message: "No tienes permiso para ver esta hoja técnica",

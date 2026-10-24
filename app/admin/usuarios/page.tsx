@@ -16,6 +16,7 @@ const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
   { value: "todos", label: "Todos los roles" },
   { value: "usuario", label: "Clientes" },
   { value: "mecanico", label: "Mecánicos" },
+  { value: "grua", label: "Grúas" },
   { value: "vendedor", label: "Vendedores" },
   { value: "admin", label: "Administradores" },
 ];
@@ -23,6 +24,7 @@ const ROLE_FILTERS: { value: UserRole | "todos"; label: string }[] = [
 const ROLE_LABELS: Record<UserRole, string> = {
   usuario: "Cliente",
   mecanico: "Mecánico",
+  grua: "Grúas",
   vendedor: "Vendedor",
   admin: "Administrador",
 };
@@ -111,13 +113,13 @@ export default function UsersPage() {
     try {
       const roles = toRoleList(newRoles);
       if (roles[0] === "usuario") {
-        setErrors({ form: "Marca al menos un rol (mecánico, vendedor o administrador)." });
+        setErrors({ form: "Marca al menos un rol (mecánico, grúas, vendedor o administrador)." });
         return;
       }
       await add({
         ...form,
         rut: formatRut(form.rut),
-        roles: roles as ("mecanico" | "vendedor" | "admin")[],
+        roles: roles as ("mecanico" | "grua" | "vendedor" | "admin")[],
         email: form.email.trim().toLowerCase(),
       });
       setModal(false);
