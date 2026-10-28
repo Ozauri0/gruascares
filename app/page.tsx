@@ -56,6 +56,7 @@ export default function Home() {
           <a href="#nosotros" onClick={() => setMenuOpen(false)}>Nosotros</a>
           <a href="#servicios" onClick={() => setMenuOpen(false)}>Servicios</a>
           <a href="/catalogo" onClick={() => setMenuOpen(false)}>Catálogo</a>
+          <a href="/team-cares" onClick={() => setMenuOpen(false)}>Team Cares</a>
           <a href="#contacto" onClick={() => setMenuOpen(false)}>Contacto</a>
         </div>
         <CartLink />

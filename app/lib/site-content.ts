@@ -25,6 +25,7 @@ export const GALLERY_IMAGES = [
   "/images/carousel-02.webp",
   "/images/carousel-03.webp",
   "/images/carousel-04.webp",
+  ...Array.from({ length: 11 }, (_, i) => `/images/team-${String(i + 1).padStart(2, "0")}.webp`),
   "/images/hero-01.jpg",
   "/images/hero-02.jpg",
   "/images/hero-03.jpg",
@@ -34,6 +35,9 @@ export const GALLERY_IMAGES = [
   "/images/service-servicios.jpg",
   "/images/logo.png",
 ];
+
+/** Fotos de la página Team Cares (`/images/team-NN.webp`). */
+export const TEAM_PHOTOS = 11;
 
 const slide = (n: number, label: string, detail: string): ContentField[] => [
   image(`hero.slide${n}.image`, `Imagen ${n}`, `/images/portada-0${n}.webp`),
@@ -160,6 +164,23 @@ export const SECTIONS: ContentSection[] = [
       text("shop.eyebrow", "Etiqueta superior", "Tienda Cares"),
       rich("shop.title", "Título", "Todo para\n*seguir en ruta.*"),
       area("shop.text", "Texto", "Productos e insumos para el cuidado, seguridad y mantenimiento de autos, camiones y maquinaria."),
+    ],
+  },
+  {
+    id: "team",
+    title: "Team Cares (/team-cares)",
+    description: "Textos y fotos de la página del equipo deportivo, tomados de la web original.",
+    fields: [
+      text("team.eyebrow", "Etiqueta superior", "Deporte y comunidad"),
+      rich("team.title", "Título", "Team *Cares.*"),
+      area("team.intro1", "Presentación: párrafo 1", "Team Cares es una subdivisión de Comercial y Transportes Cares, creada para impulsar el deporte, el compañerismo y el espíritu de superación dentro y fuera de la empresa."),
+      area("team.intro2", "Presentación: párrafo 2", "Representamos los valores de esfuerzo, dedicación y trabajo en equipo que nos caracterizan, apoyando tanto a nuestros colaboradores como a la comunidad a través de diversas disciplinas deportivas."),
+      area("team.intro3", "Presentación: párrafo 3", "Participamos activamente patrocinando equipos y eventos deportivos, y trabajamos con entusiasmo en la formación de nuestros propios equipos representativos, como una forma de fortalecer el sentido de pertenencia, motivar a nuestros trabajadores y proyectar la identidad de la empresa en el ámbito deportivo."),
+      area("team.intro4", "Presentación: párrafo 4", "En Team Cares promovemos un estilo de vida activo, saludable y lleno de pasión, convencidos de que el deporte es una herramienta poderosa para el desarrollo personal y colectivo."),
+      text("team.school.title", "Escuela: título", "Escuela de Fútbol Deportivo Malalhue"),
+      area("team.school.text1", "Escuela: párrafo 1", "Formamos jóvenes a través del deporte desde 2015. Nuestra escuela entrega un espacio seguro, inclusivo y formativo para niños y niñas de Malalhue, promoviendo valores como el compañerismo, el trabajo en equipo y la vida saludable."),
+      area("team.school.text2", "Escuela: párrafo 2", "Contamos con cuatro categorías y entrenamientos durante todo el año. En invierno trabajamos en un gimnasio y en verano en el estadio local. Desde 2023 incorporamos la participación femenina en todas nuestras divisiones. Nuestro compromiso es seguir creciendo junto a la comunidad, formando no solo deportistas, sino personas con valores y pasión por lo que hacen."),
+      ...Array.from({ length: TEAM_PHOTOS }, (_, i) => image(`team.photo${i + 1}.image`, `Foto ${i + 1}`, `/images/team-${String(i + 1).padStart(2, "0")}.webp`)),
     ],
   },
 ];
