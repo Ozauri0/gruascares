@@ -87,6 +87,9 @@ export type ApiAgendaItem = {
   notes: string | null;
   workerId?: string | null;
   workerName?: string | null;
+  craneId?: string | null;
+  craneName?: string | null;
+  cranePlate?: string | null;
   managedByName?: string | null;
   client: { id: string | null; rut?: string | null; name: string | null; email: string | null; phone: string | null; isGuest?: boolean; hasAccount?: boolean };
   vehicle: { id: string; plate: string; brand: string; model: string; year: number | null; mileage: number | null } | null;

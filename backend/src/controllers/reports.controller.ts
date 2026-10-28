@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
-import { appointments, serviceRecords, services, users, vehicles, workers } from "../db/schema.js";
+import { appointments, cranes, serviceRecords, services, users, vehicles, workers } from "../db/schema.js";
 import { limits } from "../config/constants.js";
 import { APPOINTMENT_STATUSES, type AppointmentStatus } from "../domain/appointment-status.js";
 import { logAudit } from "../services/audit/audit.service.js";
@@ -96,6 +96,8 @@ export async function downloadAreaReport(req: Request, res: Response) {
         workerRut: workers.rut,
         workerTypes: workers.types,
         workerActive: workers.isActive,
+        craneName: cranes.name,
+        cranePlate: cranes.plate,
         managerName: manager.name,
         authorName: author.name,
         reportObservations: serviceRecords.observations,
@@ -109,6 +111,7 @@ export async function downloadAreaReport(req: Request, res: Response) {
       .leftJoin(users, eq(appointments.userId, users.id))
       .leftJoin(vehicles, eq(appointments.vehicleId, vehicles.id))
       .leftJoin(workers, eq(appointments.workerId, workers.id))
+      .leftJoin(cranes, eq(appointments.craneId, cranes.id))
       .leftJoin(manager, eq(appointments.managedBy, manager.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
       .leftJoin(author, eq(serviceRecords.authoredBy, author.id))
@@ -138,6 +141,7 @@ export async function downloadAreaReport(req: Request, res: Response) {
       [r.vehicleBrand, r.vehicleModel].filter(Boolean).join(" "),
       r.workerName ?? "Sin asignar",
       prettyRut(r.workerRut),
+      ...(isCrane ? [r.craneName ? `${r.craneName} (${r.cranePlate})` : "Sin asignar"] : []),
       r.managerName,
       r.location,
       ...(isCrane ? [r.cargoType ? CARGO_LABEL[r.cargoType as CargoType] ?? r.cargoType : null, r.destination, r.cargoDetails] : []),
@@ -235,6 +239,7 @@ export async function downloadAreaReport(req: Request, res: Response) {
           { header: "Vehículo", width: 20 },
           { header: `${cfg.workerNoun} a cargo`, width: 26 },
           { header: `RUT ${cfg.workerNoun.toLowerCase()}`, width: 14 },
+          ...(isCrane ? [{ header: "Grúa", width: 26 }] : []),
           { header: "Jefe de área que gestionó", width: 24 },
           { header: isCrane ? "Lugar de retiro" : "Ubicación", width: 26 },
           ...(isCrane

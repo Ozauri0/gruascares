@@ -11,7 +11,9 @@ import { cargoLabel } from "../lib/cargo";
 import { formatRut, whatsappUrl } from "../lib/rut";
 import { useAgenda } from "../lib/use-agenda";
 import { usePendingRequests } from "../lib/use-pending-requests";
-import { assignAppointmentWorker, changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
+import { assignAppointmentCrew, assignAppointmentWorker, changeAppointmentStatus, saveReportAndFinish } from "../lib/workshop-api";
+import { listCranes, type Crane } from "../lib/cranes-api";
+import { formatPlate } from "../lib/plate";
 import { listWorkers, type Worker } from "../lib/workers-api";
 import type { AgendaItem } from "../lib/workshop-types";
 import type { AppointmentStatus } from "../lib/portal-types";
@@ -69,6 +71,12 @@ function ClientContactLine({ item }: { item: AgendaItem }) {
 }
 
 /** Qué se traslada, de dónde a dónde y los datos de la carga (solo grúas); en serviteca, el lugar si lo hay. */
+/** Solo servicios de grúa: con qué grúa de la flota se hace. */
+function CraneLine({ item }: { item: AgendaItem }) {
+  if (item.category !== "grua") return null;
+  return <p className="portal-meta"><Icon name="truck" /><b>Grúa:</b> {item.craneName ? `${item.craneName} · ${formatPlate(item.cranePlate ?? "")}` : "Sin asignar"}</p>;
+}
+
 function TransferLines({ item }: { item: AgendaItem }) {
   if (!item.cargoType) return item.location ? <p><Icon name="pin" /><b>Lugar:</b> {item.location}</p> : null;
   return (
@@ -97,6 +105,8 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   const [pendingError, setPendingError] = useState("");
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [workerChoice, setWorkerChoice] = useState("");
+  const [cranes, setCranes] = useState<Crane[]>([]);
+  const [craneChoice, setCraneChoice] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [filter, setFilter] = useState<AgendaFilter>("todas");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -132,6 +142,14 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   }, [area]);
   useEffect(() => reloadWorkers(), [reloadWorkers]);
 
+  // Solo grúas: flota activa, para elegir con qué grúa se hace cada servicio.
+  useEffect(() => {
+    if (area !== "grua") return;
+    const controller = new AbortController();
+    listCranes(controller.signal).then((list) => setCranes(list.filter((c) => c.isActive))).catch(() => setCranes([]));
+    return () => controller.abort();
+  }, [area]);
+
   useEffect(() => {
     if (!openId) return;
     const onKey = (event: KeyboardEvent) => {
@@ -148,6 +166,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
     setFinishedId(null);
     setConfirmCancel(false);
     setWorkerChoice(item.workerId ?? "");
+    setCraneChoice(item.craneId ?? "");
     setOpenId(item.id);
   }
 
@@ -185,12 +204,28 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
     }
   }
 
+  /** Al elegir una grúa con gruero fijo, queda también elegido ese gruero si la cita aún no tiene uno. */
+  function pickCrane(craneId: string, item: AgendaItem) {
+    setCraneChoice(craneId);
+    const fixed = cranes.find((c) => c.id === craneId)?.workerId;
+    if (fixed && !item.workerId && !workerChoice && workers.some((w) => w.id === fixed)) setWorkerChoice(fixed);
+  }
+
   async function saveWorker(item: AgendaItem) {
-    if (busy || !workerChoice || workerChoice === item.workerId) return;
+    const workerChanged = Boolean(workerChoice) && workerChoice !== item.workerId;
+    const craneChanged = area === "grua" && craneChoice !== (item.craneId ?? "");
+    if (busy || (!workerChanged && !craneChanged)) return;
     setBusy(true);
     setActionError("");
     try {
-      await assignAppointmentWorker(item.id, workerChoice);
+      if (area === "grua") {
+        await assignAppointmentCrew(item.id, {
+          ...(workerChanged ? { workerId: workerChoice } : {}),
+          ...(craneChanged ? { craneId: craneChoice || null } : {}),
+        });
+      } else {
+        await assignAppointmentWorker(item.id, workerChoice);
+      }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "No se pudo asignar al trabajador.");
     } finally {
@@ -209,10 +244,15 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
       setActionError(copy.needWorker);
       return;
     }
+    const chosenCrane = area === "grua" && craneChoice && craneChoice !== item.craneId ? craneChoice : undefined;
+    if (next.to === "en_proceso" && area === "grua" && !item.craneId && !chosenCrane) {
+      setActionError("Asigna la grúa antes de iniciar el servicio.");
+      return;
+    }
     setBusy(true);
     setActionError("");
     try {
-      await changeAppointmentStatus(item.id, next.to, chosen);
+      await changeAppointmentStatus(item.id, next.to, chosen, chosenCrane);
       reload();
       pending.reload();
     } catch (err) {
@@ -312,6 +352,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                         <TransferLines item={item} />
                         {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
                         <p className="portal-meta"><Icon name="wrench" /><b>{copy.assigneeLabel}:</b> {item.workerName ?? "Sin asignar"}</p>
+                        <CraneLine item={item} />
                       </div>
                       <div className="vehicle-actions mechanic-actions pending-actions">
                         <button type="button" className="button-accent" disabled={!!decidingId} onClick={() => void decide(item, "confirmada")}>
@@ -393,6 +434,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                         <TransferLines item={item} />
                               {item.notes && <p className="portal-note-box"><Icon name="note" /><b>Nota del cliente:</b> {item.notes}</p>}
                               <p className="portal-meta"><Icon name="wrench" /><b>Asignado a:</b> {item.workerName ?? copy.unassigned}</p>
+                              <CraneLine item={item} />
                             </div>
                             <div className="vehicle-actions mechanic-actions">
                               <button type="button" className="button-accent" onClick={() => openSheet(item)}>
@@ -499,7 +541,19 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                         ))}
                       </select>
                     </label>
-                    <button type="button" className="button button-sm" disabled={busy || !workerChoice || workerChoice === current.workerId} onClick={() => void saveWorker(current)}>
+                    {area === "grua" && (
+                      <label>
+                        Grúa
+                        <select value={craneChoice} disabled={busy} onChange={(event) => pickCrane(event.target.value, current)}>
+                          <option value="">Sin asignar</option>
+                          {cranes.map((crane) => (
+                            <option key={crane.id} value={crane.id}>{crane.name} · {formatPlate(crane.plate)}{crane.workerName ? ` (${crane.workerName})` : ""}</option>
+                          ))}
+                          {current.craneId && !cranes.some((c) => c.id === current.craneId) && <option value={current.craneId}>{current.craneName} (de baja)</option>}
+                        </select>
+                      </label>
+                    )}
+                    <button type="button" className="button button-sm" disabled={busy || ((!workerChoice || workerChoice === current.workerId) && (area !== "grua" || craneChoice === (current.craneId ?? "")))} onClick={() => void saveWorker(current)}>
                       {busy ? "Guardando…" : copy.changeAssignee}
                     </button>
                   </div>

@@ -35,8 +35,13 @@ export async function assignAppointmentWorker(id: string, workerId: string): Pro
   await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/assign`, { workerId });
 }
 
-export async function changeAppointmentStatus(id: string, status: AppointmentStatus, workerId?: string): Promise<void> {
-  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/status`, workerId ? { status, workerId } : { status });
+/** Grúas: asigna la grúa de la flota y/o el gruero de un servicio (`craneId: null` quita la grúa). */
+export async function assignAppointmentCrew(id: string, crew: { workerId?: string; craneId?: string | null }): Promise<void> {
+  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/assign`, crew);
+}
+
+export async function changeAppointmentStatus(id: string, status: AppointmentStatus, workerId?: string, craneId?: string): Promise<void> {
+  await apiPatch(`/api/mechanic/appointments/${encodeURIComponent(id)}/status`, { status, ...(workerId ? { workerId } : {}), ...(craneId ? { craneId } : {}) });
 }
 
 export type ReportInput = { observations: string; mileage: string; parts: string; recommendations: string };

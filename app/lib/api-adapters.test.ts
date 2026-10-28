@@ -111,6 +111,9 @@ describe("INT-1: adaptadores API → UI", () => {
       category: "grua",
       workerId: null,
       workerName: null,
+      craneId: null,
+      craneName: null,
+      cranePlate: null,
       managedByName: null,
     });
   });

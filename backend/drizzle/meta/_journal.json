@@ -134,6 +134,13 @@
       "when": 1792976400000,
       "tag": "0018_flota_gruas",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793062800000,
+      "tag": "0019_grua_por_servicio",
+      "breakpoints": true
     }
   ]
 }

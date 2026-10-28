@@ -1,4 +1,5 @@
 import { canWorkOn, hasRole, type ServiceCategory } from "../utils/roles.js";
+import { findAssignableCrane } from "../utils/cranes.js";
 import { findAssignableWorker } from "../utils/workers.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, ne, sql, or, ilike, notInArray } from "drizzle-orm";
@@ -823,7 +824,7 @@ export async function rescheduleAppointment(req: Request, res: Response) {
 export async function assignAppointmentWorker(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const { workerId } = req.body ?? {};
+    const { workerId, craneId } = req.body ?? {};
 
     if (!id || !UUID_REGEX.test(id)) {
       return res.status(400).json({
@@ -832,11 +833,17 @@ export async function assignAppointmentWorker(req: Request, res: Response) {
       });
     }
 
-    if (!workerId || typeof workerId !== "string" || !UUID_REGEX.test(workerId)) {
+    if (workerId === undefined && craneId === undefined) {
+      return res.status(400).json({ error: "Bad Request", message: "Indica el trabajador (workerId) o la grúa (craneId) a asignar" });
+    }
+    if (workerId !== undefined && (typeof workerId !== "string" || !UUID_REGEX.test(workerId))) {
       return res.status(400).json({
         error: "Bad Request",
         message: "workerId debe ser un UUID válido",
       });
+    }
+    if (craneId !== undefined && craneId !== null && (typeof craneId !== "string" || !UUID_REGEX.test(craneId))) {
+      return res.status(400).json({ error: "Bad Request", message: "craneId debe ser un UUID válido o null" });
     }
 
     const [existingAppointment] = await db
@@ -858,11 +865,33 @@ export async function assignAppointmentWorker(req: Request, res: Response) {
     if (!canWorkOn(req.user, category)) {
       return res.status(403).json({ error: "Forbidden", message: "No tienes permiso para gestionar las citas de esta área" });
     }
-    const found = await findAssignableWorker(workerId, category);
-    if ("error" in found) {
-      return res.status(400).json({ error: "Bad Request", message: found.error });
+    if (craneId !== undefined && category !== "grua") {
+      return res.status(400).json({ error: "Bad Request", message: "Solo los servicios de grúa llevan una grúa asignada" });
     }
-    const worker = found.worker;
+
+    // Gruero o mecánico a cargo (opcional si solo se asigna la grúa).
+    let worker: { id: string; name: string } | null = null;
+    if (workerId !== undefined) {
+      const found = await findAssignableWorker(workerId, category);
+      if ("error" in found) {
+        return res.status(400).json({ error: "Bad Request", message: found.error });
+      }
+      worker = found.worker;
+    }
+
+    // Grúa de la flota (null la quita). Si la grúa tiene gruero fijo y la cita aún no tiene trabajador, queda a cargo ese gruero.
+    let crane: { id: string; name: string; plate: string } | null = null;
+    if (craneId) {
+      const foundCrane = await findAssignableCrane(craneId);
+      if ("error" in foundCrane) {
+        return res.status(400).json({ error: "Bad Request", message: foundCrane.error });
+      }
+      crane = foundCrane.crane;
+      if (!worker && !existingAppointment.workerId && foundCrane.crane.workerId) {
+        const fixed = await findAssignableWorker(foundCrane.crane.workerId, category);
+        if (!("error" in fixed)) worker = fixed.worker;
+      }
+    }
 
     if (existingAppointment.status === "finalizada" || existingAppointment.status === "cancelada") {
       return res.status(409).json({
@@ -874,7 +903,8 @@ export async function assignAppointmentWorker(req: Request, res: Response) {
     const [updatedAppointment] = await db
       .update(appointments)
       .set({
-        workerId: worker.id,
+        ...(worker ? { workerId: worker.id } : {}),
+        ...(craneId !== undefined ? { craneId: craneId || null } : {}),
         managedBy: req.user!.userId,
         updatedAt: new Date(),
       })
@@ -895,19 +925,18 @@ export async function assignAppointmentWorker(req: Request, res: Response) {
       entityId: id,
       details: {
         previousWorkerId: existingAppointment.workerId,
-        newWorkerId: worker.id,
-        newWorkerName: worker.name,
+        newWorkerId: worker?.id ?? existingAppointment.workerId,
+        newWorkerName: worker?.name,
+        ...(craneId !== undefined ? { previousCraneId: existingAppointment.craneId, newCraneId: craneId || null, newCranePlate: crane?.plate } : {}),
       },
       req,
     });
 
     return res.json({
-      message: `Cita asignada exitosamente a ${worker.name}`,
+      message: worker ? `Cita asignada exitosamente a ${worker.name}` : crane ? `Grúa ${crane.name} asignada a la cita` : "Grúa quitada de la cita",
       appointment: updatedAppointment,
-      worker: {
-        id: worker.id,
-        name: worker.name,
-      },
+      worker: worker ? { id: worker.id, name: worker.name } : null,
+      crane: crane ? { id: crane.id, name: crane.name, plate: crane.plate } : null,
     });
   } catch (error) {
     console.error("Error al asignar el trabajador:", error);

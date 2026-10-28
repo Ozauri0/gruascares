@@ -1,10 +1,11 @@
 import { canWorkOn, type ServiceCategory } from "../utils/roles.js";
+import { findAssignableCrane } from "../utils/cranes.js";
 import { findAssignableWorker } from "../utils/workers.js";
 import { Request, Response } from "express";
 import { eq, and, desc, asc, gte, lte, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "../db/connection.js";
-import { appointments, users, vehicles, services, serviceRecords, workers } from "../db/schema.js";
+import { appointments, cranes, users, vehicles, services, serviceRecords, workers } from "../db/schema.js";
 import { sendAppointmentDecisionEmail, sendServiceCompletedEmail } from "../services/email/email.service.js";
 import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { logAudit } from "../services/audit/audit.service.js";
@@ -106,6 +107,9 @@ export async function getMechanicAgenda(req: Request, res: Response) {
         updatedAt: appointments.updatedAt,
         workerId: appointments.workerId,
         workerName: workers.name,
+        craneId: appointments.craneId,
+        craneName: cranes.name,
+        cranePlate: cranes.plate,
         managedByName: manager.name,
         clientId: appointments.userId,
         clientRut: users.rut,
@@ -143,6 +147,7 @@ export async function getMechanicAgenda(req: Request, res: Response) {
       .leftJoin(services, eq(appointments.serviceId, services.id))
       .leftJoin(serviceRecords, eq(appointments.id, serviceRecords.appointmentId))
       .leftJoin(workers, eq(appointments.workerId, workers.id))
+      .leftJoin(cranes, eq(appointments.craneId, cranes.id))
       .leftJoin(manager, eq(appointments.managedBy, manager.id))
       .where(where)
       .orderBy(asc(appointments.scheduledDate), asc(appointments.timeSlot), asc(appointments.id))
@@ -258,7 +263,7 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: "ID de cita inválido: debe ser un UUID" });
     }
 
-    const { status, notes, workerId } = req.body ?? {};
+    const { status, notes, workerId, craneId } = req.body ?? {};
 
     if (!isAppointmentStatus(status)) {
       return res.status(400).json({
@@ -268,6 +273,9 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
     }
     if (workerId !== undefined && workerId !== null && !isUuid(workerId)) {
       return res.status(400).json({ error: "Bad Request", message: "workerId debe ser un UUID válido" });
+    }
+    if (craneId !== undefined && craneId !== null && !isUuid(craneId)) {
+      return res.status(400).json({ error: "Bad Request", message: "craneId debe ser un UUID válido" });
     }
     if (notes !== undefined && typeof notes !== "string") {
       return res.status(400).json({ error: "Bad Request", message: "notes debe ser texto" });
@@ -322,6 +330,25 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       return res.status(400).json({ error: "Bad Request", message: "Asigna al trabajador a cargo antes de iniciar la atención" });
     }
 
+    // Grúa de la flota (solo servicios de grúa): también debe estar asignada para iniciar el servicio.
+    const isCraneService = ctx.service?.category === "grua";
+    let assignedCraneId = ctx.appointment.craneId;
+    if (craneId !== undefined) {
+      if (!isCraneService) {
+        return res.status(400).json({ error: "Bad Request", message: "Solo los servicios de grúa llevan una grúa asignada" });
+      }
+      if (craneId) {
+        const found = await findAssignableCrane(craneId);
+        if ("error" in found) {
+          return res.status(400).json({ error: "Bad Request", message: found.error });
+        }
+      }
+      assignedCraneId = craneId || null;
+    }
+    if (status === "en_proceso" && isCraneService && !assignedCraneId) {
+      return res.status(400).json({ error: "Bad Request", message: "Asigna la grúa antes de iniciar el servicio" });
+    }
+
     // Las notas del taller se agregan sin borrar las que dejó el cliente.
     const staffNote = typeof notes === "string" && notes.trim() ? `[Taller] ${notes.trim()}` : null;
     const mergedNotes = staffNote ? [ctx.appointment.notes, staffNote].filter(Boolean).join("\n") : ctx.appointment.notes;
@@ -329,7 +356,7 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
     // Actualización condicionada al estado leído: evita que dos operaciones simultáneas se pisen.
     const [updatedAppointment] = await db
       .update(appointments)
-      .set({ status, workerId: assignedWorkerId, managedBy: currentUser.userId, notes: mergedNotes, updatedAt: new Date() })
+      .set({ status, workerId: assignedWorkerId, craneId: assignedCraneId, managedBy: currentUser.userId, notes: mergedNotes, updatedAt: new Date() })
       .where(and(eq(appointments.id, id), eq(appointments.status, previousStatus)))
       .returning();
 
@@ -351,7 +378,7 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       action: "APPOINTMENT_STATUS_CHANGE",
       entityType: "appointment",
       entityId: id,
-      details: { from: previousStatus, to: status, workerId: assignedWorkerId },
+      details: { from: previousStatus, to: status, workerId: assignedWorkerId, ...(isCraneService ? { craneId: assignedCraneId } : {}) },
       req,
     });
 

@@ -79,6 +79,9 @@ describe.skipIf(!dbReady)("rol grúa y panel de grúas separado del taller (#129
     const noWorker = await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" });
     expect(noWorker.status).toBe(400); // hay que asignar al gruero antes de iniciar
     expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/assign`, { workerId: seed.rigger.id })).status).toBe(200);
+    expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" })).status).toBe(400); // y la grúa de la flota (#160)
+    const [{ id: craneId }] = await sql`insert into cranes (name, plate) values ('Grúa 1', 'ABCD12') returning id`;
+    expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/assign`, { craneId })).status).toBe(200);
     expect((await call(seed.crane, "PATCH", `/api/mechanic/appointments/${id}/status`, { status: "en_proceso" })).status).toBe(200);
     const report = await call(seed.crane, "POST", `/api/mechanic/appointments/${id}/report`, { observations: "Traslado a taller sin novedades", mileageAtService: 1500, partsReplaced: "Cadena", recommendations: "Revisar" });
     expect(report.status).toBe(201);

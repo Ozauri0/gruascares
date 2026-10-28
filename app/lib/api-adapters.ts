@@ -95,6 +95,9 @@ export function toAgendaItem(item: ApiAgendaItem): AgendaItem {
     category: item.service?.category ?? "serviteca",
     workerId: item.workerId ?? null,
     workerName: item.workerName ?? null,
+    craneId: item.craneId ?? null,
+    craneName: item.craneName ?? null,
+    cranePlate: item.cranePlate ?? null,
     managedByName: item.managedByName ?? null,
   };
 }
