@@ -12,7 +12,7 @@ import {
   saveTechnicalReport,
   getAppointmentReport,
 } from "../controllers/mechanic.controller.js";
-import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { authenticate, authorizeRoles, optionalAuthenticate } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -20,7 +20,8 @@ const router = Router();
 router.get("/services", getServicesCatalog);
 
 // 2. Disponibilidad de horarios por fecha
-router.get("/availability", getAvailableSlots);
+// (con sesión de ventas o admin, `?ignoreBlocks=true` muestra los bloqueos del calendario como agendables)
+router.get("/availability", optionalAuthenticate, getAvailableSlots);
 
 // 3. Crear solicitud de cita (público o con sesión activa)
 router.post("/", authenticate, createAppointment);

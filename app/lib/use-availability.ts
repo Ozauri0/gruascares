@@ -5,7 +5,7 @@ import { fetchAvailability } from "./appointments-api";
 import type { SlotAvailability } from "./availability";
 
 /** Bloques horarios reales de una fecha (se recargan al cambiar la fecha y se cancelan si cambia antes de responder). */
-export function useAvailability(date: string) {
+export function useAvailability(date: string, ignoreBlocks = false) {
   const [slots, setSlots] = useState<SlotAvailability[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +20,7 @@ export function useAvailability(date: string) {
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    fetchAvailability(date, controller.signal)
+    fetchAvailability(date, controller.signal, ignoreBlocks)
       .then((result) => setSlots(result))
       .catch((err) => {
         if ((err as Error)?.name === "AbortError") return;
@@ -31,7 +31,7 @@ export function useAvailability(date: string) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [date, nonce]);
+  }, [date, nonce, ignoreBlocks]);
 
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
   return { slots, loading, error, refresh };

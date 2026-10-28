@@ -43,6 +43,7 @@ export type ApiSlot = {
   capacityRemaining: number;
   available: boolean;
   reason?: string;
+  blocked?: boolean;
 };
 
 export type ApiAvailability = { date: string; capacityPerSlot: number; slots: ApiSlot[] };

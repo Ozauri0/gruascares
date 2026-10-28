@@ -122,11 +122,13 @@ describe("INT-1: adaptadores API → UI", () => {
       slots: [
         { time: "08:30", bookedCount: 0, capacityRemaining: 2, available: true },
         { time: "09:30", bookedCount: 0, capacityRemaining: 0, available: false, reason: "Feriado" },
+        { time: "10:30", bookedCount: 0, capacityRemaining: 4, available: true, reason: "Mantención", blocked: true },
       ],
     });
     expect(slots).toEqual([
       { time: "08:30", available: true, reason: undefined },
       { time: "09:30", available: false, reason: "Feriado" },
+      { time: "10:30", available: true, reason: "Mantención", blocked: true },
     ]);
   });
 });

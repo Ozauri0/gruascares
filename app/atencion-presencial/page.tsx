@@ -79,7 +79,7 @@ export default function WalkInPage() {
     vehicleSummary?: string;
   } | null>(null);
 
-  const { slots, loading: slotsLoading, error: slotsError, refresh: refreshSlots } = useAvailability(date);
+  const { slots, loading: slotsLoading, error: slotsError, refresh: refreshSlots } = useAvailability(date, true); // ventas y admin ven los bloqueos del calendario como agendables
   const grouped = useMemo(() => groupServices(services), [services]);
   const availableServices = grouped[category];
   const selectedService = services.find((item) => item.id === serviceId);
@@ -266,6 +266,7 @@ export default function WalkInPage() {
         timeSlot: time,
         ...(isCrane ? transferPayload(transfer) : { location: location.trim() || undefined }),
         notes: notes.trim() || undefined,
+        ...(slots.find((slot) => slot.time === time)?.blocked ? { ignoreBlocks: true } : {}),
         ...(client
           ? { userId: client.id, rut: client.rut }
           : {
@@ -707,6 +708,11 @@ export default function WalkInPage() {
                           </button>
                         ))}
                     </div>
+                    {slots.find((slot) => slot.time === time)?.blocked && (
+                      <p className="field-warning" role="status">
+                        Este horario está bloqueado en el calendario maestro ({slots.find((slot) => slot.time === time)?.reason}). Como ventas puedes agendarlo igualmente; quedará registrado.
+                      </p>
+                    )}
                     {slotsError && (
                       <p className="field-error" role="alert">
                         {slotsError}{" "}

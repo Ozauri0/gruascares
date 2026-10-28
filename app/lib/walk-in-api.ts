@@ -74,6 +74,8 @@ export type CreateWalkInAppointmentInput = {
   destination?: string;
   cargoDetails?: string;
   notes?: string;
+  /** Solo ventas y admin: agenda aunque el calendario maestro tenga bloqueado ese día u horario. */
+  ignoreBlocks?: boolean;
   userId?: string;
   rut?: string;
   client?: {
@@ -107,6 +109,7 @@ export async function createWalkInAppointment(input: CreateWalkInAppointmentInpu
   if (input.destination?.trim()) payload.destination = input.destination.trim();
   if (input.cargoDetails?.trim()) payload.cargoDetails = input.cargoDetails.trim();
   if (input.notes?.trim()) payload.notes = input.notes.trim();
+  if (input.ignoreBlocks) payload.ignoreBlocks = true;
   if (input.userId) payload.userId = input.userId;
   if (input.rut) payload.rut = normalizeRut(input.rut);
   if (input.client) {
