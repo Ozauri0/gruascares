@@ -199,3 +199,10 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Contexto**: Los días y horarios bloqueados por el administrador impedían que el mostrador registrara una atención presencial, aunque el local estuviera atendiendo.
 - **Decisión**: `GET /api/appointments/availability?ignoreBlocks=true` (con sesión de **vendedor** o **admin**) devuelve los bloqueos como horarios agendables, marcados con `blocked: true` y su motivo; `POST /api/appointments` acepta `ignoreBlocks: true` solo de esos roles (los demás reciben 403). Solo se omite el bloqueo: los horarios ya transcurridos y el tope de citas por horario siguen vigentes. Cada cita creada así guarda `bypassedBlock` (el motivo) en el registro de actividad. Solo `/atencion-presencial` usa esta opción; `/agendar` y el portal del cliente siguen sujetos al calendario.
 - **Consecuencias**: el calendario maestro sigue siendo obligatorio para clientes, taller y grúas.
+
+### ADR 023: Flota de grúas con gruero a cargo
+- **Fecha**: 2026-10-28
+- **Estado**: Aceptado (issue #160)
+- **Contexto**: El jefe de grúas necesitaba registrar las grúas de la empresa y saber quién queda a cargo de cada una.
+- **Decisión**: tabla `cranes` (nombre o alias, patente única, tipo plataforma / camión grúa / otro, notas, estado) con `worker_id` opcional hacia `workers`. API `/api/cranes` (solo jefe de grúas y admin) y vista `/grua/flota` (enlace «Flota de grúas» en «Mis áreas»). El gruero a cargo debe ser un trabajador activo de tipo gruero (quien es mecánico y gruero sirve); el cambio y la baja de grúas quedan en el registro de actividad (`CRANE_*`). La grúa se da de baja, no se borra, y si se elimina al trabajador queda sin gruero.
+- **Consecuencias**: el gruero a cargo es fijo hasta que se cambia (sin historial de asignaciones más allá del registro de actividad) y la grúa no se asigna por solicitud: la solicitud sigue llevando solo al trabajador (`workerId`). Se puede ampliar más adelante si se necesita saber qué grúa hizo cada servicio.

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "../lib/auth";
-import { AREA_LABEL, HOME_FOR_ROLE, areasFor, canManageStaff, type Role } from "../lib/route-guard";
+import { AREA_LABEL, HOME_FOR_ROLE, areasFor, canManageFleet, canManageStaff, type Role } from "../lib/route-guard";
 import Icon, { type IconName } from "./Icon";
 
 const AREA_ICON: Record<Role, IconName> = { admin: "shield", mecanico: "wrench", grua: "truck", vendedor: "tag", usuario: "user" };
@@ -15,6 +15,7 @@ export default function AreaNav() {
   if (!user) return null;
   const areas = areasFor(user);
   const staff = canManageStaff(user);
+  const fleet = canManageFleet(user);
   if (areas.length < 2 && !staff) return null;
   const current = areas.find((area) => pathname === HOME_FOR_ROLE[area] || pathname.startsWith(`${HOME_FOR_ROLE[area]}/`)) ?? null;
   return (
@@ -25,6 +26,11 @@ export default function AreaNav() {
           <Icon name={AREA_ICON[area]} /> {AREA_LABEL[area]}
         </Link>
       ))}
+      {fleet && (
+        <Link href="/grua/flota" className={`area-nav-link${pathname === "/grua/flota" ? " active" : ""}`} aria-current={pathname === "/grua/flota" ? "page" : undefined}>
+          <Icon name="truck" /> Flota de grúas
+        </Link>
+      )}
       {staff && (
         <Link href="/personal" className={`area-nav-link${pathname === "/personal" ? " active" : ""}`} aria-current={pathname === "/personal" ? "page" : undefined}>
           <Icon name="users" /> Gestionar personal

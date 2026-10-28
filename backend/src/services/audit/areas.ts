@@ -14,7 +14,7 @@ const AREA_MATCHERS: Record<AuditArea, Matcher> = {
   taller: {
     exact: ["APPOINTMENT_STATUS_CHANGE", "APPOINTMENT_FINALIZED", "TECHNICAL_REPORT_SAVED"],
     // trabajadores (personal sin cuenta) que los jefes de taller y de grúas registran y asignan
-    prefix: ["WORKER_"],
+    prefix: ["WORKER_", "CRANE_"],
     // vehículos o citas de un cliente creados, editados o borrados por el personal
     suffix: ["_BY_STAFF"],
   },
@@ -70,6 +70,11 @@ const LABELS: Record<string, string> = {
   APPOINTMENT_CREATE_GUEST: "Solicitud de cita de invitado",
   APPOINTMENT_CANCEL: "Canceló una cita",
   WALK_IN_CLIENT_CREATED: "Registró un cliente presencialmente",
+  CRANE_CREATED: "Registró una grúa de la flota",
+  CRANE_UPDATED: "Editó una grúa de la flota",
+  CRANE_ASSIGNED: "Asignó el gruero de una grúa",
+  CRANE_ACTIVATED: "Reactivó una grúa de la flota",
+  CRANE_DEACTIVATED: "Dio de baja una grúa de la flota",
   WORKER_CREATED: "Registró un trabajador",
   WORKER_UPDATED: "Editó un trabajador",
   WORKER_ACTIVATED: "Reactivó un trabajador",

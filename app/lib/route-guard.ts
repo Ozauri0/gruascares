@@ -30,6 +30,11 @@ export const AREA_LABEL: Record<Role, string> = {
   admin: "Administración",
 };
 
+/** Quién gestiona la flota de grúas: el jefe de grúas y el admin. */
+export function canManageFleet(user: { role: Role; roles?: Role[] }): boolean {
+  return rolesOf(user).some((r) => r === "grua" || r === "admin");
+}
+
 /** Quién gestiona personal (trabajadores sin cuenta): los jefes de taller y de grúas, y el admin. */
 export function canManageStaff(user: { role: Role; roles?: Role[] }): boolean {
   return rolesOf(user).some((r) => r === "mecanico" || r === "grua" || r === "admin");
