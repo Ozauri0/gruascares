@@ -55,6 +55,25 @@ export const workers = pgTable(
   (table) => [index("workers_is_active_idx").on(table.isActive)]
 );
 
+// 2c. Flota: las grúas de la empresa. Cada una puede tener un gruero (trabajador sin cuenta) a cargo.
+export const cranes = pgTable(
+  "cranes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    plate: varchar("plate", { length: 10 }).notNull().unique(),
+    // plataforma | camion_grua | otro (validado en el controlador y por un CHECK en la migración).
+    type: varchar("type", { length: 20 }).default("otro").notNull(),
+    notes: text("notes"),
+    workerId: uuid("worker_id").references(() => workers.id, { onDelete: "set null" }),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("cranes_worker_id_idx").on(table.workerId)]
+);
+
 // 3. Tabla Vehículos
 export const vehicles = pgTable(
   "vehicles",

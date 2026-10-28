@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { HOME_FOR_ROLE, areasFor, canManageStaff, fetchSession, fetchSessionRole, guardDecision, isRole } from "./route-guard";
+import { HOME_FOR_ROLE, areasFor, canManageFleet, canManageStaff, fetchSession, fetchSessionRole, guardDecision, isRole } from "./route-guard";
 
 describe("INT-4: decisión de acceso por rol", () => {
   test("sin sesión todo va a /login", () => {
@@ -71,6 +71,18 @@ describe("INT-4: decisión de acceso por rol", () => {
     expect(areasFor({ role: "mecanico", roles: ["mecanico", "vendedor"] })).toEqual(["mecanico", "vendedor", "usuario"]);
     expect(areasFor({ role: "grua" })).toEqual(["grua", "usuario"]);
     expect(areasFor({ role: "admin" })).toEqual(["admin", "mecanico", "grua", "vendedor", "usuario"]);
+  });
+
+  test("/grua/flota sigue la misma regla que /grua y canManageFleet", () => {
+    expect(guardDecision("/grua/flota", null)).toEqual({ type: "login" });
+    expect(guardDecision("/grua/flota", "grua")).toEqual({ type: "allow" });
+    expect(guardDecision("/grua/flota", "admin")).toEqual({ type: "allow" });
+    expect(guardDecision("/grua/flota", "mecanico")).toEqual({ type: "redirect", to: "/mecanico" });
+    expect(canManageFleet({ role: "grua" })).toBe(true);
+    expect(canManageFleet({ role: "mecanico", roles: ["grua"] })).toBe(true);
+    expect(canManageFleet({ role: "admin" })).toBe(true);
+    expect(canManageFleet({ role: "mecanico" })).toBe(false);
+    expect(canManageFleet({ role: "vendedor" })).toBe(false);
   });
 
   test("/grua: solo el rol grúa y el admin; mecánico, vendedor y cliente vuelven a su inicio", () => {

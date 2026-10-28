@@ -9,7 +9,7 @@ export const dbReady: boolean = Boolean((globalThis as any).__TEST_DB_READY__);
 
 export async function resetDb(): Promise<void> {
   await rawSql.unsafe(
-    "truncate table revoked_tokens, email_verification_tokens, password_reset_tokens, custom_time_slots, site_content, products, audit_logs, blocked_dates, service_records, appointments, vehicles, services, users restart identity cascade"
+    "truncate table cranes, revoked_tokens, email_verification_tokens, password_reset_tokens, custom_time_slots, site_content, products, audit_logs, blocked_dates, service_records, appointments, vehicles, services, users restart identity cascade"
   );
 }
 
