@@ -125,6 +125,8 @@ export const appointments = pgTable(
     // Trabajador (sin cuenta) que hace el servicio, y jefe de área (cuenta) que gestionó la solicitud por última vez.
     workerId: uuid("worker_id").references(() => workers.id, { onDelete: "set null" }),
     managedBy: uuid("managed_by").references(() => users.id, { onDelete: "set null" }),
+    // Solo servicios de grúa: la grúa de la flota que hace el servicio (además del gruero).
+    craneId: uuid("crane_id").references(() => cranes.id, { onDelete: "set null" }),
     scheduledDate: date("scheduled_date").notNull(),
     timeSlot: varchar("time_slot", { length: 10 }).notNull(),
     status: appointmentStatusEnum("status").default("solicitada").notNull(),
@@ -142,6 +144,7 @@ export const appointments = pgTable(
     index("appointments_user_id_idx").on(table.userId),
     index("appointments_scheduled_date_idx").on(table.scheduledDate),
     index("appointments_status_idx").on(table.status),
+    index("appointments_crane_id_idx").on(table.craneId),
   ]
 );
 

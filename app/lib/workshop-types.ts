@@ -25,6 +25,10 @@ export type AgendaItem = {
   workerId: string | null;
   /** Nombre del trabajador a cargo. */
   workerName?: string | null;
+  /** Solo grúas: la grúa de la flota que hace el servicio. */
+  craneId?: string | null;
+  craneName?: string | null;
+  cranePlate?: string | null;
   /** Jefe de área que gestionó la solicitud por última vez. */
   managedByName?: string | null;
 };
