@@ -43,6 +43,7 @@ describe("INT-6: reglas de agendamiento", () => {
 
   test("etiquetas de horario", () => {
     expect(slotStatusLabel({ time: "10:30", available: true })).toBe("Disponible");
+    expect(slotStatusLabel({ time: "10:30", available: true, blocked: true, reason: "Feriado" })).toBe("Bloqueado · agendable");
     expect(slotStatusLabel({ time: "10:30", available: false })).toBe("Ocupado");
     expect(slotStatusLabel({ time: "10:30", available: false, reason: "Horario ya transcurrido" })).toBe("Ya pasó");
     expect(slotStatusLabel({ time: "10:30", available: false, reason: "Feriado" })).toBe("No disponible");

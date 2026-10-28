@@ -10,8 +10,9 @@ export async function listServices(signal?: AbortSignal): Promise<ApiService[]> 
   return services;
 }
 
-export async function fetchAvailability(date: string, signal?: AbortSignal): Promise<SlotAvailability[]> {
-  const availability = await apiGet<ApiAvailability>("/api/appointments/availability", { date }, { signal });
+/** `ignoreBlocks` (solo ventas y admin): los bloqueos del calendario maestro vuelven como horarios agendables. */
+export async function fetchAvailability(date: string, signal?: AbortSignal, ignoreBlocks = false): Promise<SlotAvailability[]> {
+  const availability = await apiGet<ApiAvailability>("/api/appointments/availability", ignoreBlocks ? { date, ignoreBlocks: "true" } : { date }, { signal });
   return toSlotAvailability(availability);
 }
 

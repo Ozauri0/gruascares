@@ -100,7 +100,7 @@ export function toAgendaItem(item: ApiAgendaItem): AgendaItem {
 }
 
 export function toSlotAvailability(availability: ApiAvailability): SlotAvailability[] {
-  return availability.slots.map((slot) => ({ time: slot.time, available: slot.available, reason: slot.reason }));
+  return availability.slots.map((slot) => ({ time: slot.time, available: slot.available, reason: slot.reason, ...(slot.blocked ? { blocked: true } : {}) }));
 }
 
 export function toAdminMetrics(api: ApiMetrics): AdminMetrics {

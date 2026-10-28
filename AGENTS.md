@@ -136,7 +136,7 @@ Los textos e imágenes de la web pública los edita el administrador sobre la pr
 Los formularios envían datos reales a la API:
 
 - `/agendar`: crea una **solicitud** de cita (`POST /api/appointments`). Queda "pendiente de confirmación" hasta que el taller la confirme; no presentarla como reserva confirmada. **Exige sesión iniciada** (cuenta con correo confirmado): sin sesión, `/agendar` lleva a iniciar sesión o crear cuenta y vuelve a `/agendar` (la ruta recordada está en `app/lib/post-login.ts`). Ya no existen las solicitudes de invitado nuevas (las antiguas se conservan y se vinculan a la cuenta al confirmar el correo). El teléfono de emergencias sigue visible sin cuenta.
-- `/login`: credenciales reales o acceso demo (botones). `/registro`: cuenta real con RUT; si el RUT es de un perfil creado presencialmente, solo se reclama con el **mismo teléfono** que dejó en el local (ADR 019). El registro y la atención por RUT en el mostrador (`/atencion-presencial`) son de **vendedor** y **admin** (ADR 020).
+- `/login`: credenciales reales o acceso demo (botones). `/registro`: cuenta real con RUT; si el RUT es de un perfil creado presencialmente, solo se reclama con el **mismo teléfono** que dejó en el local (ADR 019). El registro y la atención por RUT en el mostrador (`/atencion-presencial`) son de **vendedor** y **admin** (ADR 020). Ahí mismo ventas y admin pueden agendar sobre días u horarios bloqueados del calendario maestro (se avisa en pantalla y queda en el registro de actividad; ADR 022).
 - Home: el formulario de contacto sigue siendo demostrativo (no tiene endpoint).
 
 ## Responsive Behavior

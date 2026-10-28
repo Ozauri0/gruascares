@@ -102,6 +102,10 @@ export async function getAvailableSlots(req: Request, res: Response) {
       activeBlocks.filter((b) => Boolean(b.timeSlot)).map((b) => [b.timeSlot!, b.reason])
     );
 
+    // Ventas y administración pueden agendar sobre bloqueos del calendario maestro (los horarios ya
+    // transcurridos y los cupos llenos siguen cerrados); se les indica cuáles son bloqueos.
+    const overrideBlocks = req.query.ignoreBlocks === "true" && Boolean(req.user) && hasRole(req.user!, "vendedor", "admin");
+
     const daySlots = await slotsForDate(date);
     const slots = daySlots.map((slot) => {
       if (isSlotPast(date, slot)) {
@@ -114,7 +118,7 @@ export async function getAvailableSlots(req: Request, res: Response) {
         };
       }
 
-      if (isDayBlocked) {
+      if (isDayBlocked && !overrideBlocks) {
         return {
           time: slot,
           bookedCount: 0,
@@ -125,17 +129,19 @@ export async function getAvailableSlots(req: Request, res: Response) {
       }
 
       const isSlotBlocked = blockedSlotsMap.has(slot);
+      const blockReason = isDayBlocked ? dayBlockReason || "Día completo bloqueado para atención" : blockedSlotsMap.get(slot);
+      const blocked = isDayBlocked || isSlotBlocked;
       const bookedCount = bookedMap.get(slot) || 0;
-      const capacityRemaining = isSlotBlocked
-        ? 0
-        : Math.max(0, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT - bookedCount);
+      const closed = blocked && !overrideBlocks;
+      const capacityRemaining = closed ? 0 : Math.max(0, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT - bookedCount);
 
       return {
         time: slot,
         bookedCount,
         capacityRemaining,
-        available: !isSlotBlocked && capacityRemaining > 0,
-        reason: isSlotBlocked ? blockedSlotsMap.get(slot) : undefined,
+        available: !closed && capacityRemaining > 0,
+        reason: blocked ? blockReason : undefined,
+        ...(overrideBlocks && blocked ? { blocked: true } : {}),
       };
     });
 
@@ -175,6 +181,7 @@ export async function createAppointment(req: Request, res: Response) {
       rut: requestedRut,
       client: requestedClient,
       newVehicle,
+      ignoreBlocks,
     } = req.body ?? {};
 
     // 1. Validaciones básicas
@@ -270,6 +277,15 @@ export async function createAppointment(req: Request, res: Response) {
       (explicitClientId !== undefined && explicitClientId !== null && explicitClientId !== "" && explicitClientId !== actor.userId) ||
       (rawRut !== undefined && rawRut !== null && rawRut !== "") ||
       (requestedClient !== undefined && requestedClient !== null);
+
+    // Solo ventas y administración pueden agendar sobre un bloqueo del calendario maestro (queda en el registro).
+    const overrideBlocks = ignoreBlocks === true;
+    if (overrideBlocks && !hasRole(actor, "vendedor", "admin")) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Agendar sobre un bloqueo del calendario es solo de ventas y administración",
+      });
+    }
 
     let targetUserId: string = actor.userId;
     let clientName: string = actor.name;
@@ -521,7 +537,8 @@ export async function createAppointment(req: Request, res: Response) {
           )
         )
         .limit(1);
-      if (blockedRecord) return { kind: "blocked" as const, reason: blockedRecord.reason };
+      if (blockedRecord && !overrideBlocks) return { kind: "blocked" as const, reason: blockedRecord.reason };
+      const bypassedBlock = blockedRecord ? blockedRecord.reason : null;
 
       // Una misma persona no puede ocupar dos veces el mismo horario (doble clic, reintento o reenvío del formulario).
       const [duplicate] = await tx
@@ -566,7 +583,7 @@ export async function createAppointment(req: Request, res: Response) {
           notes: notes ? String(notes).trim() : null,
         })
         .returning();
-      return { kind: "created" as const, appointment: created };
+      return { kind: "created" as const, appointment: created, bypassedBlock };
     });
 
     if (outcome.kind === "blocked") {
@@ -618,6 +635,7 @@ export async function createAppointment(req: Request, res: Response) {
         timeSlot,
         vehicleId: resolvedVehicleId,
         ...(bookedByStaff ? { clientId: targetUserId, clientRut, clientName } : {}),
+        ...(outcome.bypassedBlock ? { bypassedBlock: outcome.bypassedBlock } : {}),
       },
       req,
     });

@@ -46,6 +46,7 @@ export function serviceHint(service: ApiService): string {
 }
 
 export function slotStatusLabel(slot: SlotAvailability & { capacityRemaining?: number }): string {
+  if (slot.available && slot.blocked) return "Bloqueado · agendable";
   if (slot.available) return "Disponible";
   if (slot.reason?.toLowerCase().includes("transcurrido")) return "Ya pasó";
   if (slot.reason) return "No disponible";

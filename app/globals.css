@@ -1095,3 +1095,6 @@ body>footer{flex-shrink:0}
 .team-gallery li{aspect-ratio:1;overflow:hidden;background:#e9e9e9}
 .team-gallery img{width:100%;height:100%;object-fit:cover;display:block}
 @media (max-width:640px){.team-gallery{grid-template-columns:repeat(2,1fr)}}
+
+/* Aviso al agendar sobre un bloqueo del calendario maestro (#161) */
+.field-warning{margin:8px 0 0;padding:9px 12px;border-left:3px solid #d99a00;background:#fff8e1;color:#5c4400;font-size:13px;line-height:1.5}

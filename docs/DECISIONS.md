@@ -192,3 +192,10 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Contexto**: La grúa no siempre lleva el vehículo al taller: traslada autos, camiones, contenedores, maquinaria u otras cargas a cualquier destino.
 - **Decisión**: `appointments` suma `cargo_type` (auto, camioneta, camion, contenedor, maquinaria, otro), `destination` y `cargo_details`; `location` pasa a ser el lugar de retiro. Para servicios de grúa el backend exige los cuatro datos (`utils/cargo.ts`) y para los demás los descarta. El vehículo guardado solo se ofrece si lo que se traslada tiene patente. La ficha de cierre de una grúa es solo un comentario (el backend ignora kilometraje, repuestos y recomendaciones en ese caso). El panel `/grua` y el reporte Excel de grúas muestran los datos del traslado.
 - **Consecuencias**: las solicitudes de grúa anteriores no tienen estos datos (columnas vacías); no se migran.
+
+### ADR 022: Ventas y admin pueden agendar sobre bloqueos del calendario maestro
+- **Fecha**: 2026-10-28
+- **Estado**: Aceptado (issue #161)
+- **Contexto**: Los días y horarios bloqueados por el administrador impedían que el mostrador registrara una atención presencial, aunque el local estuviera atendiendo.
+- **Decisión**: `GET /api/appointments/availability?ignoreBlocks=true` (con sesión de **vendedor** o **admin**) devuelve los bloqueos como horarios agendables, marcados con `blocked: true` y su motivo; `POST /api/appointments` acepta `ignoreBlocks: true` solo de esos roles (los demás reciben 403). Solo se omite el bloqueo: los horarios ya transcurridos y el tope de citas por horario siguen vigentes. Cada cita creada así guarda `bypassedBlock` (el motivo) en el registro de actividad. Solo `/atencion-presencial` usa esta opción; `/agendar` y el portal del cliente siguen sujetos al calendario.
+- **Consecuencias**: el calendario maestro sigue siendo obligatorio para clientes, taller y grúas.
