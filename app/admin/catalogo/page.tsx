@@ -5,6 +5,8 @@ import InnerFooter from "../../components/InnerFooter";
 import AdminNav from "../components/AdminNav";
 import AreaNav from "../../components/AreaNav";
 import { formatPrice } from "../../lib/catalog";
+import { categoriesOf, EMPTY_FILTERS, filterProducts, hasActiveFilters, type CatalogFilters } from "../../lib/catalog-filter";
+import CatalogFilterBar from "../../components/CatalogFilterBar";
 import type { Product } from "../../lib/catalog";
 import { saveContent, uploadImage } from "../../lib/admin-api";
 import { SHOP_TOP_HIDDEN_KEY } from "../../lib/site-content";
@@ -141,6 +143,8 @@ export default function CatalogAdminPage() {
   }
 
   const { products, loading, error, reload, add, patch, remove: removeProduct } = useAdminCatalog();
+  const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+  const shown = filterProducts(products, filters);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<{ name?: string; price?: string; stock?: string; image?: string; form?: string }>({});
@@ -284,6 +288,8 @@ export default function CatalogAdminPage() {
               </button>
             </div>
 
+            {!loading && !error && products.length > 0 && <CatalogFilterBar filters={filters} onChange={setFilters} categories={categoriesOf(products)} manage />}
+
             {actionError && <p className="field-error" role="alert">{actionError}</p>}
 
             {loading ? (
@@ -295,10 +301,15 @@ export default function CatalogAdminPage() {
               </div>
             ) : products.length === 0 ? (
               <div className="portal-empty-card"><p>Aún no hay productos. Agrega el primero con “+ Nuevo producto”.</p></div>
+            ) : shown.length === 0 ? (
+              <div className="catalog-empty">
+                <p>Ningún producto coincide con la búsqueda.</p>
+                <button type="button" className="button button-sm" onClick={() => setFilters(EMPTY_FILTERS)}>Limpiar filtros</button>
+              </div>
             ) : (
             view === "grid" ? (
               <div className="admin-grid">
-                {products.map((item) => (
+                {shown.map((item) => (
                   <article className={`admin-card${item.active ? "" : " row-inactive"}`} key={item.id}>
                     <Thumb item={item} />
                     <div className="admin-card-body">
@@ -321,7 +332,7 @@ export default function CatalogAdminPage() {
                   <tr><th>Producto</th><th>Precio ref.</th><th>Stock ref.</th><th>Visible</th><th><span className="sr-only">Acciones</span></th></tr>
                 </thead>
                 <tbody>
-                  {products.map((item) => (
+                  {shown.map((item) => (
                     <tr key={item.id} className={item.active ? "" : "row-inactive"}>
                       <td>
                         <div className="admin-product-cell">
@@ -347,7 +358,7 @@ export default function CatalogAdminPage() {
               </table>
             </div>
             ))}
-            <p className="table-note">{products.filter((item) => item.active).length} de {products.length} visibles en la tienda · Precios y stock referenciales.</p>
+            <p className="table-note">{hasActiveFilters(filters) ? `${shown.length} resultados · ` : ""}{products.filter((item) => item.active).length} de {products.length} visibles en la tienda · Precios y stock referenciales.</p>
           </section>
         </div>
       </main>

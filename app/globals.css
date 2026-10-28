@@ -1074,3 +1074,14 @@ body>footer{flex-shrink:0}
 .booking-account small{color:#8a5a00}
 .booking-gate .success-actions{margin:18px 0}
 .worker-stats{display:grid;align-items:stretch}.worker-stats-head{display:flex;flex-wrap:wrap;gap:16px 24px;justify-content:space-between;align-items:end}.worker-stats-month{min-width:130px;text-align:center}.worker-stats .export-actions{display:flex;gap:8px;align-items:center}
+
+/* Buscador y filtros del catálogo (#159) */
+.catalog-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:22px}
+.catalog-filters label{margin:0;min-width:0}
+.catalog-search{flex:1 1 260px}
+.catalog-filters input[type=search],.catalog-filters select{width:100%;box-sizing:border-box;border:1px solid #d6d6d6;background:#fff;border-radius:999px;padding:11px 16px;font:14px 'Fira Sans';color:#111}
+.catalog-filters select{flex:0 1 auto;padding-right:30px}
+.catalog-filters-clear{border:0;background:transparent;color:var(--green-dark);font:700 12px 'Fira Sans';cursor:pointer;padding:8px 6px;text-decoration:underline}
+.catalog-empty{text-align:center;padding:50px 0;color:#666}
+.catalog-empty button{margin-top:12px}
+@media (max-width:640px){.catalog-filters select{flex:1 1 100%}}
