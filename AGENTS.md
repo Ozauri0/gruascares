@@ -46,6 +46,7 @@ Antes de considerar terminada una modificación deben pasar `bun run build`, `bu
 - Estadísticas mensuales (solo admin): en `/admin`, «Trabajo de mecánicos y grueros» (`GET /api/admin/stats/workers?month=YYYY-MM`): asignaciones, finalizadas y canceladas por trabajador, con vista de taller, de grúas o todo junto (quien hace ambas áreas sale una sola vez) y orden por asignaciones.
 - Reportes Excel (solo admin): en `/admin`, «Reportes de rendimiento» descarga `GET /api/admin/reports/taller|grua?startDate&endDate&status` (hoja resumen por trabajador + hoja de servicios con quién pidió, quién se encargó, jefe que gestionó e informe). El .xlsx lo arma `backend/src/utils/xlsx.ts` (sin librerías de planillas; solo `fflate`).
 - `/admin/registro`: Registro de actividad (solo admin): quién hizo qué en taller, ventas y administración, intentos de ingreso y errores 5xx del servidor; filtros por área, nivel, texto y fechas. Sale de `audit_logs` (`GET /api/admin/audit-logs`; el área y nivel se derivan de la acción en `backend/src/services/audit/areas.ts`: para registrar una acción nueva, llama a `logAudit` y agrégala allí).
+- `/team-cares`: Página del equipo deportivo Team Cares (texto y fotos de la web original, editables desde «Editar página»; fotos `public/images/team-01..11.webp`, de 400 px porque es el tamaño publicado). Enlazada desde el navbar.
 - `/login`: Mockup de portal de clientes, sin autenticación real.
 
 ## Components
