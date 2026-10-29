@@ -118,6 +118,8 @@ const LABELS: Record<string, string> = {
   PROFILE_UPDATED: "Editó su perfil",
   PASSWORD_RESET_REQUESTED: "Pidió recuperar su contraseña",
   PASSWORD_RESET_COMPLETED: "Cambió su contraseña",
+  PASSWORD_CHANGED: "Cambió su contraseña desde su perfil",
+  PASSWORD_CHANGE_FAILED: "Intento fallido de cambiar su contraseña",
   SERVER_ERROR: "Error del servidor",
   MAINTENANCE_PURGE: "Limpieza automática (registros y cuentas sin confirmar)",
 };

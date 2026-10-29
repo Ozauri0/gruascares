@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ApiError } from "./api";
-import { demoLoginRequest, fetchSession, forgotPasswordRequest, logoutAllRequest, passwordProblem, resetPasswordRequest, updateProfileRequest, loginRequest, logoutRequest, registerRequest, resendVerificationRequest, verifyEmailRequest } from "./auth-api";
+import { changePasswordRequest, demoLoginRequest, fetchSession, forgotPasswordRequest, logoutAllRequest, passwordProblem, resetPasswordRequest, updateProfileRequest, loginRequest, logoutRequest, registerRequest, resendVerificationRequest, verifyEmailRequest } from "./auth-api";
 
 type Call = { url: string; init: RequestInit };
 const realFetch = globalThis.fetch;
@@ -142,6 +142,17 @@ describe("#92: recuperación de contraseña y perfil", () => {
     await logoutAllRequest();
     expect(calls[0].url).toContain("/api/auth/logout-all");
     expect(calls[0].init.method).toBe("POST");
+  });
+  test("changePasswordRequest envía la clave actual y la nueva", async () => {
+    respond(200, { message: "Contraseña actualizada." });
+    await changePasswordRequest("vieja-clave-1", "nueva-clave-2");
+    expect(calls[0].url).toContain("/api/auth/change-password");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ currentPassword: "vieja-clave-1", newPassword: "nueva-clave-2" });
+  });
+  test("changePasswordRequest con la clave actual mal dada no manda al login (400 con mensaje)", async () => {
+    respond(400, { error: "Bad Request", message: "La contraseña actual no es correcta" });
+    const error = await changePasswordRequest("mala", "nueva-clave-2").catch((e) => e);
+    expect((error as ApiError).message).toContain("actual");
   });
   test("passwordProblem aplica el mínimo de 8 caracteres y el máximo de 72 bytes", () => {
     expect(passwordProblem("corta")).not.toBeNull();

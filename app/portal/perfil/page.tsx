@@ -6,6 +6,7 @@ import Icon from "../../components/Icon";
 import InnerFooter from "../../components/InnerFooter";
 import LogoutButton from "../../components/LogoutButton";
 import { useAuth } from "../../lib/auth";
+import { changePasswordRequest, passwordProblem } from "../../lib/auth-api";
 
 /** Perfil del usuario (cliente, mecánico, admin…): nombre y teléfono editables; el correo y el rol no. */
 export default function ProfilePage() {
@@ -17,6 +18,10 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [confirmAll, setConfirmAll] = useState(false);
   const [allError, setAllError] = useState("");
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pwError, setPwError] = useState("");
+  const [pwDone, setPwDone] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
 
   const userId = user?.id;
   useEffect(() => {
@@ -43,6 +48,26 @@ export default function ProfilePage() {
       setErrors({ form: err instanceof Error ? err.message : "No se pudo guardar el perfil." });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function submitPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPwDone("");
+    setPwError("");
+    if (!pw.current) return setPwError("Ingresa tu contraseña actual.");
+    const problem = passwordProblem(pw.next);
+    if (problem) return setPwError(problem);
+    if (pw.next === pw.current) return setPwError("La contraseña nueva debe ser distinta de la actual.");
+    if (pw.confirm !== pw.next) return setPwError("Las contraseñas nuevas no coinciden.");
+    setPwBusy(true);
+    try {
+      setPwDone(await changePasswordRequest(pw.current, pw.next));
+      setPw({ current: "", next: "", confirm: "" });
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : "No se pudo cambiar la contraseña.");
+    } finally {
+      setPwBusy(false);
     }
   }
 
@@ -113,6 +138,25 @@ export default function ProfilePage() {
                 <button className="button" type="submit" disabled={busy || unchanged}>{busy ? "Guardando…" : <>Guardar cambios <span>↗</span></>}</button>
               </form>
 
+              <form className="portal-card profile-card" onSubmit={submitPassword} noValidate>
+                <h2>Cambiar contraseña</h2>
+                <label>
+                  Contraseña actual
+                  <input type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} />
+                </label>
+                <label>
+                  Contraseña nueva
+                  <input type="password" autoComplete="new-password" placeholder="Mínimo 8 caracteres" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} />
+                </label>
+                <label>
+                  Repite la contraseña nueva
+                  <input type="password" autoComplete="new-password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
+                </label>
+                {pwError && <small className="field-error" role="alert">{pwError}</small>}
+                {pwDone && <small className="profile-saved" role="status">{pwDone}</small>}
+                <button className="button" type="submit" disabled={pwBusy}>{pwBusy ? "Guardando…" : <>Cambiar contraseña <span>↗</span></>}</button>
+              </form>
+
               <section className="portal-card profile-card" aria-label="Seguridad">
                 <h2>Seguridad</h2>
                 <p>Si perdiste un equipo o usaste un computador ajeno, cierra todas tus sesiones. Tendrás que iniciar sesión de nuevo en cada dispositivo.</p>
@@ -128,7 +172,7 @@ export default function ProfilePage() {
                 ) : (
                   <button type="button" className="button button-secondary" onClick={() => setConfirmAll(true)}>Cerrar sesión en todos los dispositivos</button>
                 )}
-                <p className="auth-note">¿Quieres cambiar tu contraseña? Cierra sesión y usa «¿Olvidaste tu contraseña?»: te enviamos un enlace al correo.</p>
+                <p className="auth-note">¿No recuerdas tu contraseña actual? Cierra sesión y usa «¿Olvidaste tu contraseña?»: te enviamos un enlace al correo.</p>
               </section>
             </div>
           )}

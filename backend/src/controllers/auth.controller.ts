@@ -711,3 +711,51 @@ export async function resendVerification(req: Request, res: Response) {
     return res.status(500).json({ error: "Internal Server Error", message: "No se pudo procesar la solicitud" });
   }
 }
+
+/**
+ * POST /api/auth/change-password { currentPassword, newPassword }
+ * Cambia la contraseña de la sesión actual. Exige la clave vigente, cierra las demás sesiones
+ * (tokenVersion) y deja abierta esta con un token nuevo. Las cuentas demo no pueden cambiarla.
+ */
+export async function changePassword(req: Request, res: Response) {
+  try {
+    const { currentPassword, newPassword } = req.body ?? {};
+    if (typeof currentPassword !== "string" || !currentPassword) {
+      return res.status(400).json({ error: "Bad Request", message: "Ingresa tu contraseña actual" });
+    }
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) return res.status(400).json({ error: "Bad Request", message: passwordError });
+    if (newPassword === currentPassword) {
+      return res.status(400).json({ error: "Bad Request", message: "La contraseña nueva debe ser distinta de la actual" });
+    }
+
+    const [user] = await db.select().from(users).where(eq(users.id, req.user!.userId)).limit(1);
+    if (!user || !user.isActive || !user.passwordHash) {
+      return res.status(403).json({ error: "Forbidden", message: "Esta cuenta no tiene contraseña que cambiar" });
+    }
+    if (user.email && isDemoEmail(user.email)) {
+      return res.status(403).json({ error: "Forbidden", message: "Las cuentas demostrativas no pueden cambiar su contraseña" });
+    }
+    if (!(await verifyPassword(currentPassword, user.passwordHash))) {
+      logAudit({ userId: user.id, userEmail: user.email, action: "PASSWORD_CHANGE_FAILED", entityType: "user", entityId: user.id, req });
+      return res.status(400).json({ error: "Bad Request", message: "La contraseña actual no es correcta" });
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    const [updated] = await db
+      .update(users)
+      .set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` as unknown as number, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
+      .returning({ tokenVersion: users.tokenVersion });
+
+    // Las demás sesiones quedan cerradas; esta sigue abierta con un token de la nueva versión.
+    const token = generateToken({ userId: user.id, email: user.email ?? "", role: user.role, name: user.name, tokenVersion: updated.tokenVersion });
+    res.cookie(COOKIE_NAME, token, { httpOnly: true, secure: config.isProduction, sameSite: "lax", maxAge: COOKIE_MAX_AGE });
+
+    logAudit({ userId: user.id, userEmail: user.email, action: "PASSWORD_CHANGED", entityType: "user", entityId: user.id, req });
+    return res.status(200).json({ message: "Contraseña actualizada. Cerramos tus otras sesiones abiertas." });
+  } catch (error) {
+    console.error("Error en changePassword:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "No se pudo cambiar la contraseña" });
+  }
+}
