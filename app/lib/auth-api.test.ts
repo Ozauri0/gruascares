@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ApiError } from "./api";
-import { demoLoginRequest, fetchSession, loginRequest, logoutRequest, registerRequest, resendVerificationRequest, verifyEmailRequest } from "./auth-api";
+import { demoLoginRequest, fetchSession, forgotPasswordRequest, logoutAllRequest, passwordProblem, resetPasswordRequest, updateProfileRequest, loginRequest, logoutRequest, registerRequest, resendVerificationRequest, verifyEmailRequest } from "./auth-api";
 
 type Call = { url: string; init: RequestInit };
 const realFetch = globalThis.fetch;
@@ -103,5 +103,51 @@ describe("INT-3: operaciones de sesión", () => {
     await logoutRequest();
     expect(calls[0].url).toBe("/api/auth/logout");
     expect(calls[0].init.method).toBe("POST");
+  });
+});
+
+describe("#92: recuperación de contraseña y perfil", () => {
+  test("forgotPasswordRequest envía el correo y devuelve el mensaje genérico", async () => {
+    respond(200, { message: "Si el correo está registrado, te enviamos un enlace." });
+    expect(await forgotPasswordRequest("a@b.cl")).toContain("Si el correo");
+    expect(calls[0].url).toContain("/api/auth/forgot-password");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ email: "a@b.cl" });
+  });
+  test("forgotPasswordRequest propaga el límite de tasa (429)", async () => {
+    respond(429, { error: "Too Many Requests", message: "Demasiados intentos" });
+    const error = await forgotPasswordRequest("a@b.cl").catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(429);
+  });
+  test("resetPasswordRequest envía token y contraseña", async () => {
+    respond(200, { message: "Contraseña actualizada." });
+    await resetPasswordRequest("tok", "nuevaclave123");
+    expect(calls[0].url).toContain("/api/auth/reset-password");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ token: "tok", password: "nuevaclave123" });
+  });
+  test("resetPasswordRequest con un enlace vencido lanza un ApiError 400 (sin redirigir al login)", async () => {
+    respond(400, { error: "Bad Request", message: "El enlace no es válido o ya venció. Solicita uno nuevo." });
+    const error = await resetPasswordRequest("tok", "nuevaclave123").catch((e) => e);
+    expect((error as ApiError).status).toBe(400);
+  });
+  test("updateProfileRequest hace PATCH /api/auth/me y devuelve la sesión adaptada", async () => {
+    respond(200, { user: { ...apiUser, name: "María G.", phone: "+56 9 3333 4444" } });
+    const user = await updateProfileRequest({ name: " María G. ", phone: "+56 9 3333 4444 " });
+    expect(calls[0].init.method).toBe("PATCH");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ name: "María G.", phone: "+56 9 3333 4444" });
+    expect(user.name).toBe("María G.");
+  });
+  test("logoutAllRequest hace POST /api/auth/logout-all", async () => {
+    respond(200, { message: "Se cerraron todas tus sesiones" });
+    await logoutAllRequest();
+    expect(calls[0].url).toContain("/api/auth/logout-all");
+    expect(calls[0].init.method).toBe("POST");
+  });
+  test("passwordProblem aplica el mínimo de 8 caracteres y el máximo de 72 bytes", () => {
+    expect(passwordProblem("corta")).not.toBeNull();
+    expect(passwordProblem("suficiente1")).toBeNull();
+    expect(passwordProblem("a".repeat(73))).not.toBeNull();
+    expect(passwordProblem("ñ".repeat(37))).not.toBeNull(); // 74 bytes
+    expect(passwordProblem("a".repeat(72))).toBeNull();
   });
 });

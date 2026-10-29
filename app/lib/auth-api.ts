@@ -1,7 +1,7 @@
 // Operaciones de sesión contra el backend (ver backend/src/controllers/auth.controller.ts).
 // La sesión vive en la cookie httpOnly `gc_token`: aquí nunca se lee ni se guarda ningún token.
 
-import { api, apiGet, apiPost, ApiError } from "./api";
+import { api, apiGet, apiPatch, apiPost, ApiError } from "./api";
 import { toSessionUser } from "./api-adapters";
 import type { ApiUser } from "./api-types";
 import type { SessionUser, UserRole } from "./portal-types";
@@ -75,4 +75,34 @@ export async function demoLoginRequest(role: UserRole): Promise<SessionUser> {
 
 export async function logoutRequest(): Promise<void> {
   await api("/api/auth/logout", { method: "POST", redirectOnUnauthorized: false });
+}
+
+/** Pide el enlace para restablecer la contraseña. La respuesta es la misma exista o no el correo. */
+export async function forgotPasswordRequest(email: string): Promise<string> {
+  const { message } = await apiPost<{ message: string }>("/api/auth/forgot-password", { email }, { redirectOnUnauthorized: false });
+  return message;
+}
+
+/** Cambia la contraseña con el token del enlace del correo (un solo uso; cierra las sesiones de la cuenta). */
+export async function resetPasswordRequest(token: string, password: string): Promise<string> {
+  const { message } = await apiPost<{ message: string }>("/api/auth/reset-password", { token, password }, { redirectOnUnauthorized: false });
+  return message;
+}
+
+/** Edita nombre y teléfono propios; el correo, el RUT y el rol no se cambian desde aquí. */
+export async function updateProfileRequest(input: { name: string; phone: string }): Promise<SessionUser> {
+  const { user } = await apiPatch<UserResponse>("/api/auth/me", { name: input.name.trim(), phone: input.phone.trim() });
+  return toSessionUser(user);
+}
+
+/** Cierra la sesión en todos los dispositivos (también en este: el backend borra la cookie). */
+export async function logoutAllRequest(): Promise<void> {
+  await apiPost("/api/auth/logout-all");
+}
+
+/** Misma regla que el backend: mínimo 8 caracteres y máximo 72 bytes (límite de bcrypt). */
+export function passwordProblem(password: string): string | null {
+  if (password.length < 8) return "La contraseña debe tener al menos 8 caracteres.";
+  if (new TextEncoder().encode(password).length > 72) return "La contraseña es demasiado larga (máximo 72 bytes, unos 72 caracteres).";
+  return null;
 }
