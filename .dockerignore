@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+dist
+.git
+.github
+.env
+.env.*
+!.env.production.example
+backend
+docs
+*.log
+*.tsbuildinfo
+site-console.log
+.playwright-mcp

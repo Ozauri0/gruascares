@@ -33,7 +33,9 @@ const securityHeaders = [
 // cookie httpOnly de sesión como cookie de primera parte).
 const backendUrl = (process.env.BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
 
+// En Docker (Dockerfile) se genera un servidor autónomo; en desarrollo y `next start` no hace falta.
 const nextConfig: NextConfig = {
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
   },

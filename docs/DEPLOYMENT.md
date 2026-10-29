@@ -2,6 +2,53 @@
 
 Lista de verificación para publicar Grúas Cares. Complementa `docs/DEVELOPMENT.md` (variables) y `docs/ARCHITECTURE.md`.
 
+## 0. Contenedores: todo por la red interna, sin puertos publicados
+
+En producción **ningún contenedor publica puertos en el host**. Los servicios se hablan por nombre dentro de la red del compose:
+
+```
+Cloudflare ──► tunnel (cloudflared, conexión saliente) ──► frontend:3000 ──/api/*──► backend:4000 ──► postgres:5432
+```
+
+- `frontend` (Next.js, `Dockerfile` de la raíz): llama al backend con `BACKEND_URL=http://backend:4000` (se fija al construir la imagen y también al ejecutarla).
+- `backend` (Express) y `postgres` (y `redis`, si se usa) no son alcanzables desde fuera; `docker-compose.prod.yml` quita los puertos de desarrollo (`127.0.0.1:5432`, `127.0.0.1:6379`).
+- `tunnel` (perfil `tunnel`) es la única vía de entrada: `cloudflared` abre una conexión **saliente** a Cloudflare, así el servidor no necesita abrir 80/443. En Cloudflare (Zero Trust → Networks → Tunnels) se crea el túnel, se copia su token y el destino público (`gruascares.cl`) apunta a `http://frontend:3000`. Cloudflare termina el HTTPS.
+
+```bash
+cp backend/.env.production.example backend/.env && chmod 600 backend/.env   # completa JWT_SECRET, SMTP, dominio…
+export POSTGRES_PASSWORD="$(openssl rand -base64 32)" APP_DB_PASSWORD="$(openssl rand -base64 32)"
+export TUNNEL_TOKEN="<token del túnel>"
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app --profile tunnel up -d --build
+```
+
+Guarda las contraseñas en un `.env` del servidor junto al compose (permisos `600`) para no exportarlas cada vez. Sin el perfil `tunnel` el sitio queda corriendo pero inaccesible desde fuera; si prefieres otro mecanismo de entrada (nginx, etc.), se resuelve al montar el servidor y debe unirse a la red del compose.
+
+**Comprobar sin abrir puertos:** `docker compose … ps` no muestra puertos publicados, y el recorrido de punta a punta corre desde un contenedor dentro de la red (requiere `DEMO_MODE=true` y `NODE_ENV=development` en el backend, solo para esta prueba local):
+
+```bash
+docker run --rm --network <proyecto>_default -v "$PWD/scripts:/s:ro" -e BASE_URL=http://frontend:3000 oven/bun:1-alpine bun /s/smoke.ts
+```
+
+### Respaldos
+
+`scripts/backup.sh` guarda `db-<fecha>.sql.gz` (`pg_dump`) y `uploads-<fecha>.tar.gz` (imágenes subidas) en `./backups`, verifica que los archivos no estén truncados y borra los de más de `KEEP_DAYS` días (14 por defecto). Todo pasa por `docker compose exec`, sin puertos. Diario a las 3:00:
+
+```cron
+0 3 * * * cd /ruta/gruascares && scripts/backup.sh >> backups/backup.log 2>&1
+```
+
+Copia `backups/` fuera del servidor (si el VPS se pierde, los respaldos también). Restaurar:
+
+```bash
+C="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+$C stop backend frontend
+$C exec -T postgres sh -c 'dropdb -U "$POSTGRES_USER" --if-exists "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" -O "$APP_DB_USER" "$POSTGRES_DB"'
+gunzip -c backups/db-<fecha>.sql.gz | $C exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+$C up -d backend
+$C exec -T backend tar -C /data/uploads -xzf - < backups/uploads-<fecha>.tar.gz
+$C --profile app up -d
+```
+
 ## 1. Proxy y dirección IP real (`TRUST_PROXY`)
 
 El navegador habla con Next (`/api/*` se reenvía al backend) y normalmente también pasa por nginx. Si `TRUST_PROXY` no se define, Express ignora `X-Forwarded-For` y **`req.ip` es la IP del proxy para todas las personas**:
@@ -15,6 +62,7 @@ Al revés, `TRUST_PROXY=true` confía en cualquier cabecera y permite **evadir**
 
 1. Contar los saltos de confianza entre el cliente y el backend (p. ej. nginx → Next → backend = `2`).
 2. Definir `TRUST_PROXY=<número de saltos>` en `backend/.env` (o la lista de IPs/subredes de los proxies).
+   Con Cloudflare Tunnel: `cloudflared` → Next → backend son **2 saltos** (`TRUST_PROXY=2`; Cloudflare agrega la IP del visitante a `X-Forwarded-For`). Con nginx por delante serían 3.
 3. nginx debe agregar la cabecera: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` y Next la reenvía al backend.
 4. Verificar: hacer una petición desde un equipo conocido y comprobar en `/admin/registro` que la IP sea la real.
 

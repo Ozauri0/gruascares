@@ -1,8 +1,10 @@
-# Producción: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app up -d --build`
+# Producción: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile app --profile tunnel up -d --build`
 # Exige contraseñas propias (nada por defecto) y hace que el backend use un usuario SIN privilegios de
 # superusuario. Ver docs/DEPLOYMENT.md (incluye cómo migrar una base ya creada).
 services:
+  # Producción: ningún contenedor publica puertos en el host (los de desarrollo se quitan aquí).
   postgres:
+    ports: !reset []
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD (openssl rand -base64 32)}
       APP_DB_USER: ${APP_DB_USER:-gruas_app}
@@ -16,6 +18,10 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${APP_DB_USER:-gruas_app}:${APP_DB_PASSWORD:?Define APP_DB_PASSWORD}@postgres:5432/gruas_cares
 
+  # Redis solo arranca con `--profile redis`; la contraseña se exige en ese momento (el compose interpola
+  # las variables de todos los servicios, por eso no puede usar `:?` sin romper el resto).
   redis:
+    ports: !reset []
+    command: ["sh", "-c", "[ -n \"$$REDIS_PASSWORD\" ] || { echo 'Define REDIS_PASSWORD (openssl rand -base64 32)' >&2; exit 1; }; exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?Define REDIS_PASSWORD (openssl rand -base64 32)}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}

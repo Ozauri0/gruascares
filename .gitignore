@@ -11,6 +11,7 @@ next-env.d.ts
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Logs and temporary files
 *.log
@@ -30,3 +31,4 @@ Thumbs.db
 
 # Imágenes subidas desde el panel de administración
 /backend/uploads/
+backups/
