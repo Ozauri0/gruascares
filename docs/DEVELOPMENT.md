@@ -32,6 +32,10 @@ Navegador ──► Next (3000) ──/api/*──► Express (4000) ──► P
 
 El navegador solo habla con `localhost:3000`; Next reenvía `/api/*` al backend (`BACKEND_URL`), así la cookie de sesión `httpOnly` es de primera parte y no hace falta CORS. Decisiones en `docs/DECISIONS.md` (ADR 007 a 010).
 
+## Contenedores (opcional)
+
+El desarrollo normal no los necesita. Para levantar el sitio y la API en contenedores (sin publicar puertos; se alcanzan por la red interna) ver `docs/DEPLOYMENT.md`, sección 0. `docker compose --profile app up --build` construye `frontend` y `backend`; el `postgres` de desarrollo sigue en `127.0.0.1:5432`.
+
 ## Acceso demo (sin credenciales)
 
 Con `DEMO_MODE=true` en `backend/.env`, los botones **Entrar como Cliente / Mecánico / Vendedor / Admin** de `/login` abren una sesión real sin pedir clave (`POST /api/auth/demo-login`). Cuentas sembradas por `db:seed` (solo desarrollo):
