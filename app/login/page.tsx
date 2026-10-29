@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ApiError } from "../lib/api";
 import { rememberRedirect, takeRememberedRedirect } from "../lib/post-login";
 import { HOME_FOR_ROLE, useAuth } from "../lib/auth";
+import { demoEnabledRequest } from "../lib/auth-api";
 import ResendVerification from "../components/ResendVerification";
 import type { UserRole } from "../lib/portal-types";
 
@@ -34,7 +35,18 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [unverified, setUnverified] = useState(false);
   const [demoError, setDemoError] = useState("");
+  const [demoEnabled, setDemoEnabled] = useState(false); // los botones aparecen solo si el backend tiene DEMO_MODE=true
   const [busy, setBusy] = useState<UserRole | "form" | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    demoEnabledRequest().then((enabled) => {
+      if (!cancelled) setDemoEnabled(enabled);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Si desde aquí crea una cuenta (y confirma el correo en otra pestaña), después vuelve a donde iba.
   useEffect(() => {
@@ -87,5 +99,5 @@ export default function LoginPage() {
     }
   }
 
-  return <><main className="auth-page"><div className="auth-panel"><div className="auth-copy"><p className="eyebrow light">Portal de clientes</p><h1>Todo tu servicio,<br /><em>en un solo lugar.</em></h1><p>Ingresa para revisar tus solicitudes, datos de contacto y próximos servicios.</p><span className="auth-mark">GC</span></div><div className="auth-form"><a className="back-link" href="/">← Volver al inicio</a><p className="eyebrow">Iniciar sesión</p><h2>Bienvenido de vuelta.</h2><form onSubmit={submit} noValidate><label>Correo electrónico<input required type="email" placeholder="nombre@empresa.cl" value={email} onChange={(e) => setEmail(e.target.value)} /></label><label>Contraseña<input required type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />{error && <small className="field-error">{error}</small>}</label><p className="forgot-link"><a href="/olvide-contrasena">¿Olvidaste tu contraseña?</a></p>{unverified && <ResendVerification email={email.trim()} />}<button className="button" type="submit" disabled={busy !== null}>{busy === "form" ? "Ingresando…" : <>Ingresar <span>↗</span></>}</button></form><div className="demo-accounts"><p>Cuentas demostrativas</p>{DEMO_ACCOUNTS.map((account) => <button key={account.role} type="button" disabled={busy !== null} onClick={() => enter(account.role)}>{busy === account.role ? "Entrando…" : <>Entrar como {account.label}</>}</button>)}{demoError && <small className="field-error" role="alert">{demoError}</small>}</div><p className="auth-note">¿Aún no tienes cuenta? <a href="/registro">Crea tu cuenta</a></p></div></div></main></>;
+  return <><main className="auth-page"><div className="auth-panel"><div className="auth-copy"><p className="eyebrow light">Portal de clientes</p><h1>Todo tu servicio,<br /><em>en un solo lugar.</em></h1><p>Ingresa para revisar tus solicitudes, datos de contacto y próximos servicios.</p><span className="auth-mark">GC</span></div><div className="auth-form"><a className="back-link" href="/">← Volver al inicio</a><p className="eyebrow">Iniciar sesión</p><h2>Bienvenido de vuelta.</h2><form onSubmit={submit} noValidate><label>Correo electrónico<input required type="email" placeholder="nombre@empresa.cl" value={email} onChange={(e) => setEmail(e.target.value)} /></label><label>Contraseña<input required type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />{error && <small className="field-error">{error}</small>}</label><p className="forgot-link"><a href="/olvide-contrasena">¿Olvidaste tu contraseña?</a></p>{unverified && <ResendVerification email={email.trim()} />}<button className="button" type="submit" disabled={busy !== null}>{busy === "form" ? "Ingresando…" : <>Ingresar <span>↗</span></>}</button></form>{demoEnabled && <div className="demo-accounts"><p>Cuentas demostrativas</p>{DEMO_ACCOUNTS.map((account) => <button key={account.role} type="button" disabled={busy !== null} onClick={() => enter(account.role)}>{busy === account.role ? "Entrando…" : <>Entrar como {account.label}</>}</button>)}{demoError && <small className="field-error" role="alert">{demoError}</small>}</div>}<p className="auth-note">¿Aún no tienes cuenta? <a href="/registro">Crea tu cuenta</a></p></div></div></main></>;
 }

@@ -38,7 +38,7 @@ El desarrollo normal no los necesita. Para levantar el sitio y la API en contene
 
 ## Acceso demo (sin credenciales)
 
-Con `DEMO_MODE=true` en `backend/.env`, los botones **Entrar como Cliente / Mecánico / Vendedor / Admin** de `/login` abren una sesión real sin pedir clave (`POST /api/auth/demo-login`). Cuentas sembradas por `db:seed` (solo desarrollo):
+Con `DEMO_MODE=true` en `backend/.env`, los botones **Entrar como Cliente / Mecánico / Vendedor / Admin** de `/login` abren una sesión real sin pedir clave (`POST /api/auth/demo-login`). Con `DEMO_MODE=false` el endpoint no existe y los botones no se muestran: `/login` consulta `GET /api/auth/demo-status` (`{ enabled }`) y, si no responde `true`, los oculta. Cuentas sembradas por `db:seed` (solo desarrollo):
 
 | Rol | Correo | Clave |
 | :--- | :--- | :--- |
@@ -102,7 +102,7 @@ No se usa `db:push`. `bun run db:seed` solo funciona fuera de producción y es i
 | Síntoma | Causa y solución |
 | :--- | :--- |
 | El login devuelve 500 | La base local no tiene las migraciones nuevas → `bun run setup:local -- --reset`. |
-| "El acceso demo no está habilitado" | Falta `DEMO_MODE=true` en `backend/.env` (reinicia el backend). |
+| «El acceso demo no está habilitado» o no aparecen los botones «Entrar como…» | Falta `DEMO_MODE=true` en `backend/.env` o el backend no se reinició tras cambiarlo. |
 | "Los usuarios demo no están disponibles" | Falta `bun run db:seed`. |
 | Las pantallas redirigen siempre a `/login` | El backend no está arriba o `BACKEND_URL` apunta a otro puerto: el proxy no puede verificar la sesión y falla cerrado. |
 | Un cambio del admin tarda en verse en `/catalogo` | La lectura pública está en caché 30 s. |

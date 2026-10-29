@@ -73,6 +73,16 @@ export async function demoLoginRequest(role: UserRole): Promise<SessionUser> {
   }
 }
 
+/** ¿El servidor tiene el login rápido (DEMO_MODE)? Si no responde, se asume que no: los botones no se muestran. */
+export async function demoEnabledRequest(): Promise<boolean> {
+  try {
+    const { enabled } = await apiGet<{ enabled: boolean }>("/api/auth/demo-status", undefined, { redirectOnUnauthorized: false });
+    return enabled === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function logoutRequest(): Promise<void> {
   await api("/api/auth/logout", { method: "POST", redirectOnUnauthorized: false });
 }
