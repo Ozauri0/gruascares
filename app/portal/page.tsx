@@ -84,6 +84,10 @@ export default function PortalPage() {
               <span>Mis Vehículos</span>
               {!vehiclesLoading && !vehiclesError && <span className="tab-pill">{vehicles.length}</span>}
             </a>
+            <a href="/portal/perfil" className="portal-nav-tab">
+              <span className="tab-icon"><Icon name="user" bare /></span>
+              <span>Mi Perfil</span>
+            </a>
             <a href="/agendar" className="portal-nav-tab portal-nav-cta">
               <span className="tab-icon"><Icon name="plus" bare /></span>
               <span>Agendar Nuevo</span>

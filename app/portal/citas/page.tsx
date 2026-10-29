@@ -74,6 +74,10 @@ export default function AppointmentsPage() {
               <span className="tab-icon"><Icon name="car" bare /></span>
               <span>Mis Vehículos</span>
             </a>
+            <a href="/portal/perfil" className="portal-nav-tab">
+              <span className="tab-icon"><Icon name="user" bare /></span>
+              <span>Mi Perfil</span>
+            </a>
             <a href="/agendar" className="portal-nav-tab portal-nav-cta">
               <span className="tab-icon"><Icon name="plus" bare /></span>
               <span>Agendar Nuevo</span>

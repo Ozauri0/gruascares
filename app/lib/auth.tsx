@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { demoLoginRequest, fetchSession, loginRequest, logoutRequest, registerRequest, type RegisterInput } from "./auth-api";
+import { demoLoginRequest, fetchSession, logoutAllRequest, loginRequest, logoutRequest, registerRequest, updateProfileRequest, type RegisterInput } from "./auth-api";
 import type { SessionUser, UserRole } from "./portal-types";
 import { HOME_FOR_ROLE } from "./route-guard";
 
@@ -26,6 +26,10 @@ type AuthContextValue = {
   /** Crea la cuenta pendiente de confirmar (no inicia sesión). */
   register: (input: RegisterInput) => Promise<{ email: string }>;
   logout: () => Promise<void>;
+  /** Edita nombre y teléfono propios y refresca la sesión. */
+  updateProfile: (input: { name: string; phone: string }) => Promise<SessionUser>;
+  /** Cierra la sesión en todos los dispositivos, incluido este. */
+  logoutAll: () => Promise<void>;
 };
 
 const unavailable = async (): Promise<never> => {
@@ -39,6 +43,8 @@ const AuthContext = createContext<AuthContextValue>({
   login: unavailable,
   register: unavailable,
   logout: unavailable,
+  updateProfile: unavailable,
+  logoutAll: unavailable,
 });
 
 const SESSION_HINT_KEY = "gruas-cares-session-hint";
@@ -111,7 +117,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const value = useMemo(() => ({ user, loading, loginAs, login, register, logout }), [user, loading, loginAs, login, register, logout]);
+  const updateProfile = useCallback(async (input: { name: string; phone: string }) => establish(await updateProfileRequest(input)), [establish]);
+  const logoutAll = useCallback(async () => {
+    await logoutAllRequest();
+    writeHint(null);
+    setUser(null);
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, loading, loginAs, login, register, logout, updateProfile, logoutAll }),
+    [user, loading, loginAs, login, register, logout, updateProfile, logoutAll]
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
