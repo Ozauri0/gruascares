@@ -92,6 +92,7 @@ function TransferLines({ item }: { item: AgendaItem }) {
 export default function WorkshopBoard({ area }: { area: WorkArea }) {
   const copy = WORK_AREAS[area];
   const FILTERS: { value: AgendaFilter; label: string }[] = [
+    { value: "en_curso", label: "En curso" },
     { value: "todas", label: "Todas" },
     { value: "confirmada", label: "Confirmadas" },
     { value: "en_proceso", label: copy.inProgressLabel },
@@ -108,7 +109,7 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
   const [cranes, setCranes] = useState<Crane[]>([]);
   const [craneChoice, setCraneChoice] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [filter, setFilter] = useState<AgendaFilter>("todas");
+  const [filter, setFilter] = useState<AgendaFilter>("en_curso");
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ReportDraft>({ mileage: "", observations: "", parts: "", recommendations: "" });
   const [draftError, setDraftError] = useState("");
@@ -407,9 +408,9 @@ export default function WorkshopBoard({ area }: { area: WorkArea }) {
                 </div>
               ) : visible.length === 0 ? (
                 <div className="portal-empty-card">
-                  <p>No hay citas con ese filtro.</p>
-                  <button type="button" className="button button-sm" onClick={() => setFilter("todas")}>
-                    Ver todas las citas
+                  <p>{filter === "en_curso" ? "No hay solicitudes en curso." : "No hay citas con ese filtro."}</p>
+                  <button type="button" className="button button-sm" onClick={() => setFilter(filter === "en_curso" ? "todas" : "en_curso")}>
+                    {filter === "en_curso" ? "Ver todas las citas" : "Volver a en curso"}
                   </button>
                 </div>
               ) : (
