@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ApiError } from "./api";
-import { changePasswordRequest, demoLoginRequest, fetchSession, forgotPasswordRequest, logoutAllRequest, passwordProblem, resetPasswordRequest, updateProfileRequest, loginRequest, logoutRequest, registerRequest, resendVerificationRequest, verifyEmailRequest } from "./auth-api";
+import { changePasswordRequest, demoEnabledRequest, demoLoginRequest, fetchSession, forgotPasswordRequest, logoutAllRequest, passwordProblem, resetPasswordRequest, updateProfileRequest, loginRequest, logoutRequest, registerRequest, resendVerificationRequest, verifyEmailRequest } from "./auth-api";
 
 type Call = { url: string; init: RequestInit };
 const realFetch = globalThis.fetch;
@@ -153,6 +153,14 @@ describe("#92: recuperación de contraseña y perfil", () => {
     respond(400, { error: "Bad Request", message: "La contraseña actual no es correcta" });
     const error = await changePasswordRequest("mala", "nueva-clave-2").catch((e) => e);
     expect((error as ApiError).message).toContain("actual");
+  });
+  test("demoEnabledRequest refleja DEMO_MODE y ante un fallo asume que está apagado", async () => {
+    respond(200, { enabled: true });
+    expect(await demoEnabledRequest()).toBe(true);
+    respond(200, { enabled: false });
+    expect(await demoEnabledRequest()).toBe(false);
+    respond(500, { error: "x", message: "x" });
+    expect(await demoEnabledRequest()).toBe(false);
   });
   test("passwordProblem aplica el mínimo de 8 caracteres y el máximo de 72 bytes", () => {
     expect(passwordProblem("corta")).not.toBeNull();

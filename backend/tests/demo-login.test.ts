@@ -61,6 +61,11 @@ describe.skipIf(!dbReady)("INT-2: POST /api/auth/demo-login", () => {
     expect((await sql`select count(*)::int as n from products`)[0].n).toBe(11);
   });
 
+  test("demo-status informa si el login rápido está habilitado", async () => {
+    expect(await (await fetch(`${on.url}/api/auth/demo-status`)).json()).toEqual({ enabled: true });
+    expect(await (await fetch(`${off.url}/api/auth/demo-status`)).json()).toEqual({ enabled: false });
+  });
+
   test("sin DEMO_MODE el endpoint no existe (404)", async () => {
     runSeed();
     expect((await demo(off, { role: "admin" })).status).toBe(404);

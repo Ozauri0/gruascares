@@ -101,9 +101,14 @@ export function createApp(options: AppOptions = {}): Express {
   app.get("/api/appointments/availability", limiters.availability);
 
   // Login demo sin credenciales: solo existe con DEMO_MODE=true (nunca en producción).
-  if (options.demoMode ?? config.demoMode) {
+  const demoEnabled = options.demoMode ?? config.demoMode;
+  if (demoEnabled) {
     app.post("/api/auth/demo-login", limiters.loginPerIp, demoLogin);
   }
+  // El login muestra los botones «Entrar como…» solo si esto responde enabled: true.
+  app.get("/api/auth/demo-status", (_req, res) => {
+    res.set("Cache-Control", "no-store").json({ enabled: demoEnabled });
+  });
 
   // Rutas
   app.use("/", healthRouter);
