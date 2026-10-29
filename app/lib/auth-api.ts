@@ -100,6 +100,12 @@ export async function logoutAllRequest(): Promise<void> {
   await apiPost("/api/auth/logout-all");
 }
 
+/** Cambia la contraseña desde el perfil (pide la actual; cierra las otras sesiones y mantiene esta). */
+export async function changePasswordRequest(currentPassword: string, newPassword: string): Promise<string> {
+  const { message } = await apiPost<{ message: string }>("/api/auth/change-password", { currentPassword, newPassword }, { redirectOnUnauthorized: false });
+  return message;
+}
+
 /** Misma regla que el backend: mínimo 8 caracteres y máximo 72 bytes (límite de bcrypt). */
 export function passwordProblem(password: string): string | null {
   if (password.length < 8) return "La contraseña debe tener al menos 8 caracteres.";

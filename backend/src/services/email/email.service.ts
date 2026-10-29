@@ -80,6 +80,8 @@ export async function sendEmail(options: SendMailOptions): Promise<boolean> {
       console.log(`✅ [EmailService] Correo enviado exitosamente a ${to}. ID: ${info.messageId}`);
     } else {
       console.log(`ℹ️ [EmailService (Mock)] Simulación de correo exitosa para ${to}. (Configura SMTP en .env para envío real)`);
+      // Solo en desarrollo: se muestra el contenido para poder seguir los enlaces (confirmar correo, restablecer clave).
+      if (config.nodeEnv === "development") console.log(`   Contenido del correo:\n${(text || html.replace(/<[^>]*>?/gm, "")).trim().replace(/^/gm, "   │ ")}`);
     }
 
     return true;

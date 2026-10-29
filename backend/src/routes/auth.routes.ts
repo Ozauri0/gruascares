@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, getMe, logout, logoutAll, updateProfile, forgotPassword, resetPassword, verifyEmail, resendVerification } from "../controllers/auth.controller.js";
+import { register, login, getMe, logout, logoutAll, changePassword, updateProfile, forgotPassword, resetPassword, verifyEmail, resendVerification } from "../controllers/auth.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -17,6 +17,7 @@ router.post("/resend-verification", resendVerification);
 router.get("/me", authenticate, getMe);
 router.patch("/me", authenticate, updateProfile);
 router.post("/logout-all", authenticate, logoutAll);
+router.post("/change-password", authenticate, changePassword);
 
 // Rutas de Verificación RBAC (Control de acceso por rol)
 router.get("/admin-check", authenticate, authorizeRoles("admin"), (req, res) => {

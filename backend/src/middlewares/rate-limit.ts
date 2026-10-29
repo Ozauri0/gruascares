@@ -10,7 +10,7 @@ const MINUTE = 60 * 1000;
 type Limit = { windowMs: number; max: number };
 
 /** Límites por defecto (ventana en ms, máximo de peticiones). Ajustables sin tocar los controladores. */
-export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" | "registerPerRut" | "publicAppointment" | "availability" | "catalog" | "content" | "forgotPassword" | "resetPassword", Limit> = {
+export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" | "registerPerRut" | "publicAppointment" | "availability" | "catalog" | "content" | "forgotPassword" | "resetPassword" | "changePassword", Limit> = {
   loginPerAccount: { windowMs: 15 * MINUTE, max: 10 }, // IP + correo
   loginPerIp: { windowMs: 15 * MINUTE, max: 100 },
   register: { windowMs: 60 * MINUTE, max: 10 },
@@ -21,6 +21,7 @@ export const RATE_LIMITS: Record<"loginPerAccount" | "loginPerIp" | "register" |
   content: { windowMs: MINUTE, max: 1200 }, // lo consulta el servidor del sitio en cada página
   forgotPassword: { windowMs: 60 * MINUTE, max: 5 }, // IP + correo
   resetPassword: { windowMs: 60 * MINUTE, max: 10 },
+  changePassword: { windowMs: 60 * MINUTE, max: 10 }, // por red: frena adivinar la clave actual desde una sesión robada
 };
 
 /** Cliente Redis compartido (se crea una vez, solo si hay REDIS_URL). */
@@ -177,6 +178,7 @@ export function createRateLimiters(overrides: Partial<typeof RATE_LIMITS> = {}, 
       true
     ),
     resetPassword: build(limits.resetPassword, "Demasiados intentos. Solicita un nuevo enlace e inténtalo más tarde.", undefined, store("resetPassword"), true),
+    changePassword: build(limits.changePassword, "Demasiados intentos de cambiar la contraseña. Inténtalo más tarde.", undefined, store("changePassword"), true),
     catalog: build(limits.catalog, "Demasiadas consultas al catálogo. Espera un momento.", undefined, store("catalog")),
     content: build(limits.content, "Demasiadas consultas. Espera un momento.", undefined, store("content")),
   };
