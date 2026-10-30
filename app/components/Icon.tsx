@@ -26,6 +26,8 @@ const PATHS = {
   checkCircle: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="M22 4 12 14.01l-3-3" /></>,
   x: <path d="M18 6 6 18M6 6l12 12" />,
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
+  moon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
 } as const;
 
 export type IconName = keyof typeof PATHS;
