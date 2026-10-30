@@ -11,7 +11,7 @@ import { fetchSiteContent } from "./lib/site-content-server";
 export const metadata: Metadata = {
   title: "Grúas Cares | Rescate y transporte 24/7",
   description: "Rescate de vehículos, transporte de carga y maquinaria en La Araucanía.",
-  icons: { icon: "/favicon.svg" },
+  icons: { icon: "/favicon.png" },
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

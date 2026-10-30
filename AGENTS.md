@@ -102,7 +102,7 @@ Los assets se descargan localmente para evitar pixelación y dependencia de URLs
 - `public/images/portada-01.webp` a `portada-04.webp`: imágenes de portada del carrusel del hero (fotos propias, 2000 px de ancho).
 - `public/images/carousel-01.webp` a `carousel-04.webp`: imágenes originales del carrusel de la web antigua; ya no se usan en el hero, pero se conservan y siguen en la galería del editor.
 - `public/images/service-*.jpg`: imágenes de secciones y servicios originales.
-- `public/favicon.svg`: favicon del mockup.
+- `public/favicon.png`: favicon (el logo de Grúas Cares sobre fondo blanco, 512 px).
 
 El carrusel del hero debe usar únicamente las imágenes `portada-*.webp`. No incluir el logo en el carrusel.
 
