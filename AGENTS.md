@@ -75,7 +75,7 @@ Tipografías usadas:
 - Space Grotesk para titulares.
 - DM Mono para labels técnicos y metadatos.
 
-El header usa una estética liquid-glass: fijo, compacto, translúcido, con blur, bordes redondeados y sombra suave, con una cortina superior (`body::before`) que difumina en degradado suave hacia abajo el contenido que pasa por detrás. En `app/globals.css`, escribir siempre `-webkit-backdrop-filter` **antes** que `backdrop-filter` para que el minificador CSS conserve la propiedad estándar.
+El header usa una estética liquid-glass: fijo, compacto, translúcido, con blur, bordes redondeados y sombra suave.
 
 Accesibilidad (WCAG 2.2 AA) y Modo Noche:
 
