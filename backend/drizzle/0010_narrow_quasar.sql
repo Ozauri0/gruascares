@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "extra_roles" "user_role"[] DEFAULT '{}'::user_role[] NOT NULL;

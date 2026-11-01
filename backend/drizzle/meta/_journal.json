@@ -8,6 +8,139 @@
       "when": 1790999284309,
       "tag": "0000_steady_invaders",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792092791406,
+      "tag": "0001_sync_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792092950058,
+      "tag": "0002_guest_appointments",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792093051252,
+      "tag": "0003_session_token_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792095575720,
+      "tag": "0004_products_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792095758277,
+      "tag": "0005_password_reset_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792104371112,
+      "tag": "0006_green_tag",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792110863405,
+      "tag": "0007_panoramic_umar",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792123909924,
+      "tag": "0008_loose_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792164594532,
+      "tag": "0009_nervous_cassandra_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792165503170,
+      "tag": "0010_narrow_quasar",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792179993902,
+      "tag": "0011_groovy_invisible_woman",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792201739026,
+      "tag": "0012_outstanding_human_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792210000000,
+      "tag": "0013_rut_and_walk_in_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792803693941,
+      "tag": "0014_rol_grua",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792804212426,
+      "tag": "0015_workers",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792804226671,
+      "tag": "0016_workers_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792890000000,
+      "tag": "0017_traslado_grua",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792976400000,
+      "tag": "0018_flota_gruas",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793062800000,
+      "tag": "0019_grua_por_servicio",
+      "breakpoints": true
     }
   ]
 }

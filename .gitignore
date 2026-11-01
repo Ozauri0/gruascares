@@ -5,15 +5,18 @@ node_modules/
 .next/
 out/
 dist/
+next-env.d.ts
 
 # Local environment files
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Logs and temporary files
 *.log
 npm-debug.log*
+*.tsbuildinfo
 .DS_Store
 Thumbs.db
 
@@ -22,3 +25,10 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# La raíz usa package-lock.json (npm); bun install genera un bun.lock que no se versiona.
+/bun.lock
+
+# Imágenes subidas desde el panel de administración
+/backend/uploads/
+backups/

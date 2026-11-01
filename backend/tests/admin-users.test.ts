@@ -1,0 +1,211 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { sql } from "../src/db/connection.js";
+import { makeValidRut } from "../src/utils/rut.js";
+import { cookieFor, dbReady, resetDb, seedBasics, type Seed } from "./db.js";
+import { startServer, type TestServer } from "./helpers.js";
+
+let server: TestServer;
+let seed: Seed;
+beforeAll(async () => {
+  if (dbReady) server = await startServer();
+});
+afterAll(async () => {
+  if (server) await server.close();
+});
+beforeEach(async () => {
+  if (!dbReady) return;
+  await resetDb();
+  seed = await seedBasics();
+});
+
+type U = { id: string; email: string | null; name: string; role: "admin" | "mecanico" | "usuario" | "vendedor" | "grua" | "grua"; tokenVersion?: number };
+const call = async (user: U, method: string, path: string, body?: unknown) => {
+  const res = await fetch(`${server.url}${path}`, { method, headers: cookieFor(user), body: body === undefined ? undefined : JSON.stringify(body) });
+  return { status: res.status, body: (await res.json()) as any };
+};
+
+describe.skipIf(!dbReady)("INT-10: GET /api/admin/users", () => {
+  test("lista con total y sin datos sensibles", async () => {
+    const { status, body } = await call(seed.admin, "GET", "/api/admin/users");
+    expect(status).toBe(200);
+    expect(body.total).toBe(6);
+    expect(body.users).toHaveLength(6);
+    for (const user of body.users) {
+      expect(user.passwordHash).toBeUndefined();
+      expect(user.password_hash).toBeUndefined();
+      expect(user.tokenVersion).toBeUndefined();
+      expect(user.rut).toBeTruthy();
+    }
+  });
+
+  test("filtra por rol, estado y búsqueda (nombre, RUT o correo, sin comodines)", async () => {
+    expect((await call(seed.admin, "GET", "/api/admin/users?role=mecanico")).body.users.map((u: any) => u.email)).toEqual(["mecanico@test.local"]);
+    await sql`update users set is_active = false where id = ${seed.clientB.id}`;
+    expect((await call(seed.admin, "GET", "/api/admin/users?active=false")).body.total).toBe(1);
+    expect((await call(seed.admin, "GET", "/api/admin/users?q=cliente%20a")).body.users.map((u: any) => u.email)).toEqual(["a@test.local"]);
+    expect((await call(seed.admin, "GET", `/api/admin/users?q=${encodeURIComponent(seed.clientA.rut)}`)).body.users.map((u: any) => u.email)).toEqual(["a@test.local"]);
+    expect((await call(seed.admin, "GET", "/api/admin/users?q=TEST.LOCAL")).body.total).toBe(6);
+    // % y _ son texto literal: no devuelven todo
+    expect((await call(seed.admin, "GET", "/api/admin/users?q=%25")).body.total).toBe(0);
+    expect((await call(seed.admin, "GET", "/api/admin/users?q=_")).body.total).toBe(0);
+  });
+
+  test("pagina y valida filtros", async () => {
+    const page = (await call(seed.admin, "GET", "/api/admin/users?limit=2&page=2")).body;
+    expect(page.users).toHaveLength(2);
+    expect(page.total).toBe(6);
+    expect((await call(seed.admin, "GET", "/api/admin/users?role=root")).status).toBe(400);
+    expect((await call(seed.admin, "GET", "/api/admin/users?active=quizas")).status).toBe(400);
+  });
+
+  test("solo administradores", async () => {
+    expect((await call(seed.mechanic, "GET", "/api/admin/users")).status).toBe(403);
+    expect((await call(seed.clientA, "GET", "/api/admin/users")).status).toBe(403);
+    expect((await fetch(`${server.url}/api/admin/users`)).status).toBe(401);
+  });
+});
+
+describe.skipIf(!dbReady)("INT-10: POST /api/admin/users", () => {
+  const staff = { name: "Nuevo Mecánico", rut: makeValidRut(700), email: "Nuevo.Mec@Test.local", password: "clave-inicial-1", role: "mecanico", phone: "+56 9 1111 1111" };
+
+  test("crea personal con correo normalizado, contraseña hasheada y sin exponerla", async () => {
+    const { status, body } = await call(seed.admin, "POST", "/api/admin/users", staff);
+    expect(status).toBe(201);
+    expect(body.user.email).toBe("nuevo.mec@test.local");
+    expect(body.user.rut).toBe(staff.rut);
+    expect(body.user.role).toBe("mecanico");
+    expect(JSON.stringify(body)).not.toContain("clave-inicial-1");
+    const [row] = await sql`select password_hash from users where email = 'nuevo.mec@test.local'`;
+    expect(row.password_hash).not.toContain("clave-inicial-1");
+    // la cuenta nueva puede iniciar sesión
+    const login = await fetch(`${server.url}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "nuevo.mec@test.local", password: "clave-inicial-1" }) });
+    expect(login.status).toBe(200);
+  });
+
+  test("valida rol (no se crean clientes), RUT, teléfono, correo, contraseña y duplicados", async () => {
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, role: "usuario" })).status).toBe(400);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, role: "root" })).status).toBe(400);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, rut: "12345678-0" })).status).toBe(400);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, phone: "" })).status).toBe(400);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, email: "no-es-correo" })).status).toBe(400);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, password: "corta" })).status).toBe(400);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, name: "" })).status).toBe(400);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, email: seed.clientA.email })).status).toBe(409);
+    expect((await call(seed.admin, "POST", "/api/admin/users", { ...staff, rut: seed.clientA.rut })).status).toBe(409);
+  });
+
+  test("un mecánico no puede crear cuentas", async () => {
+    expect((await call(seed.mechanic, "POST", "/api/admin/users", staff)).status).toBe(403);
+  });
+});
+
+describe.skipIf(!dbReady)("INT-10: PATCH /api/admin/users/:id", () => {
+  test("cambia el rol sin cerrar la sesión: los permisos nuevos rigen de inmediato", async () => {
+    const mechanicSession = cookieFor(seed.mechanic);
+    expect((await fetch(`${server.url}/api/mechanic/agenda`, { headers: mechanicSession })).status).toBe(200);
+
+    const { status, body } = await call(seed.admin, "PATCH", `/api/admin/users/${seed.mechanic.id}`, { role: "usuario" });
+    expect(status).toBe(200);
+    expect(body.user.role).toBe("usuario");
+    expect((await fetch(`${server.url}/api/mechanic/agenda`, { headers: mechanicSession })).status).toBe(403); // sigue con sesión, pero ya sin permiso de mecánico
+    expect((await fetch(`${server.url}/api/auth/me`, { headers: mechanicSession })).status).toBe(200);
+  });
+
+  test("desactivar y reactivar", async () => {
+    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, { isActive: false })).body.user.isActive).toBe(false);
+    const login = (password = "password123") => fetch(`${server.url}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: seed.clientA.email, password }) });
+    expect((await login()).status).toBe(403);
+    await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, { isActive: true });
+    expect((await login()).status).toBe(200);
+  });
+
+  test("editar nombre/teléfono no cierra sesiones y el teléfono es obligatorio", async () => {
+    const session = cookieFor(seed.clientA);
+    await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, { name: "Nombre Nuevo", phone: "+56 9 9999 0000" });
+    expect((await fetch(`${server.url}/api/auth/me`, { headers: session })).status).toBe(200);
+    const [row] = await sql`select name, phone from users where id = ${seed.clientA.id}`;
+    expect(row.name).toBe("Nombre Nuevo");
+    expect(row.phone).toBe("+56 9 9999 0000");
+    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, { phone: null })).status).toBe(400);
+  });
+
+  test("el admin no puede quitarse su acceso ni desactivarse", async () => {
+    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.admin.id}`, { isActive: false })).status).toBe(409);
+    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.admin.id}`, { role: "mecanico" })).status).toBe(409);
+  });
+
+  test("dos administradores que se degradan a la vez no dejan el sistema sin admins", async () => {
+    await sql`insert into users (name, rut, phone, email, password_hash, role) values ('Segundo Admin', ${makeValidRut(701)}, '+56 9 1111 2222', 'admin2@test.local', 'x', 'admin')`;
+    const [second] = await sql`select id, email, name from users where email = 'admin2@test.local'`;
+    const secondAdmin: U = { id: second.id, email: second.email, name: second.name, role: "admin", tokenVersion: 0 };
+
+    const results = await Promise.all([
+      call(seed.admin, "PATCH", `/api/admin/users/${second.id}`, { role: "mecanico" }),
+      call(secondAdmin, "PATCH", `/api/admin/users/${seed.admin.id}`, { role: "mecanico" }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    const [{ n }] = await sql`select count(*)::int as n from users where role = 'admin' and is_active`;
+    expect(n).toBe(1);
+  });
+
+  test("validaciones y recursos inexistentes", async () => {
+    expect((await call(seed.admin, "PATCH", "/api/admin/users/no-uuid", { isActive: false })).status).toBe(400);
+    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, {})).status).toBe(400);
+    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, { role: "dios" })).status).toBe(400);
+    expect((await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, { isActive: "si" })).status).toBe(400);
+    expect((await call(seed.admin, "PATCH", "/api/admin/users/11111111-1111-4111-8111-111111111111", { isActive: false })).status).toBe(404);
+    expect((await call(seed.mechanic, "PATCH", `/api/admin/users/${seed.clientA.id}`, { isActive: false })).status).toBe(403);
+  });
+
+  test("los cambios quedan auditados", async () => {
+    await call(seed.admin, "PATCH", `/api/admin/users/${seed.clientA.id}`, { role: "mecanico" });
+    await call(seed.admin, "POST", "/api/admin/users", { name: "Otro Staff", rut: makeValidRut(702), phone: "+56 9 1111 2222", email: "otro@test.local", password: "clave-inicial-1", role: "admin" });
+    for (let i = 0; i < 30; i++) {
+      const rows = await sql`select action from audit_logs where action in ('USER_ROLE_CHANGED', 'USER_CREATED')`;
+      if (rows.length >= 2) return;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    throw new Error("faltan eventos de auditoría");
+  });
+});
+
+describe.skipIf(!dbReady)("DELETE /api/admin/users/:id", () => {
+  test("elimina un cliente con sus vehículos y citas y lo deja auditado", async () => {
+    await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot) values (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-10', '10:30')`;
+    const { status, body } = await call(seed.admin, "DELETE", `/api/admin/users/${seed.clientA.id}`);
+    expect(status).toBe(200);
+    expect(body.deleted).toEqual({ vehicles: 1, appointments: 1 });
+    expect((await sql`select 1 from users where id = ${seed.clientA.id}`).length).toBe(0);
+    expect((await sql`select 1 from vehicles where user_id = ${seed.clientA.id}`).length).toBe(0);
+    expect((await call(seed.admin, "DELETE", `/api/admin/users/${seed.clientA.id}`)).status).toBe(404);
+    for (let i = 0; i < 30; i++) {
+      if ((await sql`select 1 from audit_logs where action = 'USER_DELETED'`).length) return;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    throw new Error("falta el evento USER_DELETED");
+  });
+
+  test("no puedes eliminarte ni al último admin; un jefe con informes se elimina y el historial queda con el trabajador", async () => {
+    expect((await call(seed.admin, "DELETE", `/api/admin/users/${seed.admin.id}`)).status).toBe(409);
+
+    await sql`insert into users (name, rut, phone, email, password_hash, role) values ('Otro Admin', ${makeValidRut(704)}, '+56 9 1111 2222', 'otro@test.local', 'x', 'admin')`;
+    const [other] = await sql`select id from users where email = 'otro@test.local'`;
+    await sql`update users set is_active = false where id = ${other.id}`;
+    // el único admin activo es quien llama: otro admin inactivo sí se puede borrar, pero el último activo no
+    expect((await call(seed.admin, "DELETE", `/api/admin/users/${other.id}`)).status).toBe(200);
+
+    const [appt] = await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot, worker_id, managed_by, status) values (${seed.clientA.id}, ${seed.serviceAceite.id}, '2030-01-11', '10:30', ${seed.mech.id}, ${seed.mechanic.id}, 'finalizada') returning id`;
+    await sql`insert into service_records (appointment_id, worker_id, authored_by, observations) values (${appt.id}, ${seed.mech.id}, ${seed.mechanic.id}, 'Trabajo hecho')`;
+    // Un jefe de área con informes a su nombre sí se puede eliminar: el historial queda con el trabajador y sin autor.
+    const removed = await call(seed.admin, "DELETE", `/api/admin/users/${seed.mechanic.id}`);
+    expect(removed.status).toBe(200);
+    const [kept] = await sql`select worker_id, authored_by from service_records where appointment_id = ${appt.id}`;
+    expect(kept.worker_id).toBe(seed.mech.id);
+    expect(kept.authored_by).toBeNull();
+  });
+
+  test("solo el admin puede eliminar y el id debe ser válido", async () => {
+    expect((await call(seed.mechanic, "DELETE", `/api/admin/users/${seed.clientA.id}`)).status).toBe(403);
+    expect((await call(seed.admin, "DELETE", "/api/admin/users/no-es-uuid")).status).toBe(400);
+  });
+});

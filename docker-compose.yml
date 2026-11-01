@@ -5,12 +5,74 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgrespassword} # SOLO desarrollo local: en producción usa docker-compose.prod.yml (exige contraseña propia)
       POSTGRES_DB: gruas_cares
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432" # solo accesible desde esta máquina
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Redis (opcional): comparte los límites de tasa entre varias instancias del backend y los conserva al reiniciar.
+  # `docker compose --profile redis up -d` y REDIS_URL=redis://:<REDIS_PASSWORD>@127.0.0.1:6379 en backend/.env.
+  redis:
+    profiles: ["redis"]
+    image: redis:7-alpine
+    container_name: gruas-cares-redis
+    restart: unless-stopped
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redispassword} # SOLO desarrollo: en producción define REDIS_PASSWORD
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  # API en contenedor (opcional): `docker compose --profile app up -d --build`.
+  # En desarrollo normal el backend corre en el host con `bun run backend:dev`.
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    container_name: gruas-cares-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/gruas_cares
+      UPLOADS_DIR: /data/uploads
+    # Sin `ports`: solo el frontend lo alcanza, por la red interna (http://backend:4000).
+    volumes:
+      - uploads_data:/data/uploads # imágenes subidas: persisten aunque se recree el contenedor
+
+  # Sitio (Next.js). Sin `ports`: no se publica nada en el host; se llega por la red interna del compose
+  # (http://frontend:3000), p. ej. desde el contenedor `cloudflared` (perfil `tunnel`).
+  frontend:
+    profiles: ["app"]
+    build:
+      context: .
+      args:
+        BACKEND_URL: http://backend:4000
+    restart: unless-stopped
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Única vía de entrada: túnel saliente hacia Cloudflare, sin abrir puertos en el servidor.
+  # En el panel de Cloudflare (Zero Trust → Tunnels) el destino público es http://frontend:3000.
+  tunnel:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest # en producción fija una versión concreta
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?Define TUNNEL_TOKEN (token del túnel de Cloudflare)}
+    depends_on:
+      - frontend
+
 volumes:
   postgres_data:
+  uploads_data:

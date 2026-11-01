@@ -1,0 +1,47 @@
+// Usuarios y personal contra el backend (GET/POST/PATCH /api/admin/users; solo admin).
+
+import { apiDelete, apiGet, apiPatch, apiPost } from "./api";
+import { toAdminUser } from "./api-adapters";
+import type { ApiAdminUser } from "./api-types";
+import type { SessionUser, UserRole } from "./portal-types";
+import { normalizeRut } from "./rut";
+
+export type UserListQuery = { q?: string; role?: UserRole | "todos"; page?: number };
+export type UserPage = { users: SessionUser[]; total: number; page: number; limit: number };
+
+export async function listUsers(query: UserListQuery, signal?: AbortSignal): Promise<UserPage> {
+  const data = await apiGet<{ users: ApiAdminUser[]; total: number; page: number; limit: number }>(
+    "/api/admin/users",
+    { q: query.q?.trim(), role: query.role && query.role !== "todos" ? query.role : undefined, page: query.page, limit: 50 },
+    { signal }
+  );
+  return { users: data.users.map(toAdminUser), total: data.total, page: data.page, limit: data.limit };
+}
+
+export type NewStaff = { name: string; rut: string; email: string; phone: string; roles: ("mecanico" | "grua" | "vendedor" | "admin")[]; password: string };
+
+export async function createStaff(input: NewStaff): Promise<SessionUser> {
+  const { user } = await apiPost<{ user: ApiAdminUser }>("/api/admin/users", {
+    ...input,
+    rut: normalizeRut(input.rut),
+    phone: input.phone.trim(),
+  });
+  return toAdminUser(user);
+}
+
+/** Cambia los roles de un usuario (el primero es el principal). Rige de inmediato (no cierra su sesión). */
+export async function setUserRoles(id: string, roles: UserRole[]): Promise<SessionUser> {
+  const { user } = await apiPatch<{ user: ApiAdminUser }>(`/api/admin/users/${encodeURIComponent(id)}`, { roles });
+  return toAdminUser(user);
+}
+
+export async function setUserActive(id: string, isActive: boolean): Promise<SessionUser> {
+  const { user } = await apiPatch<{ user: ApiAdminUser }>(`/api/admin/users/${encodeURIComponent(id)}`, { isActive });
+  return toAdminUser(user);
+}
+
+/** Elimina la cuenta de forma definitiva (con sus vehículos y citas). El backend lo rechaza para uno mismo y el último admin. */
+export async function deleteUser(id: string): Promise<{ vehicles: number; appointments: number }> {
+  const { deleted } = await apiDelete<{ deleted: { vehicles: number; appointments: number } }>(`/api/admin/users/${encodeURIComponent(id)}`);
+  return deleted;
+}

@@ -1,23 +1,72 @@
-import InnerFooter from "../components/InnerFooter";
-import InnerHeader from "../components/InnerHeader";
-import AddToCartButton from "../components/AddToCartButton";
+"use client";
 
-const featured = [
-  { tag: "TOP VENTA 01", title: "Neumáticos para camión", text: "Opciones para trabajo pesado y recorridos exigentes.", type: "tyre", stock: "8 disponibles", price: "$189.990" },
-  { tag: "TOP VENTA 02", title: "Aceite de motor", text: "Lubricación para mantener tu vehículo en movimiento.", type: "oil", stock: "24 disponibles", price: "$32.990" },
-  { tag: "TOP VENTA 03", title: "Baterías", text: "Energía confiable para autos, camiones y maquinaria.", type: "battery", stock: "6 disponibles", price: "$89.990" },
-];
-const more = [
-  { title: "Filtros de aceite y aire", category: "MANTENCIÓN", text: "Insumos para el mantenimiento periódico de tu vehículo.", stock: "18 disponibles", price: "$12.990" },
-  { title: "Pastillas de freno", category: "SEGURIDAD", text: "Componentes para una conducción más segura.", stock: "12 disponibles", price: "$46.990" },
-  { title: "Refrigerante", category: "MANTENCIÓN", text: "Protección para el sistema de enfriamiento.", stock: "15 disponibles", price: "$9.990" },
-  { title: "Kit de emergencia", category: "SEGURIDAD", text: "Elementos esenciales para llevar siempre contigo.", stock: "9 disponibles", price: "$24.990" },
-  { title: "Accesorios para carga", category: "TRANSPORTE", text: "Implementos para organizar y asegurar tu carga.", stock: "7 disponibles", price: "$39.990" },
-  { title: "Luces de trabajo LED", category: "EQUIPAMIENTO", text: "Iluminación auxiliar para trabajo y carretera.", stock: "11 disponibles", price: "$54.990" },
-  { title: "Plumillas limpiaparabrisas", category: "MANTENCIÓN", text: "Repuestos para una mejor visibilidad en ruta.", stock: "20 disponibles", price: "$8.990" },
-  { title: "Cables de batería", category: "EMERGENCIA", text: "Apoyo de arranque para llevar siempre en tu vehículo.", stock: "5 disponibles", price: "$17.990" },
-];
+import { useEffect, useState } from "react";
+import InnerFooter from "../components/InnerFooter";
+import AddToCartButton from "../components/AddToCartButton";
+import { useSiteContent } from "../components/SiteContentProvider";
+import { RichText } from "../components/RichText";
+import { formatPrice } from "../lib/catalog";
+import { categoriesOf, EMPTY_FILTERS, filterProducts, hasActiveFilters, type CatalogFilters } from "../lib/catalog-filter";
+import CatalogFilterBar from "../components/CatalogFilterBar";
+import { SHOP_TOP_HIDDEN_KEY } from "../lib/site-content";
+import { usePublicCatalog } from "../lib/use-catalog";
+import Skeleton from "../components/Skeleton";
+
+type View = "grid" | "list";
+const VIEW_KEY = "gruas-cares-catalog-view";
 
 export default function CatalogoPage() {
-  return <><InnerHeader /><main className="inner-page catalog-page"><section className="page-intro wrap"><p className="eyebrow">Tienda Cares</p><h1>Todo para<br /><em>seguir en ruta.</em></h1><p>Productos e insumos para el cuidado, seguridad y mantenimiento de autos, camiones y maquinaria.</p></section><section className="featured-section"><div className="wrap"><div className="section-head"><div><p className="eyebrow">Los más solicitados</p><h2>Top ventas</h2></div><span className="catalog-count">03 productos destacados</span></div><div className="featured-grid">{featured.map((item) => <article className="featured-product" key={item.title}><div className={`featured-photo product-art ${item.type}`}><span>{item.tag}</span><i /></div><div className="product-copy"><div className="stock"><i /> {item.stock}</div><h3>{item.title}</h3><p>{item.text}</p><strong className="product-price">{item.price}</strong><AddToCartButton id={item.title} name={item.title} price={item.price} type={item.type} /></div></article>)}</div></div></section><section className="all-services wrap"><div className="section-head"><div><p className="eyebrow">Catálogo completo</p><h2>También tenemos<br /><em>lo que necesitas.</em></h2></div><p className="section-note">Productos para mantener tu vehículo listo para la ruta. <small className="stock-note">Precios y stock referenciales del mockup.</small></p></div><div className="service-list products-list">{more.map((item, index) => <article className="service-list-item product-row" key={item.title}><div className={`mini-product-art product-art ${index % 3 === 0 ? "oil" : index % 3 === 1 ? "tyre" : "battery"}`}><i /></div><span className="list-product-copy"><small>{item.category}</small><strong>{item.title}</strong><em>{item.text}</em></span><div className="product-row-meta"><strong>{item.price}</strong><span className="list-stock"><i /> {item.stock}</span></div><AddToCartButton id={item.title} name={item.title} price={item.price} type={index % 3 === 0 ? "oil" : index % 3 === 1 ? "tyre" : "battery"} /></article>)}</div></section></main><InnerFooter /></>;
+  const [view, setView] = useState<View>("grid");
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_KEY);
+      if (stored === "grid" || stored === "list") setView(stored);
+    } catch {
+      /* sin almacenamiento: queda la cuadrícula */
+    }
+  }, []);
+  function changeView(next: View) {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* preferencia no persistente */
+    }
+  }
+
+  const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+  const { products: allProducts, loading, error, reload } = usePublicCatalog();
+  const products = allProducts.filter((item) => item.stock > 0); // solo se muestra lo disponible
+  const t = useSiteContent();
+  const intro = <section className="page-intro wrap"><p className="eyebrow">{t("shop.eyebrow")}</p><h1><RichText value={t("shop.title")} /></h1><p>{t("shop.text")}</p></section>;
+  // Con la sección oculta, los productos destacados siguen estando en el catálogo completo.
+  const topHidden = t(SHOP_TOP_HIDDEN_KEY) === "1";
+  const searching = hasActiveFilters(filters);
+  const results = filterProducts(products, filters);
+  // Al buscar se muestra una sola lista de resultados; sin filtros, «Top ventas» arriba y el resto abajo.
+  const featured = topHidden || searching ? [] : products.filter((item) => item.featured);
+  const more = searching ? results : topHidden ? products : products.filter((item) => !item.featured);
+
+  if (loading || error) {
+    return (
+      <>
+        <main className="inner-page catalog-page">
+          {intro}
+          <section className="wrap" style={{ paddingBottom: 90 }}>
+            {loading ? (
+              <Skeleton label="Cargando el catálogo…" />
+            ) : (
+              <div className="portal-empty-card" role="alert">
+                <p>{error}</p>
+                <button type="button" className="button button-sm" onClick={reload}>Reintentar</button>
+              </div>
+            )}
+          </section>
+        </main>
+        <InnerFooter />
+      </>
+    );
+  }
+
+  return <><main className={`inner-page catalog-page view-${view}`}>{intro}<div className="wrap catalog-toolbar"><span className="catalog-count">{searching ? `${results.length} de ${products.length} productos` : `${products.length} productos disponibles`}</span><div className="view-toggle" role="group" aria-label="Vista del catálogo"><button type="button" aria-pressed={view === "grid"} className={view === "grid" ? "on" : ""} onClick={() => changeView("grid")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 2h7v7H2zM11 2h7v7h-7zM2 11h7v7H2zM11 11h7v7h-7z" fill="currentColor" /></svg> Cuadrícula</button><button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => changeView("list")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 3h16v4H2zM2 9h16v4H2zM2 15h16v3H2z" fill="currentColor" /></svg> Filas</button></div></div><div className="wrap"><CatalogFilterBar filters={filters} onChange={setFilters} categories={categoriesOf(products)} /></div>{featured.length > 0 && <section className="featured-section"><div className="wrap"><div className="section-head"><div><p className="eyebrow">Los más solicitados</p><h2>Top ventas</h2></div><span className="catalog-count">{String(featured.length).padStart(2, "0")} productos destacados</span></div><div className="featured-grid">{featured.map((item) => <article className="featured-product" key={item.id}><div className={`featured-photo product-art ${item.art}`}>{item.image ? <img src={item.image} alt={item.name} loading="lazy" /> : <i />}<span>{item.tag}</span></div><div className="product-copy"><div className="stock"><i /> {item.stock} disponibles</div><h3>{item.name}</h3><p>{item.text}</p><strong className="product-price">{formatPrice(item.price)}</strong><AddToCartButton id={item.id} name={item.name} price={formatPrice(item.price)} type={item.art} image={item.image} /></div></article>)}</div></div></section>}<section className="all-services wrap"><div className="section-head"><div><p className="eyebrow">Catálogo completo</p><h2>También tenemos<br /><em>lo que necesitas.</em></h2></div><p className="section-note">Productos para mantener tu vehículo listo para la ruta. <small className="stock-note">Precios y stock referenciales del mockup. <a href="/creditos">Créditos de las fotos</a>.</small></p></div>{searching && more.length === 0 && <div className="catalog-empty"><p>No encontramos productos con esa búsqueda.</p><button type="button" className="button button-sm" onClick={() => setFilters(EMPTY_FILTERS)}>Limpiar filtros</button></div>}<div className="service-list products-list">{more.map((item) => <article className="service-list-item product-row" key={item.id}><div className={`mini-product-art product-art ${item.art}`}>{item.image ? <img src={item.image} alt="" loading="lazy" /> : <i />}</div><span className="list-product-copy"><small>{item.category}</small><strong>{item.name}</strong><em>{item.text}</em></span><div className="product-row-meta"><strong>{formatPrice(item.price)}</strong><span className="list-stock"><i /> {item.stock} disponibles</span></div><AddToCartButton id={item.id} name={item.name} price={formatPrice(item.price)} type={item.art} image={item.image} /></article>)}</div></section></main><InnerFooter /></>;
 }
