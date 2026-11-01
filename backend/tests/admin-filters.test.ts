@@ -1,3 +1,4 @@
+import { strFromU8, unzipSync } from "fflate";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { sql } from "../src/db/connection.js";
 import { cookieFor, dbReady, resetDb, seedBasics, type Seed } from "./db.js";
@@ -79,13 +80,19 @@ describe.skipIf(!dbReady)("BUG-1: /api/admin/export/appointments", () => {
     expect(data.appointments[0].scheduledDate).toBe("2026-01-10");
   });
 
-  test("csv incluye cabecera y filas", async () => {
-    const res = await get("/api/admin/export/appointments?format=csv&startDate=2026-01-01&endDate=2026-12-31");
+  test("xlsx es un libro Excel con cabecera y una fila por cita", async () => {
+    const res = await get("/api/admin/export/appointments?format=xlsx&startDate=2026-01-01&endDate=2026-12-31");
     expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("text/csv");
-    const text = await res.text();
-    expect(text).toContain("ID_Cita");
-    expect(text.split("\r\n")).toHaveLength(4);
+    expect(res.headers.get("content-type")).toContain("spreadsheetml.sheet");
+    expect(res.headers.get("content-disposition")).toContain(".xlsx");
+    const files = unzipSync(new Uint8Array(await res.arrayBuffer()));
+    const sheet = strFromU8(files["xl/worksheets/sheet1.xml"]);
+    expect(sheet).toContain("ID_Cita");
+    expect(sheet.match(/<row /g)).toHaveLength(4); // cabecera + 3 citas
+  });
+
+  test("format=csv ya no existe", async () => {
+    expect((await get("/api/admin/export/appointments?format=csv")).status).toBe(400);
   });
 
   test("parámetros inválidos devuelven 400", async () => {

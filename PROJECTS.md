@@ -119,7 +119,7 @@ Este documento es el tablero central de trabajo para el equipo de desarrollo. De
 - [x] **T1.9: Endpoints de Gestión de Taller y Horarios**
   - **Descripción**: Bloqueo de días/horas no laborales y asignación manual de mecánicos a citas.
 - [x] **T1.10: Auditoría y Respaldo**
-  - **Descripción**: Logs estructurados de operaciones críticas y endpoints seguros para exportar historial en CSV/JSON.
+  - **Descripción**: Logs estructurados de operaciones críticas y endpoints seguros para exportar historial en Excel (.xlsx)/JSON.
 
 ---
 

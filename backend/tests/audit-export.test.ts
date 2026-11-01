@@ -1,26 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { sql } from "../src/db/connection.js";
 import { limits } from "../src/config/constants.js";
-import { escapeCsvCell } from "../src/utils/csv.js";
+import { strFromU8, unzipSync } from "fflate";
 import { logAudit } from "../src/services/audit/audit.service.js";
 import { makeValidRut } from "../src/utils/rut.js";
 import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
-
-describe("SEC-8: CSV injection", () => {
-  test("neutraliza celdas que empiezan con = + - @ tab o CR", () => {
-    for (const evil of ["=HYPERLINK(\"http://x\")", "+1+1", "-2+3", "@SUM(A1)", "\tcmd", "\rcmd"]) {
-      expect(escapeCsvCell(evil).startsWith(`"'`)).toBe(true);
-    }
-  });
-
-  test("escapa comillas y respeta valores normales y números", () => {
-    expect(escapeCsvCell('Dijo "hola"')).toBe('"Dijo ""hola"""');
-    expect(escapeCsvCell("Juan Pérez")).toBe('"Juan Pérez"');
-    expect(escapeCsvCell(-5)).toBe('"-5"'); // un número negativo real no es texto de usuario
-    expect(escapeCsvCell(null)).toBe("");
-  });
-});
 
 describe.skipIf(!dbReady)("SEC-8: auditoría y exportación", () => {
   let server: TestServer;
@@ -49,14 +34,16 @@ describe.skipIf(!dbReady)("SEC-8: auditoría y exportación", () => {
   };
   const actionsLogged = async () => (await sql`select action from audit_logs order by created_at`).map((r) => r.action as string);
 
-  test("el CSV exportado neutraliza fórmulas en datos ingresados por clientes", async () => {
+  test("el Excel exportado guarda como texto (nunca fórmula) lo ingresado por clientes", async () => {
     const [evilUser] = await sql`insert into users (name, rut, phone, role) values ('=cmd|calc', ${makeValidRut(88)}, '+56 9 1111 2222', 'usuario') returning id`;
     await sql`insert into appointments (user_id, service_id, scheduled_date, time_slot, notes)
       values (${evilUser.id}, ${seed.serviceAceite.id}, ${futureDate()}, '10:30', '@SUM(1)')`;
-    const res = await fetch(`${server.url}/api/admin/export/appointments?format=csv`, { headers: cookieFor(seed.admin) });
-    const text = await res.text();
-    expect(text).toContain(`"'=cmd|calc"`);
-    expect(text).not.toContain(`,"=cmd|calc"`);
+    const res = await fetch(`${server.url}/api/admin/export/appointments?format=xlsx`, { headers: cookieFor(seed.admin) });
+    expect(res.status).toBe(200);
+    const sheet = strFromU8(unzipSync(new Uint8Array(await res.arrayBuffer()))["xl/worksheets/sheet1.xml"]);
+    expect(sheet).toContain("<t");
+    expect(sheet).toContain("=cmd|calc");
+    expect(sheet).not.toContain("<f>");
   });
 
   test("la exportación que supera el máximo responde 413", async () => {

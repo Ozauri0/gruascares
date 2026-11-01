@@ -19,7 +19,7 @@ import { AUDIT_AREAS, AUDIT_LEVELS, areaCondition, areaOf, labelOf, levelConditi
 import { lockDaysForBlocking, lockSlotForBooking } from "../utils/locks.js";
 import { isValidIsoDate, todayInSantiago, weekRange } from "../utils/dates.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
-import { escapeCsvCell } from "../utils/csv.js";
+import { buildXlsx, XLSX_CONTENT_TYPE } from "../utils/xlsx.js";
 import { isValidSlotFormat, limits, DEFAULT_TIME_SLOTS, MAX_CONCURRENT_APPOINTMENTS_PER_SLOT } from "../config/constants.js";
 import { slotsForDate } from "../utils/slots.js";
 import { sendAppointmentRescheduledEmail } from "../services/email/email.service.js";
@@ -1051,14 +1051,14 @@ export async function getAuditLogs(req: Request, res: Response) {
 
 /**
  * GET /api/admin/export/appointments
- * Exporta el historial de atenciones en formato CSV o JSON para contabilidad y respaldo.
+ * Exporta el historial de atenciones en formato Excel (.xlsx) o JSON para contabilidad y respaldo.
  */
 export async function exportAppointments(req: Request, res: Response) {
   try {
     const { format = "json", startDate, endDate, status } = req.query;
 
-    if (format !== "json" && format !== "csv") {
-      return res.status(400).json({ error: "Bad Request", message: "format debe ser 'json' o 'csv'" });
+    if (format !== "json" && format !== "xlsx") {
+      return res.status(400).json({ error: "Bad Request", message: "format debe ser 'json' o 'xlsx'" });
     }
     if (startDate !== undefined && !isValidIsoDate(startDate)) {
       return res.status(400).json({ error: "Bad Request", message: "startDate debe ser una fecha válida YYYY-MM-DD" });
@@ -1132,64 +1132,63 @@ export async function exportAppointments(req: Request, res: Response) {
       req,
     });
 
-    if (format === "csv") {
-      // Formato CSV RFC 4180 con UTF-8 BOM
-      const headers = [
-        "ID_Cita",
-        "Fecha",
-        "Horario",
-        "Estado",
-        "Cliente_Nombre",
-        "Cliente_Email",
-        "Cliente_Telefono",
-        "Patente",
-        "Vehiculo_Marca",
-        "Vehiculo_Modelo",
-        "Vehiculo_Anio",
-        "Odometro_Actual",
-        "Servicio_Nombre",
-        "Servicio_Categoria",
-        "Precio_Base",
-        "Observaciones_Tecnicas",
-        "Repuestos_Utilizados",
-        "Kilometraje_Servicio",
-        "Recomendaciones",
-        "Fecha_Completado",
-      ];
+    if (format === "xlsx") {
+      // Libro Excel real (.xlsx): abre sin asistente de importación y con tildes y números bien. Los textos van como cadenas, nunca como fórmulas.
+      const file = buildXlsx([
+        {
+          name: "Atenciones",
+          columns: [
+            { header: "ID_Cita", width: 38 },
+            { header: "Fecha", width: 12 },
+            { header: "Horario", width: 10 },
+            { header: "Estado", width: 14 },
+            { header: "Cliente_Nombre", width: 28 },
+            { header: "Cliente_Email", width: 30 },
+            { header: "Cliente_Telefono", width: 18 },
+            { header: "Patente", width: 10 },
+            { header: "Vehiculo_Marca", width: 16 },
+            { header: "Vehiculo_Modelo", width: 16 },
+            { header: "Vehiculo_Anio", width: 12 },
+            { header: "Odometro_Actual", width: 16 },
+            { header: "Servicio_Nombre", width: 34 },
+            { header: "Servicio_Categoria", width: 16 },
+            { header: "Precio_Base", width: 12 },
+            { header: "Observaciones_Tecnicas", width: 50, format: "wrap" },
+            { header: "Repuestos_Utilizados", width: 40, format: "wrap" },
+            { header: "Kilometraje_Servicio", width: 18 },
+            { header: "Recomendaciones", width: 50, format: "wrap" },
+            { header: "Fecha_Completado", width: 22 },
+          ],
+          rows: data.map((item) => [
+            item.id,
+            item.scheduledDate,
+            item.timeSlot,
+            item.status,
+            item.clientName,
+            item.clientEmail,
+            item.clientPhone,
+            item.vehiclePlate,
+            item.vehicleBrand,
+            item.vehicleModel,
+            item.vehicleYear,
+            item.vehicleMileage,
+            item.serviceName,
+            item.serviceCategory,
+            item.servicePrice,
+            item.reportObservations,
+            item.reportParts,
+            item.reportMileage,
+            item.reportRecommendations,
+            item.reportCompletedAt ? new Date(item.reportCompletedAt).toISOString() : "",
+          ]),
+        },
+      ]);
+      const filename = `atenciones_gruascares_${todayInSantiago()}.xlsx`;
 
-      const rows = data.map((item) =>
-        [
-          item.id,
-          item.scheduledDate,
-          item.timeSlot,
-          item.status,
-          item.clientName,
-          item.clientEmail,
-          item.clientPhone,
-          item.vehiclePlate,
-          item.vehicleBrand,
-          item.vehicleModel,
-          item.vehicleYear,
-          item.vehicleMileage,
-          item.serviceName,
-          item.serviceCategory,
-          item.servicePrice,
-          item.reportObservations,
-          item.reportParts,
-          item.reportMileage,
-          item.reportRecommendations,
-          item.reportCompletedAt ? new Date(item.reportCompletedAt).toISOString() : "",
-        ]
-          .map(escapeCsvCell)
-          .join(",")
-      );
-
-      const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
-      const filename = `atenciones_gruascares_${todayInSantiago()}.csv`;
-
-      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Type", XLSX_CONTENT_TYPE);
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      return res.send(csvContent);
+      res.setHeader("Cache-Control", "no-store");
+      return res.send(Buffer.from(file));
     }
 
     // Por defecto formato JSON
