@@ -17,7 +17,7 @@ export default function AdminPage() {
   const { metrics, loading, error, reload } = useAdminMetrics();
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
-  const exportUrl = (format: "csv" | "json") => {
+  const exportUrl = (format: "xlsx" | "json") => {
     const params = new URLSearchParams({ format });
     if (exportFrom) params.set("startDate", exportFrom);
     if (exportTo) params.set("endDate", exportTo);
@@ -105,7 +105,7 @@ export default function AdminPage() {
                   <label>Desde<input type="date" value={exportFrom} max={exportTo || undefined} onChange={(e) => setExportFrom(e.target.value)} /></label>
                   <label>Hasta<input type="date" value={exportTo} min={exportFrom || undefined} onChange={(e) => setExportTo(e.target.value)} /></label>
                   <div className="export-actions">
-                    <a className="button button-sm" href={exportUrl("csv")} download>Descargar CSV</a>
+                    <a className="button button-sm" href={exportUrl("xlsx")} download>Descargar Excel</a>
                     <a className="button button-sm button-secondary" href={exportUrl("json")} download>Descargar JSON</a>
                   </div>
                 </div>
