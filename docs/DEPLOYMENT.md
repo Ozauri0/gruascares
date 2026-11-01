@@ -37,6 +37,17 @@ docker run --rm --network <proyecto>_default -v "$PWD/scripts:/s:ro" -e BASE_URL
 0 3 * * * cd /ruta/gruascares && scripts/backup.sh >> backups/backup.log 2>&1
 ```
 
+**Copia fuera del servidor (Google Drive con rclone).** `backup.sh` sube cada corrida si defines `OFFSITE_REMOTE` (un remoto de rclone). Se recomienda un remoto `crypt` encima de Drive, para que los datos de clientes no queden en claro. La contraseña de cifrado se guarda **fuera del servidor**: sin ella los respaldos no se pueden abrir.
+
+```cron
+# crontab de root (docker exige root en este servidor); rclone usa /root/.config/rclone/rclone.conf
+0 3 * * * cd /opt/gruascares && COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.server.yml" OFFSITE_REMOTE=gdrive-crypt:respaldos scripts/backup.sh >> backups/backup.log 2>&1
+```
+
+Se sube con `rclone copy` (nunca `sync`), se verifica con `rclone check` y en Drive se conservan `OFFSITE_KEEP_DAYS` días (30). Si un paso falla, `backup.log` lo muestra y el cron no sigue.
+
+Restaurar desde Drive: `rclone copy gdrive-crypt:respaldos/db-<fecha>.sql.gz backups/` y seguir con el procedimiento de abajo.
+
 Copia `backups/` fuera del servidor (si el VPS se pierde, los respaldos también). Restaurar:
 
 ```bash
