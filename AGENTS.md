@@ -56,6 +56,7 @@ Antes de considerar terminada una modificación deben pasar `bun run build`, `bu
 - `app/components/CartProvider.tsx`: Contexto global del carro y persistencia en `localStorage`.
 - `app/components/AddToCartButton.tsx`: Botón para agregar productos al carro.
 - `app/components/CartLink.tsx`: Enlace del header con contador de productos.
+- `app/components/ThemeToggle.tsx`: Botón del header para alternar entre modo día y modo noche (`data-theme="light|dark"` en `<html>`, persistido en `localStorage` con clave `gruas-cares-theme`; lógica en `app/lib/theme.ts`).
 
 ## Visual System
 
@@ -75,6 +76,12 @@ Tipografías usadas:
 - DM Mono para labels técnicos y metadatos.
 
 El header usa una estética liquid-glass: fijo, compacto, translúcido, con blur, bordes redondeados y sombra suave.
+
+Accesibilidad (WCAG 2.2 AA) y Modo Noche:
+
+- Tamaño mínimo de fuente en todo el sitio: `12px`.
+- Controles de formulario (`input`, `select`, `textarea`): tipografía Fira Sans (`15px` en escritorio, `16px` y `min-height: 44px` en móvil para evitar zoom automático en iOS y cumplir tamaño táctil).
+- Contraste AA: usar los tokens semánticos definidos en `:root` y `html[data-theme="dark"]` (`--paper`, `--surface`, `--surface-2`, `--surface-3`, `--text`, `--text-2`, `--text-muted`, `--border`, `--border-strong`, `--field-border`, `--accent-text`, `--pink-text`, `--btn-bg`, `--inverse-bg`, `--inverse-text`, `--danger-text`, `--warn-text`). Los botones verdes con texto blanco usan `--btn-bg` (`#017827`, contraste 5,65:1).
 
 ## Original Site Facts
 

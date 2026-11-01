@@ -93,7 +93,7 @@ export default function RegisterPage() {
                   <div className="form-row">
                     <label>
                       Nombre completo *
-                      <input required placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} />
+                      <input required autoComplete="name" placeholder="Tu nombre" value={name} onChange={(e) => setName(e.target.value)} />
                       {errors.name && <small className="field-error">{errors.name}</small>}
                     </label>
                     <label>
@@ -101,6 +101,7 @@ export default function RegisterPage() {
                       <input
                         required
                         placeholder="12.345.678-5"
+                        autoComplete="off"
                         value={rut}
                         onChange={(e) => setRut(e.target.value)}
                         onBlur={() => {
@@ -112,18 +113,18 @@ export default function RegisterPage() {
                   </div>
                   <label>
                     Correo electrónico *
-                    <input required type="email" placeholder="nombre@empresa.cl" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <input required type="email" autoComplete="email" placeholder="nombre@empresa.cl" value={email} onChange={(e) => setEmail(e.target.value)} />
                     {errors.email && <small className="field-error">{errors.email}</small>}
                   </label>
                   <label>
                     Teléfono *
-                    <input required type="tel" placeholder="+56 9 ..." value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <input required type="tel" autoComplete="tel" placeholder="+56 9 ..." value={phone} onChange={(e) => setPhone(e.target.value)} />
                     {errors.phone && <small className="field-error">{errors.phone}</small>}
                   </label>
                   <div className="form-row">
                     <label>
                       Contraseña *
-                      <input required type="password" placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} />
+                      <input required type="password" autoComplete="new-password" placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} />
                       {errors.password && <small className="field-error">{errors.password}</small>}
                     </label>
                     <label>
