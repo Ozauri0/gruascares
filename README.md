@@ -23,6 +23,17 @@ Entra desde `/login` con los botones **Entrar como Cliente / Mecánico / Admin**
 - [Backlog y flujo de trabajo](PROJECTS.md).
 - [Instrucciones del proyecto para agentes](AGENTS.md).
 
+## Producción y respaldos
+
+El servidor corre la rama `main` con Docker (`docker-compose.server.yml`); `dev` es el desarrollo. Despliegue y variables: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+Respaldos automáticos de la base y de las imágenes subidas, todos los días a las 3:00 UTC (cron de root):
+
+- **En el servidor**: `/opt/gruascares/backups`, se conservan 14 días.
+- **Fuera del servidor**: en **Mega** (`mega:respaldos/gruascares`, remoto de rclone), se conservan 30 días. Mega cifra de extremo a extremo; la cuenta y su contraseña no están en el repositorio.
+- Registro: `/opt/gruascares/backups/backup.log` (si un respaldo falla, queda ahí; no hay aviso por correo).
+- Restaurar: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#respaldos).
+
 ## Verificar un cambio
 
 ```bash

@@ -37,16 +37,26 @@ docker run --rm --network <proyecto>_default -v "$PWD/scripts:/s:ro" -e BASE_URL
 0 3 * * * cd /ruta/gruascares && scripts/backup.sh >> backups/backup.log 2>&1
 ```
 
-**Copia fuera del servidor (Google Drive con rclone).** `backup.sh` sube cada corrida si defines `OFFSITE_REMOTE` (un remoto de rclone). Se recomienda un remoto `crypt` encima de Drive, para que los datos de clientes no queden en claro. La contraseña de cifrado se guarda **fuera del servidor**: sin ella los respaldos no se pueden abrir.
+**Copia fuera del servidor (Mega con rclone).** `backup.sh` sube cada corrida si defines `OFFSITE_REMOTE` (un remoto de rclone). En este servidor es `mega:respaldos/gruascares`; cada proyecto nuevo usa su propia carpeta. Mega cifra de extremo a extremo, así que no hace falta un remoto `crypt`. Usa una cuenta de Mega exclusiva para respaldos, **sin verificación en dos pasos** (rclone no puede iniciar sesión con ella) y con el correo confirmado.
+
+Configurar el remoto (una vez, en el servidor; la contraseña se guarda ofuscada en `/root/.config/rclone/rclone.conf`, permisos 600). `hard_delete=true` evita que lo borrado vaya a la papelera de Mega, que también ocupa cuota:
+
+```bash
+OBS=$(printf %s '<contraseña>' | sudo rclone obscure -)
+sudo rclone config create mega mega user=<correo> pass="$OBS" hard_delete=true --no-obscure
+sudo chmod 600 /root/.config/rclone/rclone.conf
+```
 
 ```cron
 # crontab de root (docker exige root en este servidor); rclone usa /root/.config/rclone/rclone.conf
-0 3 * * * cd /opt/gruascares && COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.server.yml" OFFSITE_REMOTE=gdrive-crypt:respaldos scripts/backup.sh >> backups/backup.log 2>&1
+0 3 * * * cd /opt/gruascares && COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.server.yml" OFFSITE_REMOTE=mega:respaldos/gruascares scripts/backup.sh >> backups/backup.log 2>&1
 ```
 
-Se sube con `rclone copy` (nunca `sync`), se verifica con `rclone check` y en Drive se conservan `OFFSITE_KEEP_DAYS` días (30). Si un paso falla, `backup.log` lo muestra y el cron no sigue.
+Se sube con `rclone copy` (nunca `sync`) y en Mega se conservan `OFFSITE_KEEP_DAYS` días (30). Mega no entrega hashes, así que `rclone check` compara solo el tamaño; el script ya verifica antes que el `.gz` no esté truncado. Si un paso falla, `backup.log` lo muestra y el cron no sigue (no hay aviso por correo: revísalo de vez en cuando).
 
-Restaurar desde Drive: `rclone copy gdrive-crypt:respaldos/db-<fecha>.sql.gz backups/` y seguir con el procedimiento de abajo.
+Para rotar la contraseña de la cuenta de Mega: `sudo rclone config update mega pass "$(printf %s '<nueva>' | rclone obscure -)" --no-obscure`.
+
+Restaurar desde Mega: `sudo rclone copy mega:respaldos/gruascares . --include "db-<fecha>.sql.gz"` y seguir con el procedimiento de abajo. Probado: la copia bajada de Mega restaura las mismas tablas y filas que la base real.
 
 Copia `backups/` fuera del servidor (si el VPS se pierde, los respaldos también). Restaurar:
 
