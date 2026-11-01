@@ -1,0 +1,10 @@
+# Específico del servidor con Nginx Proxy Manager: el frontend se une a la red externa `red-internet`
+# para que NPM lo alcance por nombre (gruas-cares-frontend:3000). Ningún contenedor publica puertos.
+# Despliegue: docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.server.yml --profile app up -d --build
+services:
+  frontend:
+    container_name: gruas-cares-frontend
+    networks: [default, red-internet]
+networks:
+  red-internet:
+    external: true
