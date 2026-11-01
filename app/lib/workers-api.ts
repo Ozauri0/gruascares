@@ -20,7 +20,7 @@ export type WorkerInput = { name: string; rut: string; phone?: string; types: Wo
 /** Tipo de trabajador que atiende cada área. */
 export const WORKER_TYPE_FOR_AREA: Record<WorkArea, WorkerType> = { serviteca: "mecanico", grua: "gruero" };
 
-export const WORKER_TYPE_LABEL: Record<WorkerType, string> = { mecanico: "Mecánico", gruero: "Gruero" };
+export const WORKER_TYPE_LABEL: Record<WorkerType, string> = { mecanico: "Mecánico", gruero: "Conductor" };
 
 /** Trabajadores de un área (sin área, todos los que puede ver quien consulta). `active` filtra por estado. */
 export async function listWorkers(signal?: AbortSignal, area?: WorkArea, active?: boolean): Promise<Worker[]> {

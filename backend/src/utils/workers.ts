@@ -30,7 +30,7 @@ export async function findAssignableWorker(workerId: string, category: ServiceCa
   if (!worker.isActive) return { error: "El trabajador indicado está inactivo" as const };
   if (!worker.types.includes(WORKER_TYPE_FOR[category])) {
     return {
-      error: (category === "grua" ? "El trabajador indicado no es gruero" : "El trabajador indicado no es mecánico") as string,
+      error: (category === "grua" ? "El trabajador indicado no es conductor" : "El trabajador indicado no es mecánico") as string,
     };
   }
   return { worker };

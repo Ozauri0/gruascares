@@ -12,7 +12,7 @@ import { buildXlsx, XLSX_CONTENT_TYPE, type XlsxCell } from "../utils/xlsx.js";
 
 const AREAS = {
   taller: { category: "serviteca", title: "Taller", workerNoun: "Mecánico" },
-  grua: { category: "grua", title: "Grúas", workerNoun: "Gruero" },
+  grua: { category: "grua", title: "Grúas", workerNoun: "Conductor" },
 } as const;
 
 type ReportArea = keyof typeof AREAS;
@@ -25,7 +25,7 @@ const STATUS_LABEL: Record<AppointmentStatus, string> = {
   cancelada: "Cancelada",
 };
 
-const TYPE_LABEL: Record<string, string> = { mecanico: "Mecánico", gruero: "Gruero" };
+const TYPE_LABEL: Record<string, string> = { mecanico: "Mecánico", gruero: "Conductor" };
 
 const stamp = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Santiago", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 /** «2026-10-17 14:30» en hora de Chile. */

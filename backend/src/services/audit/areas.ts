@@ -72,7 +72,7 @@ const LABELS: Record<string, string> = {
   WALK_IN_CLIENT_CREATED: "Registró un cliente presencialmente",
   CRANE_CREATED: "Registró una grúa de la flota",
   CRANE_UPDATED: "Editó una grúa de la flota",
-  CRANE_ASSIGNED: "Asignó el gruero de una grúa",
+  CRANE_ASSIGNED: "Asignó el conductor de una grúa",
   CRANE_ACTIVATED: "Reactivó una grúa de la flota",
   CRANE_DEACTIVATED: "Dio de baja una grúa de la flota",
   WORKER_CREATED: "Registró un trabajador",
