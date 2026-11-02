@@ -85,11 +85,11 @@ export default function CranesPanel() {
       <div className="portal-toolbar">
         <div className="portal-toolbar-left">
           <span className="portal-badge-counter">{cranes.filter((c) => c.isActive).length} grúas activas</span>
-          {pending > 0 && <span className="portal-badge-active">{pending} sin gruero a cargo</span>}
+          {pending > 0 && <span className="portal-badge-active">{pending} sin conductor a cargo</span>}
         </div>
         <button type="button" className="portal-add" onClick={() => openForm("new")}>+ Agregar grúa</button>
       </div>
-      <p className="portal-subtext">Registra las grúas de la empresa y elige quién queda a cargo de cada una. Los grueros se registran en «Gestionar personal». Si das de baja una grúa, se conserva en el sistema.</p>
+      <p className="portal-subtext">Registra las grúas de la empresa y elige quién queda a cargo de cada una. Los conductores se registran en «Gestionar personal». Si das de baja una grúa, se conserva en el sistema.</p>
       {error && <p className="field-error" role="alert">{error}</p>}
 
       {loading ? (
@@ -100,7 +100,7 @@ export default function CranesPanel() {
         <div className="table-scroll">
           <table className="data-table">
             <thead>
-              <tr><th>Grúa</th><th>Tipo</th><th>Gruero a cargo</th><th>Estado</th><th><span className="sr-only">Acciones</span></th></tr>
+              <tr><th>Grúa</th><th>Tipo</th><th>Conductor a cargo</th><th>Estado</th><th><span className="sr-only">Acciones</span></th></tr>
             </thead>
             <tbody>
               {cranes.map((crane) => (
@@ -112,15 +112,15 @@ export default function CranesPanel() {
                   <td>{CRANE_TYPE_LABEL[crane.type]}</td>
                   <td>
                     <select
-                      aria-label={`Gruero a cargo de ${crane.name}`}
+                      aria-label={`Conductor a cargo de ${crane.name}`}
                       value={crane.workerId ?? ""}
                       disabled={!crane.isActive}
-                      onChange={(e) => void run(() => updateCrane(crane.id, { workerId: e.target.value || null }), "No se pudo asignar al gruero.")}
+                      onChange={(e) => void run(() => updateCrane(crane.id, { workerId: e.target.value || null }), "No se pudo asignar al conductor.")}
                     >
                       <option value="">Sin asignar</option>
                       {workers.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                       {/* quien ya estaba a cargo se mantiene visible aunque lo hayan dado de baja */}
-                      {crane.workerId && !workers.some((w) => w.id === crane.workerId) && <option value={crane.workerId}>{crane.workerName ?? "Gruero"} (de baja)</option>}
+                      {crane.workerId && !workers.some((w) => w.id === crane.workerId) && <option value={crane.workerId}>{crane.workerName ?? "Conductor"} (de baja)</option>}
                     </select>
                   </td>
                   <td><span className={crane.isActive ? "state-on" : "state-off"}>{crane.isActive ? "Activa" : "De baja"}</span></td>
@@ -155,7 +155,7 @@ export default function CranesPanel() {
                   </select>
                 </label>
                 <label>
-                  Gruero a cargo
+                  Conductor a cargo
                   <select value={form.workerId} onChange={(e) => setForm({ ...form, workerId: e.target.value })}>
                     <option value="">Sin asignar</option>
                     {workers.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}

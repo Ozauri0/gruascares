@@ -53,8 +53,8 @@ export default function WorkerStatsPanel() {
     <section className="export-card worker-stats" aria-label="Estadísticas de trabajadores">
       <div className="worker-stats-head">
         <div>
-          <h2>Trabajo de mecánicos y grueros</h2>
-          <p>Asignaciones del mes por trabajador. Quien es mecánico y gruero aparece una sola vez con sus dos áreas sumadas.</p>
+          <h2>Trabajo de mecánicos y conductores</h2>
+          <p>Asignaciones del mes por trabajador. Quien es mecánico y conductor aparece una sola vez con sus dos áreas sumadas.</p>
         </div>
         <div className="export-fields">
           <div className="export-actions" role="group" aria-label="Mes">
@@ -106,7 +106,7 @@ export default function WorkerStatsPanel() {
                 <tr key={row.worker.id} className={row.worker.isActive ? "" : "row-inactive"}>
                   <td>
                     <strong>{row.worker.name}</strong>{!row.worker.isActive && " (de baja)"}
-                    <br /><span className="cell-sub">{formatRut(row.worker.rut)} · {row.worker.types.map((t) => (t === "mecanico" ? "Mecánico" : "Gruero")).join(" y ")}</span>
+                    <br /><span className="cell-sub">{formatRut(row.worker.rut)} · {row.worker.types.map((t) => (t === "mecanico" ? "Mecánico" : "Conductor")).join(" y ")}</span>
                   </td>
                   <td><strong>{row.total}</strong></td>
                   {view === "todos" && <><td>{row.serviteca}</td><td>{row.grua}</td></>}

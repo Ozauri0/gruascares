@@ -141,11 +141,11 @@ describe.skipIf(!dbReady)("reportes Excel de taller y grúas (#131)", () => {
     await insert(seed.serviceGrua.id, "finalizada", seed.rigger.id, futureDate(2));
     await insert(seed.serviceAceite.id, "confirmada", seed.mech.id, futureDate(2), "09:30");
     const { names, sheets } = readXlsx(new Uint8Array(await (await get(seed.admin, "/api/admin/reports/grua")).arrayBuffer()));
-    expect(names).toEqual(["Resumen por gruero", "Servicios grúas"]);
+    expect(names).toEqual(["Resumen por conductor", "Servicios grúas"]);
     expect(sheets["Servicios grúas"]).toHaveLength(2);
     expect(sheets["Servicios grúas"][1].includes("Jorge Gruero")).toBe(true);
-    expect(sheets["Resumen por gruero"].map((r) => r[0])).toContain("Jorge Gruero");
-    expect(sheets["Resumen por gruero"].map((r) => r[0])).not.toContain("Pedro Taller");
+    expect(sheets["Resumen por conductor"].map((r) => r[0])).toContain("Jorge Gruero");
+    expect(sheets["Resumen por conductor"].map((r) => r[0])).not.toContain("Pedro Taller");
   });
 
   test("filtra por fechas y estado, y el reporte vacío sigue siendo un Excel válido", async () => {
@@ -164,7 +164,7 @@ describe.skipIf(!dbReady)("reportes Excel de taller y grúas (#131)", () => {
     const empty = await get(seed.admin, `/api/admin/reports/grua?startDate=${early}&endDate=${early}`);
     const { sheets } = readXlsx(new Uint8Array(await empty.arrayBuffer()));
     expect(sheets["Servicios grúas"]).toHaveLength(1); // solo el encabezado
-    expect(sheets["Resumen por gruero"].map((r) => r[0])).toEqual(["Gruero", "TOTAL"]);
+    expect(sheets["Resumen por conductor"].map((r) => r[0])).toEqual(["Conductor", "TOTAL"]);
   });
 
   test("cada descarga queda en el registro de actividad", async () => {
