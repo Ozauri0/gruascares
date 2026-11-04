@@ -43,6 +43,7 @@ export async function listActivity(query: ActivityQuery, signal?: AbortSignal): 
 const DETAIL_LABELS: Record<string, string> = {
   from: "de", to: "a", email: "correo", name: "producto", fields: "campos", keys: "claves", status: "código", method: "método", path: "ruta",
   message: "mensaje", role: "rol", roles: "roles", newRoles: "roles nuevos", previousRoles: "roles anteriores", newActive: "activo", bytes: "bytes",
+  pastDate: "fecha pasada", bypassedBlock: "bloqueo omitido",
 };
 
 /** Resume el JSON de detalles en una línea legible ("de: pendiente · a: confirmada"). */

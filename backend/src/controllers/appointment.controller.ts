@@ -66,7 +66,9 @@ export async function getAvailableSlots(req: Request, res: Response) {
     }
 
     // Comprobar que no sea fecha en el pasado (según la fecha de Chile, no la de UTC)
-    if (date < todayInSantiago()) {
+    const canBookPast = Boolean(req.user) && hasRole(req.user!, "vendedor", "admin");
+    const isPastDate = date < todayInSantiago();
+    if (isPastDate && !canBookPast) {
       return res.status(400).json({
         error: "Bad Request",
         message: "No se puede consultar disponibilidad para fechas pasadas",
@@ -108,7 +110,7 @@ export async function getAvailableSlots(req: Request, res: Response) {
 
     const daySlots = await slotsForDate(date);
     const slots = daySlots.map((slot) => {
-      if (isSlotPast(date, slot)) {
+      if (!isPastDate && isSlotPast(date, slot)) {
         return {
           time: slot,
           bookedCount: bookedMap.get(slot) || 0,
@@ -224,7 +226,9 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    if (scheduledDate < todayInSantiago()) {
+    const canBookPast = Boolean(req.user) && hasRole(req.user!, "vendedor", "admin");
+    const isPastDate = scheduledDate < todayInSantiago();
+    if (isPastDate && !canBookPast) {
       return res.status(400).json({
         error: "Bad Request",
         message: "No se puede agendar para una fecha en el pasado",
@@ -239,7 +243,7 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    if (isSlotPast(scheduledDate, timeSlot)) {
+    if (!isPastDate && isSlotPast(scheduledDate, timeSlot)) {
       return res.status(400).json({
         error: "Bad Request",
         message: `El horario de las ${timeSlot} hrs de hoy ya transcurrió. Elige un horario posterior u otro día.`,
@@ -636,6 +640,7 @@ export async function createAppointment(req: Request, res: Response) {
         vehicleId: resolvedVehicleId,
         ...(bookedByStaff ? { clientId: targetUserId, clientRut, clientName } : {}),
         ...(outcome.bypassedBlock ? { bypassedBlock: outcome.bypassedBlock } : {}),
+        ...(isPastDate ? { pastDate: true } : {}),
       },
       req,
     });

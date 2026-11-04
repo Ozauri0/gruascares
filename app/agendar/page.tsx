@@ -5,7 +5,7 @@ import InnerFooter from "../components/InnerFooter";
 import { ApiError } from "../lib/api";
 import type { ApiService } from "../lib/api-types";
 import { createAppointment, listServices, type CreatedAppointment } from "../lib/appointments-api";
-import { useAuth } from "../lib/auth";
+import { useAuth, userHasRole } from "../lib/auth";
 import { CATEGORY_INFO, findServiceByQuery, groupServices, serviceHint, slotStatusLabel, type BookingCategory } from "../lib/booking";
 import { todayInSantiago } from "../lib/dates";
 import { formatPlate } from "../lib/plate";
@@ -19,6 +19,7 @@ import { EMPTY_TRANSFER, cargoIsVehicle, transferPayload, validateTransfer, type
 
 export default function AgendarPage() {
   const { user, loading: authLoading } = useAuth();
+  const canBookPast = userHasRole(user, "vendedor", "admin");
   const { vehicles } = useVehicles({ enabled: Boolean(user) });
 
   const [services, setServices] = useState<ApiService[]>([]);
@@ -259,7 +260,7 @@ export default function AgendarPage() {
                     <input
                       required
                       type="date"
-                      min={today || undefined}
+                      min={canBookPast ? undefined : today || undefined}
                       value={date}
                       onChange={(event) => {
                         setDate(event.target.value);
@@ -267,6 +268,11 @@ export default function AgendarPage() {
                         setTimeError(false);
                       }}
                     />
+                    {canBookPast && Boolean(date && today && date < today) && (
+                      <small className="field-warning" role="status">
+                        Estás agendando en una fecha pasada ({date}). Como ventas o administración puedes registrarla igualmente; quedará registrado en la actividad.
+                      </small>
+                    )}
                   </label>
                 </div>
 

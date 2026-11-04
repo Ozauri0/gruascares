@@ -58,7 +58,7 @@ export default function Home() {
           <a href="#servicios" onClick={() => setMenuOpen(false)}>Servicios</a>
           <a href="/catalogo" onClick={() => setMenuOpen(false)}>Catálogo</a>
           <a href="/team-cares" onClick={() => setMenuOpen(false)}>Team Cares</a>
-          <a href="#contacto" onClick={() => setMenuOpen(false)}>Contacto</a>
+          <a href="/agendar" onClick={() => setMenuOpen(false)}>Contacto</a>
         </div>
         <CartLink />
         <NavUser />
@@ -112,7 +112,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer id="contacto"><div className="wrap footer-main"><a className="brand footer-brand" href="#inicio"><img src={logo} alt="Grúas Cares" /></a><div><p className="footer-title">{t("footer.contact.title")}</p><a href={telHref(t("footer.phone1"))}>{t("footer.phone1")}</a><a href={telHref(t("footer.phone2"))}>{t("footer.phone2")}</a><a href={telHref(t("footer.phone3"))}>{t("footer.phone3")}</a></div><div><p className="footer-title">{t("footer.social.title")}</p><SocialLinks /></div></div><div className="wrap footer-bottom"><span>{t("footer.bottom1")}</span><span>{t("footer.bottom2")}</span></div></footer>
+      <footer id="contacto"><div className="wrap footer-main"><a className="brand footer-brand" href="#inicio"><img src={logo} alt="Grúas Cares" /></a><div><p className="footer-title">{t("footer.contact.title")}</p><div className="footer-contacts"><div><a href={telHref(t("footer.phone1"))}>{t("footer.phone1")}</a><a href={telHref(t("footer.phone2"))}>{t("footer.phone2")}</a><a href={telHref(t("footer.phone3"))}>{t("footer.phone3")}</a></div><div><a href={`mailto:${t("footer.email1").trim()}`}>{t("footer.email1")}</a><a href={`mailto:${t("footer.email2").trim()}`}>{t("footer.email2")}</a></div></div></div><div><p className="footer-title">{t("footer.social.title")}</p><SocialLinks /></div></div><div className="wrap footer-bottom"><span>{t("footer.bottom1")}</span><span>{t("footer.bottom2")}</span></div></footer>
     </main>
   );
 }
