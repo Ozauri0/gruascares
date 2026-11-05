@@ -1155,3 +1155,11 @@ html[data-theme="dark"] .skeleton{background:linear-gradient(90deg,#202422 25%,#
 .category-actions{display:flex;gap:6px;flex-wrap:wrap}
 .category-reassign{margin-top:14px;padding:12px;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface-2)}
 .category-reassign select{width:100%;margin:8px 0}
+
+/* Chips de categoría del catálogo (#184): misma selección que el desplegable; en móvil se desplazan en horizontal */
+.catalog-chips{flex:1 1 100%;min-width:0;display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:2px 2px 6px}
+.catalog-chip{flex:0 0 auto;min-height:40px;border:1px solid var(--field-border);background:var(--surface);color:var(--text);border-radius:999px;padding:8px 16px;font:600 14px/1.2 'Fira Sans';cursor:pointer;white-space:nowrap;transition:background .2s,border-color .2s,color .2s}
+.catalog-chip:hover{border-color:var(--btn-bg);color:var(--accent-text)}
+.catalog-chip[aria-pressed="true"]{background:var(--btn-bg);border-color:var(--btn-bg);color:#fff}
+.catalog-chip:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+@media (max-width:640px){.catalog-chip{min-height:44px;padding:10px 16px;font-size:15px}}
