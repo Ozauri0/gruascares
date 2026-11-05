@@ -1,7 +1,7 @@
 import type { UserRole } from "../src/types/auth.js";
 import { hashPassword } from "../src/utils/password.js";
 import { sql as rawSql, db } from "../src/db/connection.js";
-import { users, services, vehicles, workers } from "../src/db/schema.js";
+import { users, services, productCategories, vehicles, workers } from "../src/db/schema.js";
 import { generateToken } from "../src/utils/jwt.js";
 import { makeValidRut } from "../src/utils/rut.js";
 
@@ -9,7 +9,7 @@ export const dbReady: boolean = Boolean((globalThis as any).__TEST_DB_READY__);
 
 export async function resetDb(): Promise<void> {
   await rawSql.unsafe(
-    "truncate table cranes, revoked_tokens, email_verification_tokens, password_reset_tokens, custom_time_slots, site_content, products, audit_logs, blocked_dates, service_records, appointments, vehicles, services, users restart identity cascade"
+    "truncate table product_categories, cranes, revoked_tokens, email_verification_tokens, password_reset_tokens, custom_time_slots, site_content, products, audit_logs, blocked_dates, service_records, appointments, vehicles, services, users restart identity cascade"
   );
 }
 
@@ -55,6 +55,11 @@ export async function seedBasics(): Promise<Seed> {
       { category: "serviteca", name: "Aceite Test", basePrice: 35000, estimatedDurationMin: 45 },
     ])
     .returning();
+  await db.insert(productCategories).values([
+    { name: "TOP VENTAS", sortOrder: 0 },
+    { name: "LUBRICANTES", sortOrder: 1 },
+    { name: "GENERAL", sortOrder: 2 },
+  ]);
   const [vehicleA, vehicleB] = await db
     .insert(vehicles)
     .values([

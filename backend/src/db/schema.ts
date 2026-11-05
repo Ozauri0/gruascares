@@ -344,6 +344,18 @@ export const products = pgTable(
   (table) => [index("products_active_idx").on(table.active), index("products_featured_idx").on(table.featured)]
 );
 
+// 9b. Categorías del catálogo (nombre en mayúsculas y orden). Los productos guardan el nombre (ADR 025).
+export const productCategories = pgTable(
+  "product_categories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("product_categories_name_uq").on(table.name)]
+);
+
 // 10. Tokens de recuperación de contraseña (de un solo uso; solo se guarda el hash SHA-256)
 export const passwordResetTokens = pgTable(
   "password_reset_tokens",

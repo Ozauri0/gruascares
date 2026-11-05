@@ -3,7 +3,7 @@ import AreaNav from "../../components/AreaNav";
 import Icon from "../../components/Icon";
 
 interface AdminNavProps {
-  current: "resumen" | "usuarios" | "calendario" | "catalogo" | "registro";
+  current: "resumen" | "usuarios" | "calendario" | "catalogo" | "servicios" | "registro";
 }
 
 export default function AdminNav({ current }: AdminNavProps) {
@@ -12,6 +12,7 @@ export default function AdminNav({ current }: AdminNavProps) {
     { id: "usuarios", label: "Usuarios y equipo", href: "/admin/usuarios", icon: "users" },
     { id: "calendario", label: "Calendario maestro", href: "/admin/calendario", icon: "calendar" },
     { id: "catalogo", label: "Catálogo y precios", href: "/admin/catalogo", icon: "box" },
+    { id: "servicios", label: "Servicios de agenda", href: "/admin/servicios", icon: "wrench" },
     { id: "registro", label: "Registro de actividad", href: "/admin/registro", icon: "clipboard" },
   ] as const;
 

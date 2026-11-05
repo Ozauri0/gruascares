@@ -18,6 +18,14 @@ import { downloadAreaReport } from "../controllers/reports.controller.js";
 import { getWorkerStats } from "../controllers/stats.controller.js";
 import { discardDraft, getDraft, publishDraft, saveDraft, updateContent, uploadImage } from "../controllers/content.controller.js";
 import { createProduct, deleteProduct, getAdminCatalog, updateProduct } from "../controllers/catalog.controller.js";
+import {
+  createCategory,
+  deleteCategory,
+  getAdminCategories,
+  reorderCategories,
+  updateCategory,
+} from "../controllers/catalog-categories.controller.js";
+import { createService, deleteService, listServices, updateService } from "../controllers/services.controller.js";
 import { createStaffUser, deleteUser, listUsers, updateUser } from "../controllers/admin-users.controller.js";
 import { authenticate, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -32,10 +40,21 @@ router.get("/catalog", catalogAccess, getAdminCatalog);
 router.post("/catalog", catalogAccess, createProduct);
 router.patch("/catalog/:id", catalogAccess, updateProduct);
 router.delete("/catalog/:id", catalogAccess, deleteProduct);
+router.get("/catalog-categories", catalogAccess, getAdminCategories);
 router.post("/uploads", catalogAccess, express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "5mb" }), uploadImage);
 
 // El resto de la administración es solo del admin
 router.use(authorizeRoles("admin"));
+
+// Categorías del catálogo (ADR 025) y servicios de agenda (#195)
+router.post("/catalog-categories", createCategory);
+router.put("/catalog-categories/order", reorderCategories);
+router.patch("/catalog-categories/:id", updateCategory);
+router.delete("/catalog-categories/:id", deleteCategory);
+router.get("/services", listServices);
+router.post("/services", createService);
+router.patch("/services/:id", updateService);
+router.delete("/services/:id", deleteService);
 
 // 1. [T1.8] Métricas y Reportes
 router.get("/metrics", getAdminMetrics);

@@ -1144,3 +1144,14 @@ html[data-theme="dark"] .success-instruction{background:#0f2918;border-color:#1e
 html[data-theme="dark"] .field-warning{background:#332407;border-left-color:#f6c453;color:#fde68a}
 html[data-theme="dark"] .calendar-day.blocked{background:repeating-linear-gradient(45deg,#2d1616,#2d1616 6px,#231212 6px,#231212 12px);border-color:#7f1d1d}
 html[data-theme="dark"] .skeleton{background:linear-gradient(90deg,#202422 25%,#2a302d 50%,#202422 75%);background-size:200% 100%}
+
+/* Admin: categorías del catálogo y servicios de agenda (#195) */
+.service-group{margin:0 0 24px}
+.service-group-title{font-family:"Space Grotesk",sans-serif;font-size:20px;margin:0 0 10px}
+.category-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
+.category-add input{flex:1 1 180px}
+.category-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.category-list li{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.category-actions{display:flex;gap:6px;flex-wrap:wrap}
+.category-reassign{margin-top:14px;padding:12px;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface-2)}
+.category-reassign select{width:100%;margin:8px 0}
