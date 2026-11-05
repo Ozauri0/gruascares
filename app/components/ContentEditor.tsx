@@ -11,7 +11,7 @@ import { useContentPreview } from "./SiteContentProvider";
 import Icon from "./Icon";
 
 /** Páginas públicas que se pueden editar en el sitio. */
-export const EDITABLE_PATHS = ["/", "/catalogo"];
+export const EDITABLE_PATHS = ["/", "/catalogo", "/team-cares"];
 
 type Values = Record<string, string>;
 
