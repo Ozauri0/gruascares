@@ -101,4 +101,37 @@ describe.skipIf(!dbReady)("ventas y admin se saltan el calendario maestro (#161)
     expect((await walkIn(seed.seller, { ignoreBlocks: true })).status).toBe(409);
     expect(slotAt(await call(seed.seller, "GET", `/api/appointments/availability?date=${date}&ignoreBlocks=true`), "10:30")).toMatchObject({ available: false });
   });
+
+  test("ventas y admin pueden consultar disponibilidad y agendar en fechas pasadas; clientes, taller y grúas no (#182)", async () => {
+    const pastDate = "2025-05-15";
+
+    for (const user of [null, seed.clientA, seed.mechanic, seed.crane]) {
+      expect((await call(user, "GET", `/api/appointments/availability?date=${pastDate}`)).status).toBe(400);
+    }
+    for (const user of [seed.clientA, seed.mechanic, seed.crane]) {
+      const res = await call(user, "POST", "/api/appointments", {
+        serviceId: seed.serviceAceite.id,
+        scheduledDate: pastDate,
+        timeSlot: "10:30",
+        location: "Taller Villarrica",
+      });
+      expect(res.status).toBe(400);
+    }
+
+    for (const user of [seed.seller, seed.admin]) {
+      const avail = await call(user, "GET", `/api/appointments/availability?date=${pastDate}`);
+      expect(avail.status).toBe(200);
+      expect(slotAt(avail, "10:30")).toMatchObject({ available: true });
+    }
+
+    const created = await walkIn(seed.seller, { scheduledDate: pastDate });
+    expect(created.status).toBe(201);
+
+    let log: any;
+    for (let i = 0; i < 40 && !log; i++) {
+      [log] = await sql`select details from audit_logs where action = 'APPOINTMENT_CREATE_BY_STAFF'`;
+      if (!log) await new Promise((r) => setTimeout(r, 25));
+    }
+    expect(JSON.parse(log.details)).toMatchObject({ scheduledDate: pastDate, pastDate: true });
+  });
 });

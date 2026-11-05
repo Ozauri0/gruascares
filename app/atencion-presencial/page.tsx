@@ -674,7 +674,7 @@ export default function WalkInPage() {
                       <input
                         required
                         type="date"
-                        min={today || undefined}
+                        min={canCreateClient ? undefined : today || undefined}
                         value={date}
                         onChange={(e) => {
                           setDate(e.target.value);
@@ -708,6 +708,11 @@ export default function WalkInPage() {
                           </button>
                         ))}
                     </div>
+                    {Boolean(date && today && date < today) && (
+                      <p className="field-warning" role="status">
+                        Estás agendando en una fecha pasada ({date}). Como ventas o administración puedes registrarla igualmente; quedará registrado en la actividad.
+                      </p>
+                    )}
                     {slots.find((slot) => slot.time === time)?.blocked && (
                       <p className="field-warning" role="status">
                         Este horario está bloqueado en el calendario maestro ({slots.find((slot) => slot.time === time)?.reason}). Como ventas puedes agendarlo igualmente; quedará registrado.

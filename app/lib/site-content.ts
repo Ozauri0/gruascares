@@ -149,6 +149,8 @@ export const SECTIONS: ContentSection[] = [
       text("footer.phone1", "Teléfono 1", "+56 9 9162 7809"),
       text("footer.phone2", "Teléfono 2", "+56 9 6832 7329"),
       text("footer.phone3", "Teléfono 3 (solo portada)", "+56 9 6857 4677"),
+      text("footer.email1", "Correo 1", "administracion@gruascares.cl"),
+      text("footer.email2", "Correo 2", "contacto@gruascares.cl"),
       text("footer.social.title", "Título de redes (solo portada)", "Síguenos"),
       text("footer.location.title", "Título de ubicación (páginas internas)", "Ubicación"),
       text("footer.bottom1", "Línea inferior 1", "Grúas Cares Villarrica"),
