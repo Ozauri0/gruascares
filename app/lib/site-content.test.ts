@@ -53,3 +53,19 @@ describe("contenido editable del sitio", () => {
     expect(parseRich("un * suelto")).toEqual([{ type: "text", value: "un * suelto" }]);
   });
 });
+
+describe("cambios de varias imágenes seguidas (#187)", () => {
+  test("cada imagen conserva su cambio aunque dos campos terminen con la misma foto", () => {
+    let work: Record<string, string> = {};
+    work = { ...work, "hero.slide1.image": "/images/team-01.webp" };
+    work = { ...work, "hero.slide2.image": "/images/team-01.webp" };
+    expect(resolve(work, "hero.slide1.image")).toBe("/images/team-01.webp");
+    expect(resolve(work, "hero.slide2.image")).toBe("/images/team-01.webp");
+    expect(resolve(work, "hero.slide3.image")).toBe(DEFAULTS["hero.slide3.image"]);
+  });
+
+  test("las diapositivas del hero no usan la ruta de la imagen como key de React", async () => {
+    const page = await Bun.file(new URL("../page.tsx", import.meta.url)).text();
+    expect(page).not.toContain("key={slide.image}");
+  });
+});

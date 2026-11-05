@@ -75,9 +75,9 @@ export default function Home() {
           <div className="hero-actions"><a className="button yellow" href="/agendar">{t("hero.cta")} <span>↗</span></a><a className="text-link" href="/catalogo">{t("hero.link")} <span>↓</span></a></div>
         </div>
         <div className="hero-gallery">
-          {slides.map((slide, index) => <div className={"hero-slide " + (activeSlide === index ? "active" : "")} key={slide.image} style={{ backgroundImage: `url(${slide.image})` }} aria-hidden={activeSlide !== index} />)}
+          {slides.map((slide, index) => <div className={"hero-slide " + (activeSlide === index ? "active" : "")} key={index} style={{ backgroundImage: `url(${slide.image})` }} aria-hidden={activeSlide !== index} />)}
           <div className="hero-gallery-info"><strong>{slides[activeSlide].label}</strong><small>{slides[activeSlide].detail}</small></div>
-          <div className="hero-controls"><button type="button" aria-label="Imagen anterior" onClick={() => setActiveSlide((activeSlide - 1 + slides.length) % slides.length)}>←</button><div className="hero-dots">{slides.map((slide, index) => <button type="button" className={activeSlide === index ? "current" : ""} aria-label={`Ver imagen ${index + 1}`} onClick={() => setActiveSlide(index)} key={slide.image} />)}</div><button type="button" aria-label="Imagen siguiente" onClick={() => setActiveSlide((activeSlide + 1) % slides.length)}>→</button></div>
+          <div className="hero-controls"><button type="button" aria-label="Imagen anterior" onClick={() => setActiveSlide((activeSlide - 1 + slides.length) % slides.length)}>←</button><div className="hero-dots">{slides.map((slide, index) => <button type="button" className={activeSlide === index ? "current" : ""} aria-label={`Ver imagen ${index + 1}`} onClick={() => setActiveSlide(index)} key={index} />)}</div><button type="button" aria-label="Imagen siguiente" onClick={() => setActiveSlide((activeSlide + 1) % slides.length)}>→</button></div>
         </div>
         <div className="hero-meta"><span>{t("hero.meta1")}</span><span>{t("hero.meta2")}</span><span className="scroll">Desliza para explorar ↓</span></div>
       </section>
