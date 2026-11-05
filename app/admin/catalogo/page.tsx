@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import InnerFooter from "../../components/InnerFooter";
 import AdminNav from "../components/AdminNav";
 import AreaNav from "../../components/AreaNav";
@@ -16,10 +16,12 @@ import { useRouter } from "next/navigation";
 import { useAuth, userHasRole } from "../../lib/auth";
 import { useAdminCatalog } from "../../lib/use-catalog";
 import Skeleton from "../../components/Skeleton";
+import CategoriesManager from "../../components/CategoriesManager";
+import { listAdminCategories, type AdminCatalogCategory } from "../../lib/catalog-categories-api";
 
 type ProductForm = { name: string; text: string; category: string; price: string; stock: string; image: string; featured: boolean };
 
-const EMPTY_FORM: ProductForm = { name: "", text: "", category: "MANTENCIÓN", price: "", stock: "", image: "", featured: false };
+const EMPTY_FORM: ProductForm = { name: "", text: "", category: "", price: "", stock: "", image: "", featured: false };
 
 /** Número editable: se guarda al salir del campo (o con Enter), no en cada tecla. */
 function NumberCell({ label, value, onCommit }: { label: string; value: number; onCommit: (value: number) => Promise<void> }) {
@@ -143,6 +145,12 @@ export default function CatalogAdminPage() {
   }
 
   const { products, loading, error, reload, add, patch, remove: removeProduct } = useAdminCatalog();
+  const [categories, setCategories] = useState<AdminCatalogCategory[]>([]);
+  const [manageCategories, setManageCategories] = useState(false);
+  const loadCategories = useCallback(() => {
+    listAdminCategories().then(setCategories).catch(() => setCategories([]));
+  }, []);
+  useEffect(() => loadCategories(), [loadCategories]);
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const shown = filterProducts(products, filters);
   const [modal, setModal] = useState(false);
@@ -194,7 +202,7 @@ export default function CatalogAdminPage() {
       await add({
         name: form.name.trim(),
         description: form.text.trim() === "" ? "Producto del catálogo Grúas Cares." : form.text.trim(),
-        category: form.category.trim() === "" ? "GENERAL" : form.category.trim(),
+        category: form.category || categories[0]?.name || "GENERAL",
         price,
         stock,
         art: "oil", // solo respaldo interno; la tienda siempre muestra la foto
@@ -283,6 +291,7 @@ export default function CatalogAdminPage() {
                 <button type="button" aria-pressed={view === "grid"} className={view === "grid" ? "on" : ""} onClick={() => changeView("grid")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 2h7v7H2zM11 2h7v7h-7zM2 11h7v7H2zM11 11h7v7h-7z" fill="currentColor" /></svg> Cuadrícula</button>
                 <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => changeView("list")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 3h16v4H2zM2 9h16v4H2zM2 15h16v3H2z" fill="currentColor" /></svg> Filas</button>
               </div>
+              {isAdmin && <button type="button" className="toggle-btn" onClick={() => setManageCategories(true)}>Categorías</button>}
               <button type="button" className="portal-add" onClick={() => { setErrors({}); setForm(EMPTY_FORM); setModal(true); }}>
                 + Nuevo producto
               </button>
@@ -381,7 +390,11 @@ export default function CatalogAdminPage() {
               <label>Nombre *<input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Nombre del producto" autoComplete="off" />{errors.name && <small className="field-error">{errors.name}</small>}</label>
               <label>Descripción<textarea rows={2} value={form.text} onChange={(e) => set("text", e.target.value)} placeholder="Descripción breve" /></label>
               <div className="form-row">
-                <label>Categoría<input value={form.category} onChange={(e) => set("category", e.target.value)} placeholder="MANTENCIÓN" autoComplete="off" /></label>
+                <label>Categoría
+                  <select value={form.category || categories[0]?.name || ""} onChange={(e) => set("category", e.target.value)}>
+                    {categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                </label>
 
               </div>
               <ImageUpload value={form.image} onChange={(url) => { set("image", url); setErrors((cur) => ({ ...cur, image: undefined })); }} error={errors.image} />
@@ -399,6 +412,8 @@ export default function CatalogAdminPage() {
           </div>
         </div>
       )}
+
+      {manageCategories && <CategoriesManager onClose={() => setManageCategories(false)} onChanged={() => { loadCategories(); void reload(); }} />}
 
       {imageModal && (
         <div className="modal-overlay" onClick={() => setImageModal(null)}>

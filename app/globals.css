@@ -1160,3 +1160,13 @@ html[data-theme="dark"] .skeleton{background:linear-gradient(90deg,#202422 25%,#
 .ed-cards{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0}
 .ed-cards small{flex-basis:100%;color:var(--text-muted)}
 @media (max-width:900px){.serviteca{grid-template-columns:1fr;gap:36px;padding-bottom:80px}.serviteca-image{height:300px}.catalog-links{margin-top:-30px}}
+/* Admin: categorías del catálogo y servicios de agenda (#195) */
+.service-group{margin:0 0 24px}
+.service-group-title{font-family:"Space Grotesk",sans-serif;font-size:20px;margin:0 0 10px}
+.category-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
+.category-add input{flex:1 1 180px}
+.category-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.category-list li{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.category-actions{display:flex;gap:6px;flex-wrap:wrap}
+.category-reassign{margin-top:14px;padding:12px;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface-2)}
+.category-reassign select{width:100%;margin:8px 0}

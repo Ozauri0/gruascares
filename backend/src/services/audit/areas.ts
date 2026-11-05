@@ -20,7 +20,7 @@ const AREA_MATCHERS: Record<AuditArea, Matcher> = {
   },
   ventas: { prefix: ["CATALOG_"], exact: ["IMAGE_UPLOADED", "WALK_IN_CLIENT_CREATED"] },
   administracion: {
-    prefix: ["DATE_", "DATES_", "TIME_SLOT_", "CONTENT_", "DATA_EXPORT_"],
+    prefix: ["DATE_", "DATES_", "TIME_SLOT_", "CONTENT_", "DATA_EXPORT_", "SERVICE_"],
     exact: ["APPOINTMENT_RESCHEDULED", "APPOINTMENT_REASSIGNED", "USER_CREATED", "USER_ROLE_CHANGED", "USER_ACTIVATED", "USER_DEACTIVATED", "USER_UPDATED", "USER_DELETED"],
   },
   cuentas: {
@@ -82,6 +82,13 @@ const LABELS: Record<string, string> = {
   CATALOG_CREATED: "Creó un producto",
   CATALOG_UPDATED: "Editó un producto",
   CATALOG_DELETED: "Eliminó un producto",
+  CATALOG_CATEGORY_CREATED: "Creó una categoría del catálogo",
+  CATALOG_CATEGORY_UPDATED: "Editó una categoría del catálogo",
+  CATALOG_CATEGORY_REORDERED: "Ordenó las categorías del catálogo",
+  CATALOG_CATEGORY_DELETED: "Eliminó una categoría del catálogo",
+  SERVICE_CREATED: "Creó un servicio",
+  SERVICE_UPDATED: "Editó un servicio",
+  SERVICE_DELETED: "Eliminó un servicio",
   IMAGE_UPLOADED: "Subió una imagen",
   CONTENT_UPDATED: "Editó el contenido de la web",
   CONTENT_DRAFT_SAVED: "Guardó un borrador de la web",
