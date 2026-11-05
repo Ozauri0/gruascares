@@ -45,11 +45,53 @@ const slide = (n: number, label: string, detail: string): ContentField[] => [
   text(`hero.slide${n}.detail`, `Detalle ${n}`, detail),
 ];
 
-const service = (n: number, title: string, body: string, img: string): ContentField[] => [
+const service = (n: number, title: string, body: string, img: string, request = ""): ContentField[] => [
   text(`service${n}.title`, `Servicio ${n}: nombre`, title),
   area(`service${n}.text`, `Servicio ${n}: descripción`, body),
   image(`service${n}.image`, `Servicio ${n}: imagen`, img),
+  text(`service${n}.request`, `Servicio ${n}: nombre en la agenda`, request, "Servicio que se preselecciona al tocar «Solicitar servicio». Las tarjetas añadidas usan su propio nombre mientras no se cambie aquí."),
 ];
+
+/** Máximo de tarjetas de «Lo que hacemos» y cuántas hay por defecto (las originales). */
+export const SERVICES_MAX = 8;
+export const SERVICES_DEFAULT_COUNT = 3;
+export const SERVICES_COUNT_KEY = "services.count";
+const SERVICE_PARTS = ["title", "text", "image", "request"] as const;
+
+/** Tarjetas extra (4 en adelante): empiezan con un texto de ejemplo para que el admin las complete. */
+const extraService = (n: number): ContentField[] =>
+  service(n, `Nuevo servicio ${n}`, `Describe aquí el servicio ${n}.`, `/images/service-servicios.jpg`, `Nuevo servicio ${n}`);
+
+/** Cantidad vigente de tarjetas (entre 1 y SERVICES_MAX; un valor inválido vuelve al original). */
+export function serviceCount(value: string | undefined): number {
+  const n = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(n) && n >= 1 && n <= SERVICES_MAX ? n : SERVICES_DEFAULT_COUNT;
+}
+
+/** Quita la tarjeta `n`: las siguientes suben un lugar y baja la cantidad. Devuelve solo las claves que cambian. */
+export function removeServiceCard(values: Record<string, string>, n: number, defaults: Record<string, string> = DEFAULTS): Record<string, string> {
+  const count = serviceCount(values[SERVICES_COUNT_KEY]);
+  const out: Record<string, string> = { [SERVICES_COUNT_KEY]: String(count - 1) };
+  if (count <= 1 || n < 1 || n > count) return {};
+  for (let i = n; i < count; i++) {
+    for (const part of SERVICE_PARTS) out[`service${i}.${part}`] = values[`service${i + 1}.${part}`] ?? defaults[`service${i + 1}.${part}`] ?? "";
+  }
+  for (const part of SERVICE_PARTS) out[`service${count}.${part}`] = defaults[`service${count}.${part}`] ?? "";
+  return out;
+}
+
+/** Servicio que preselecciona /agendar: la clave propia de la tarjeta o, si está vacía, su título actual. */
+export function serviceRequestName(get: (key: string) => string, n: number): string {
+  const request = get(`service${n}.request`).trim();
+  // El valor de ejemplo de una tarjeta añadida no es un servicio real: se usa su título actual.
+  const isPlaceholder = /^Nuevo servicio \d+$/.test(request);
+  return request && !isPlaceholder ? request : get(`service${n}.title`);
+}
+
+/** Opciones del selector de la portada: servicios de las tarjetas visibles + serviteca, sin repetidos. */
+export function serviceOptions(names: string[], extra = "Serviteca y taller"): string[] {
+  return Array.from(new Set([...names.map((n) => n.trim()).filter(Boolean), extra]));
+}
 
 export const SECTIONS: ContentSection[] = [
   {
@@ -98,9 +140,27 @@ export const SECTIONS: ContentSection[] = [
       rich("services.title", "Título", "Soluciones para\n*seguir avanzando.*"),
       text("services.note", "Nota", "Una flota preparada y un equipo que entiende que tu tiempo también se transporta."),
       text("services.cta", "Enlace de cada tarjeta", "Solicitar servicio"),
-      ...service(1, "Grúa de plataforma hidráulica", "Servicio de grúa para el traslado seguro de vehículos, con atención las 24 horas.", "/images/service-plataforma.jpg"),
-      ...service(2, "Transporte de cargas pesadas", "Soluciones de transporte seguras, eficientes y adaptadas a cada necesidad.", "/images/service-carga.jpg"),
-      ...service(3, "Camiones grúa", "Servicios de camiones grúa con un equipo comprometido con la puntualidad y la calidad.", "/images/service-alcance.jpg"),
+      text(SERVICES_COUNT_KEY, "Cantidad de tarjetas (usa Añadir / Quitar tarjeta)", String(SERVICES_DEFAULT_COUNT), `Entre 1 y ${SERVICES_MAX}.`),
+      ...service(1, "Grúa de plataforma hidráulica", "Servicio de grúa para el traslado seguro de vehículos, con atención las 24 horas.", "/images/service-plataforma.jpg", "Grúa de plataforma hidráulica"),
+      ...service(2, "Transporte de cargas pesadas", "Soluciones de transporte seguras, eficientes y adaptadas a cada necesidad.", "/images/service-carga.jpg", "Transporte de cargas pesadas"),
+      ...service(3, "Camiones grúa", "Servicios de camiones grúa con un equipo comprometido con la puntualidad y la calidad.", "/images/service-alcance.jpg", "Camiones grúa"),
+      ...Array.from({ length: SERVICES_MAX - SERVICES_DEFAULT_COUNT }, (_, i) => extraService(i + SERVICES_DEFAULT_COUNT + 1)).flat(),
+    ],
+  },
+  {
+    id: "serviteca",
+    title: "Serviteca y taller (inicio)",
+    description: "Bloque de la portada sobre la serviteca. Los servicios concretos se gestionan en el sistema de agenda.",
+    fields: [
+      image("serviteca.image", "Imagen", "/images/service-servicios.jpg"),
+      text("serviteca.eyebrow", "Etiqueta superior", "Serviteca y taller"),
+      rich("serviteca.title", "Título", "Mantención para\n*tu vehículo.*"),
+      area("serviteca.text", "Texto", "Además de las grúas, contamos con serviteca y taller: cambio de aceite y filtro, cambio y balanceo de neumáticos, mantenimiento preventivo y revisión de frenos. Agenda tu hora en línea."),
+      text("serviteca.item1", "Servicio 1", "Cambio de aceite y filtro"),
+      text("serviteca.item2", "Servicio 2", "Cambio y balanceo de neumáticos"),
+      text("serviteca.item3", "Servicio 3", "Mantenimiento general preventivo"),
+      text("serviteca.item4", "Servicio 4", "Revisión y cambio de pastillas de freno"),
+      text("serviteca.cta", "Botón", "Agendar hora en la serviteca"),
     ],
   },
   {
@@ -112,6 +172,8 @@ export const SECTIONS: ContentSection[] = [
       rich("catalog.title", "Título", "Una flota\npara cada\n*necesidad.*"),
       area("catalog.text", "Texto", "Conoce los servicios de Grúas Cares y encuentra una solución segura, eficiente y adaptada a tu traslado."),
       text("catalog.button", "Botón", "Ver catálogo completo"),
+      text("catalog.link_grua", "Enlace: grúas y cargas", "Servicios de grúas"),
+      text("catalog.link_serviteca", "Enlace: serviteca", "Serviteca y taller"),
       text("catalog.stat1.value", "Dato 1: valor", "24/7"),
       text("catalog.stat1.label", "Dato 1: texto", "Atención"),
       text("catalog.stat2.value", "Dato 2: valor", "IX"),
@@ -129,6 +191,8 @@ export const SECTIONS: ContentSection[] = [
       area("booking.copy", "Texto", "Déjanos tus datos y te contactaremos para coordinar la mejor solución."),
       text("booking.urgent", "Pregunta de urgencia", "¿Es urgente?"),
       text("booking.urgent_link", "Enlace de urgencia", "Llámanos ahora"),
+      text("booking.submit", "Botón del formulario", "Escribir por WhatsApp"),
+      text("booking.sent_note", "Aviso tras enviar", "Abrimos WhatsApp con tus datos. Si no se abrió, revisa que tu navegador permita ventanas emergentes."),
     ],
   },
   {
@@ -179,6 +243,7 @@ export const SECTIONS: ContentSection[] = [
       area("team.intro2", "Presentación: párrafo 2", "Representamos los valores de esfuerzo, dedicación y trabajo en equipo que nos caracterizan, apoyando tanto a nuestros colaboradores como a la comunidad a través de diversas disciplinas deportivas."),
       area("team.intro3", "Presentación: párrafo 3", "Participamos activamente patrocinando equipos y eventos deportivos, y trabajamos con entusiasmo en la formación de nuestros propios equipos representativos, como una forma de fortalecer el sentido de pertenencia, motivar a nuestros trabajadores y proyectar la identidad de la empresa en el ámbito deportivo."),
       area("team.intro4", "Presentación: párrafo 4", "En Team Cares promovemos un estilo de vida activo, saludable y lleno de pasión, convencidos de que el deporte es una herramienta poderosa para el desarrollo personal y colectivo."),
+      text("team.school.eyebrow", "Escuela: etiqueta superior", "Escuela de fútbol"),
       text("team.school.title", "Escuela: título", "Escuela de Fútbol Deportivo Malalhue"),
       area("team.school.text1", "Escuela: párrafo 1", "Formamos jóvenes a través del deporte desde 2015. Nuestra escuela entrega un espacio seguro, inclusivo y formativo para niños y niñas de Malalhue, promoviendo valores como el compañerismo, el trabajo en equipo y la vida saludable."),
       area("team.school.text2", "Escuela: párrafo 2", "Contamos con cuatro categorías y entrenamientos durante todo el año. En invierno trabajamos en un gimnasio y en verano en el estadio local. Desde 2023 incorporamos la participación femenina en todas nuestras divisiones. Nuestro compromiso es seguir creciendo junto a la comunidad, formando no solo deportistas, sino personas con valores y pasión por lo que hacen."),

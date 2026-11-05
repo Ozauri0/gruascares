@@ -15,6 +15,7 @@ import workerRouter from "./routes/worker.routes.js";
 import craneRouter from "./routes/crane.routes.js";
 import { getPublicContent } from "./controllers/content.controller.js";
 import { getPublicCatalog } from "./controllers/catalog.controller.js";
+import { getPublicCategories } from "./controllers/catalog-categories.controller.js";
 import { createRateLimiters, RATE_LIMITS } from "./middlewares/rate-limit.js";
 import { logAudit } from "./services/audit/audit.service.js";
 import { demoLogin } from "./controllers/auth.controller.js";
@@ -125,6 +126,7 @@ export function createApp(options: AppOptions = {}): Express {
   app.use("/api/vehicles", vehicleRouter);
   app.use("/api/mechanic", mechanicRouter);
   app.get("/api/catalog", limiters.catalog, getPublicCatalog);
+  app.get("/api/catalog/categories", limiters.catalog, getPublicCategories);
   app.get("/api/content", limiters.content, getPublicContent);
   // Imágenes subidas por el administrador (nombres aleatorios e inmutables).
   app.use(

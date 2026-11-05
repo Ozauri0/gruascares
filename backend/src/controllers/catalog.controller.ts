@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { products } from "../db/schema.js";
+import { productCategories, products } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
+import { normalizeCategoryName } from "./catalog-categories.controller.js";
 import { isUuid } from "../utils/validate.js";
 
 const ARTS = ["tyre", "oil", "battery"] as const;
@@ -78,10 +79,9 @@ function parseProduct(body: Record<string, unknown>, mode: "create" | "update"):
     values.stock = stock;
   }
   if (has("category")) {
-    if (typeof body.category !== "string" || body.category.trim().length === 0 || body.category.length > 100) {
-      return { ok: false, message: "La categoría debe ser texto de hasta 100 caracteres" };
-    }
-    values.category = body.category.trim().toUpperCase();
+    const category = normalizeCategoryName(body.category);
+    if (!category) return { ok: false, message: "La categoría debe ser texto de hasta 100 caracteres" };
+    values.category = category; // que exista en product_categories se comprueba en resolveCategory
   }
   if (has("tag")) {
     if (body.tag !== null && (typeof body.tag !== "string" || body.tag.length > 100)) {
@@ -108,6 +108,28 @@ function parseProduct(body: Record<string, unknown>, mode: "create" | "update"):
     }
   }
   return { ok: true, values };
+}
+
+/**
+ * La categoría de un producto debe existir en product_categories (ADR 025). Sin categoría en el alta se usa «GENERAL»
+ * o, si no existe, la primera de la lista. Devuelve el mensaje de error o null.
+ */
+async function resolveCategory(values: Partial<typeof products.$inferInsert>, mode: "create" | "update"): Promise<string | null> {
+  const rows = await db.select({ name: productCategories.name }).from(productCategories).orderBy(asc(productCategories.sortOrder), asc(productCategories.name));
+  if (values.category === undefined) {
+    if (mode === "update") return null;
+    const fallback = rows.find((r) => normalizeCategoryName(r.name) === "GENERAL") ?? rows[0];
+    if (!fallback) return "Crea al menos una categoría antes de agregar productos";
+    values.category = fallback.name;
+    return null;
+  }
+  const wanted = normalizeCategoryName(values.category);
+  const match = rows.find((r) => normalizeCategoryName(r.name) === wanted);
+  if (match) {
+    values.category = match.name;
+    return null;
+  }
+  return "La categoría no existe: elígela de la lista de categorías";
 }
 
 /** GET /api/catalog — público: productos activos (destacados primero). */
@@ -138,6 +160,8 @@ export async function createProduct(req: Request, res: Response) {
   try {
     const parsed = parseProduct(req.body ?? {}, "create");
     if (!parsed.ok) return res.status(400).json({ error: "Bad Request", message: parsed.message });
+    const categoryError = await resolveCategory(parsed.values, "create");
+    if (categoryError) return res.status(400).json({ error: "Bad Request", message: categoryError });
 
     const [created] = await db
       .insert(products)
@@ -163,6 +187,8 @@ export async function updateProduct(req: Request, res: Response) {
     if (Object.keys(parsed.values).length === 0) {
       return res.status(400).json({ error: "Bad Request", message: "Indica al menos un campo a modificar" });
     }
+    const categoryError = await resolveCategory(parsed.values, "update");
+    if (categoryError) return res.status(400).json({ error: "Bad Request", message: categoryError });
 
     const [updated] = await db
       .update(products)
