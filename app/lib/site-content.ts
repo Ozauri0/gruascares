@@ -51,6 +51,34 @@ const service = (n: number, title: string, body: string, img: string): ContentFi
   image(`service${n}.image`, `Servicio ${n}: imagen`, img),
 ];
 
+/** Máximo de tarjetas de «Lo que hacemos» y cuántas hay por defecto (las originales). */
+export const SERVICES_MAX = 8;
+export const SERVICES_DEFAULT_COUNT = 3;
+export const SERVICES_COUNT_KEY = "services.count";
+const SERVICE_PARTS = ["title", "text", "image"] as const;
+
+/** Tarjetas extra (4 en adelante): empiezan con un texto de ejemplo para que el admin las complete. */
+const extraService = (n: number): ContentField[] =>
+  service(n, "Nuevo servicio", "Describe aquí el servicio.", "/images/service-servicios.jpg");
+
+/** Cantidad vigente de tarjetas (entre 1 y SERVICES_MAX; un valor inválido vuelve al original). */
+export function serviceCount(value: string | undefined): number {
+  const n = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(n) && n >= 1 && n <= SERVICES_MAX ? n : SERVICES_DEFAULT_COUNT;
+}
+
+/** Quita la tarjeta `n`: las siguientes suben un lugar y baja la cantidad. Devuelve solo las claves que cambian. */
+export function removeServiceCard(values: Record<string, string>, n: number, defaults: Record<string, string> = DEFAULTS): Record<string, string> {
+  const count = serviceCount(values[SERVICES_COUNT_KEY]);
+  const out: Record<string, string> = { [SERVICES_COUNT_KEY]: String(count - 1) };
+  if (count <= 1 || n < 1 || n > count) return {};
+  for (let i = n; i < count; i++) {
+    for (const part of SERVICE_PARTS) out[`service${i}.${part}`] = values[`service${i + 1}.${part}`] ?? defaults[`service${i + 1}.${part}`] ?? "";
+  }
+  for (const part of SERVICE_PARTS) out[`service${count}.${part}`] = defaults[`service${count}.${part}`] ?? "";
+  return out;
+}
+
 export const SECTIONS: ContentSection[] = [
   {
     id: "general",
@@ -98,9 +126,27 @@ export const SECTIONS: ContentSection[] = [
       rich("services.title", "Título", "Soluciones para\n*seguir avanzando.*"),
       text("services.note", "Nota", "Una flota preparada y un equipo que entiende que tu tiempo también se transporta."),
       text("services.cta", "Enlace de cada tarjeta", "Solicitar servicio"),
+      text(SERVICES_COUNT_KEY, "Cantidad de tarjetas (usa Añadir / Quitar tarjeta)", String(SERVICES_DEFAULT_COUNT), `Entre 1 y ${SERVICES_MAX}.`),
       ...service(1, "Grúa de plataforma hidráulica", "Servicio de grúa para el traslado seguro de vehículos, con atención las 24 horas.", "/images/service-plataforma.jpg"),
       ...service(2, "Transporte de cargas pesadas", "Soluciones de transporte seguras, eficientes y adaptadas a cada necesidad.", "/images/service-carga.jpg"),
       ...service(3, "Camiones grúa", "Servicios de camiones grúa con un equipo comprometido con la puntualidad y la calidad.", "/images/service-alcance.jpg"),
+      ...Array.from({ length: SERVICES_MAX - SERVICES_DEFAULT_COUNT }, (_, i) => extraService(i + SERVICES_DEFAULT_COUNT + 1)).flat(),
+    ],
+  },
+  {
+    id: "serviteca",
+    title: "Serviteca y taller (inicio)",
+    description: "Bloque de la portada sobre la serviteca. Los servicios concretos se gestionan en el sistema de agenda.",
+    fields: [
+      image("serviteca.image", "Imagen", "/images/service-servicios.jpg"),
+      text("serviteca.eyebrow", "Etiqueta superior", "Serviteca y taller"),
+      rich("serviteca.title", "Título", "Mantención para\n*tu vehículo.*"),
+      area("serviteca.text", "Texto", "Además de las grúas, contamos con serviteca y taller: cambio de aceite y filtro, cambio y balanceo de neumáticos, mantenimiento preventivo y revisión de frenos. Agenda tu hora en línea."),
+      text("serviteca.item1", "Servicio 1", "Cambio de aceite y filtro"),
+      text("serviteca.item2", "Servicio 2", "Cambio y balanceo de neumáticos"),
+      text("serviteca.item3", "Servicio 3", "Mantenimiento general preventivo"),
+      text("serviteca.item4", "Servicio 4", "Revisión y cambio de pastillas de freno"),
+      text("serviteca.cta", "Botón", "Agendar hora en la serviteca"),
     ],
   },
   {
@@ -112,6 +158,8 @@ export const SECTIONS: ContentSection[] = [
       rich("catalog.title", "Título", "Una flota\npara cada\n*necesidad.*"),
       area("catalog.text", "Texto", "Conoce los servicios de Grúas Cares y encuentra una solución segura, eficiente y adaptada a tu traslado."),
       text("catalog.button", "Botón", "Ver catálogo completo"),
+      text("catalog.link_grua", "Enlace: grúas y cargas", "Servicios de grúas"),
+      text("catalog.link_serviteca", "Enlace: serviteca", "Serviteca y taller"),
       text("catalog.stat1.value", "Dato 1: valor", "24/7"),
       text("catalog.stat1.label", "Dato 1: texto", "Atención"),
       text("catalog.stat2.value", "Dato 2: valor", "IX"),
@@ -129,6 +177,8 @@ export const SECTIONS: ContentSection[] = [
       area("booking.copy", "Texto", "Déjanos tus datos y te contactaremos para coordinar la mejor solución."),
       text("booking.urgent", "Pregunta de urgencia", "¿Es urgente?"),
       text("booking.urgent_link", "Enlace de urgencia", "Llámanos ahora"),
+      text("booking.submit", "Botón del formulario", "Escribir por WhatsApp"),
+      text("booking.sent_note", "Aviso tras enviar", "Abrimos WhatsApp con tus datos. Si no se abrió, revisa que tu navegador permita ventanas emergentes."),
     ],
   },
   {

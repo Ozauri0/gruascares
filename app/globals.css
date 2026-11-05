@@ -1144,3 +1144,19 @@ html[data-theme="dark"] .success-instruction{background:#0f2918;border-color:#1e
 html[data-theme="dark"] .field-warning{background:#332407;border-left-color:#f6c453;color:#fde68a}
 html[data-theme="dark"] .calendar-day.blocked{background:repeating-linear-gradient(45deg,#2d1616,#2d1616 6px,#231212 6px,#231212 12px);border-color:#7f1d1d}
 html[data-theme="dark"] .skeleton{background:linear-gradient(90deg,#202422 25%,#2a302d 50%,#202422 75%);background-size:200% 100%}
+
+/* Home: bloque de serviteca, enlaces de flota y controles de tarjetas del editor */
+.serviteca{padding:20px 0 120px;display:grid;grid-template-columns:.95fr 1.05fr;gap:80px;align-items:center}
+.serviteca-image{height:480px;background-size:cover;background-position:center;border:1px solid var(--border)}
+.serviteca-copy{max-width:460px}
+.serviteca-copy h2{font:500 clamp(36px,4.4vw,60px)/.98 'Space Grotesk';letter-spacing:-.07em;margin:26px 0 0}
+.serviteca-copy>p{font-size:15px;line-height:1.65;color:var(--text-2);margin:28px 0}
+.serviteca-list{list-style:none;margin:0 0 34px;padding:0;display:grid;gap:10px}
+.serviteca-list li{font-size:14px;color:var(--text);padding:10px 0;border-bottom:1px solid var(--border)}
+.serviteca-list li:before{content:'→';color:var(--accent-text);margin-right:12px;font-weight:700}
+.serviteca-copy .button.dark{margin-bottom:0}
+.catalog-links{display:flex;flex-wrap:wrap;gap:12px 26px;margin:-22px 0 34px}
+.catalog-links a{font-size:12px;font-weight:700;border-bottom:1px solid var(--text);padding-bottom:5px}
+.ed-cards{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0}
+.ed-cards small{flex-basis:100%;color:var(--text-muted)}
+@media (max-width:900px){.serviteca{grid-template-columns:1fr;gap:36px;padding-bottom:80px}.serviteca-image{height:300px}.catalog-links{margin-top:-30px}}

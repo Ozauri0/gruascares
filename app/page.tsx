@@ -6,28 +6,31 @@ import NavUser from "./components/NavUser";
 import SocialLinks from "./components/SocialLinks";
 import { useSiteContent } from "./components/SiteContentProvider";
 import { RichText } from "./components/RichText";
-import { DEFAULTS, telHref } from "./lib/site-content";
+import { DEFAULTS, SERVICES_COUNT_KEY, serviceCount, telHref } from "./lib/site-content";
+import { contactMessage, cuentaWhatsappUrl } from "./lib/whatsapp";
 import Icon from "./components/Icon";
 import ThemeToggle from "./components/ThemeToggle";
 
 const SLIDE_NUMBERS = [1, 2, 3, 4];
-const SERVICE_NUMBERS = [1, 2, 3];
+const SERVITECA_ITEMS = [1, 2, 3, 4];
 
 export default function Home() {
   const t = useSiteContent();
   const logo = t("site.logo.image");
   const slides = SLIDE_NUMBERS.map((n) => ({ image: t(`hero.slide${n}.image`), label: t(`hero.slide${n}.label`), detail: t(`hero.slide${n}.detail`) }));
-  const services = SERVICE_NUMBERS.map((n) => ({
+  const serviceNumbers = Array.from({ length: serviceCount(t(SERVICES_COUNT_KEY)) }, (_, i) => i + 1);
+  const services = serviceNumbers.map((n) => ({
     number: String(n).padStart(2, "0"),
     title: t(`service${n}.title`),
     text: t(`service${n}.text`),
     image: t(`service${n}.image`),
     // La preselección en /agendar usa el nombre original del servicio, aunque se edite el título mostrado.
-    requestName: DEFAULTS[`service${n}.title`],
+    // Las tarjetas añadidas por el admin no tienen un servicio original: usan su propio título.
+    requestName: DEFAULTS[`service${n}.title`] === undefined || n > 3 ? t(`service${n}.title`) : DEFAULTS[`service${n}.title`],
   }));
   const [menuOpen, setMenuOpen] = useState(false);
   const [sent, setSent] = useState(false);
-  const [service, setService] = useState("Rescate vehicular");
+  const [service, setService] = useState("Grúa de plataforma hidráulica");
   const [activeSlide, setActiveSlide] = useState(0);
   const [showHomeButton, setShowHomeButton] = useState(false);
 
@@ -43,8 +46,17 @@ export default function Home() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Sin endpoint: abre WhatsApp con los datos ya escritos para que el cliente solo envíe el mensaje.
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const message = contactMessage({
+      name: String(form.get("name") ?? ""),
+      phone: String(form.get("phone") ?? ""),
+      service,
+      details: String(form.get("details") ?? ""),
+    });
+    window.open(cuentaWhatsappUrl(message), "_blank", "noopener,noreferrer");
     setSent(true);
   }
 
@@ -92,9 +104,11 @@ export default function Home() {
         <div className="service-grid">{services.map((item) => <article className="service-card" key={item.number}><div className="service-image" style={{ backgroundImage: `url(${item.image})` }}><span>{item.number}</span></div><div className="service-info"><h3>{item.title}</h3><p>{item.text}</p><a href={`/agendar?servicio=${encodeURIComponent(item.requestName)}`} onClick={() => setService(item.requestName)}>{t("services.cta")} <span>↗</span></a></div></article>)}</div>
       </div></section>
 
-      <section className="catalog wrap" id="catalogo"><div className="catalog-image" style={{ backgroundImage: `url(${t("catalog.image")})` }}><div className="catalog-label">Flota<br /><strong>Cares</strong></div></div><div className="catalog-copy"><p className="eyebrow">{t("catalog.eyebrow")}</p><h2><RichText value={t("catalog.title")} /></h2><p>{t("catalog.text")}</p><a className="button dark" href="/catalogo">{t("catalog.button")} <span>↗</span></a><div className="stats">{[1, 2, 3].map((n) => <div key={n}><strong>{t(`catalog.stat${n}.value`)}</strong><span>{t(`catalog.stat${n}.label`)}</span></div>)}</div></div></section>
+      <section className="serviteca wrap" id="serviteca"><div className="serviteca-image" style={{ backgroundImage: `url(${t("serviteca.image")})` }} /><div className="serviteca-copy"><p className="eyebrow">{t("serviteca.eyebrow")}</p><h2><RichText value={t("serviteca.title")} /></h2><p>{t("serviteca.text")}</p><ul className="serviteca-list">{SERVITECA_ITEMS.map((n) => <li key={n}>{t(`serviteca.item${n}`)}</li>)}</ul><a className="button dark" href="/agendar">{t("serviteca.cta")} <span>↗</span></a></div></section>
 
-      <section className="booking" id="agenda"><div className="wrap booking-layout"><div><p className="eyebrow light">{t("booking.eyebrow")}</p><h2><RichText value={t("booking.title")} /></h2><p className="booking-copy">{t("booking.copy")}</p><div className="contact-line"><span>{t("booking.urgent")}</span><a href="tel:+56991627809">{t("booking.urgent_link")} ↗</a></div></div><form onSubmit={submit}>{sent ? <div className="success"><span><Icon name="check" bare /></span><h3>Solicitud recibida</h3><p>Te contactaremos a la brevedad para coordinar tu servicio.</p><button type="button" className="button yellow" onClick={() => setSent(false)}>Enviar otra solicitud</button></div> : <><div className="form-row"><label>Nombre completo<input required autoComplete="name" placeholder="Tu nombre" /></label><label>Teléfono<input required type="tel" autoComplete="tel" placeholder="+56 9 ..." /></label></div><label>¿Qué necesitas?<select value={service} onChange={(e) => setService(e.target.value)}><option>Grúa de plataforma hidráulica</option><option>Transporte de cargas pesadas</option><option>Camiones grúa</option></select></label><label>Cuéntanos brevemente<textarea placeholder="Lugar, fecha y detalles del servicio" rows={3} /></label><button className="button yellow" type="submit">Solicitar contacto <span>↗</span></button></>}</form></div></section>
+      <section className="catalog wrap" id="catalogo"><div className="catalog-image" style={{ backgroundImage: `url(${t("catalog.image")})` }}><div className="catalog-label">Flota<br /><strong>Cares</strong></div></div><div className="catalog-copy"><p className="eyebrow">{t("catalog.eyebrow")}</p><h2><RichText value={t("catalog.title")} /></h2><p>{t("catalog.text")}</p><a className="button dark" href="/catalogo">{t("catalog.button")} <span>↗</span></a><p className="catalog-links"><a href="#servicios">{t("catalog.link_grua")} ↓</a><a href="#serviteca">{t("catalog.link_serviteca")} ↓</a></p><div className="stats">{[1, 2, 3].map((n) => <div key={n}><strong>{t(`catalog.stat${n}.value`)}</strong><span>{t(`catalog.stat${n}.label`)}</span></div>)}</div></div></section>
+
+      <section className="booking" id="agenda"><div className="wrap booking-layout"><div><p className="eyebrow light">{t("booking.eyebrow")}</p><h2><RichText value={t("booking.title")} /></h2><p className="booking-copy">{t("booking.copy")}</p><div className="contact-line"><span>{t("booking.urgent")}</span><a href="tel:+56991627809">{t("booking.urgent_link")} ↗</a></div></div><form onSubmit={submit}>{sent ? <div className="success"><span><Icon name="check" bare /></span><h3>Mensaje listo en WhatsApp</h3><p>{t("booking.sent_note")}</p><button type="button" className="button yellow" onClick={() => setSent(false)}>Escribir otro mensaje</button></div> : <><div className="form-row"><label>Nombre completo<input name="name" required autoComplete="name" placeholder="Tu nombre" /></label><label>Teléfono<input name="phone" required type="tel" autoComplete="tel" placeholder="+56 9 ..." /></label></div><label>¿Qué necesitas?<select value={service} onChange={(e) => setService(e.target.value)}><option>Grúa de plataforma hidráulica</option><option>Transporte de cargas pesadas</option><option>Camiones grúa</option><option>Serviteca y taller</option></select></label><label>Cuéntanos brevemente<textarea name="details" placeholder="Lugar, fecha y detalles del servicio" rows={3} /></label><button className="button yellow" type="submit">{t("booking.submit")} <span>↗</span></button></>}</form></div></section>
 
       <section className="map-section" id="ubicacion" aria-label="Ubicación de Grúas Cares">
         <div className="wrap map-head">

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ALL_FIELDS, DEFAULTS, GALLERY_IMAGES, SECTIONS, resolve } from "./site-content";
+import { ALL_FIELDS, DEFAULTS, GALLERY_IMAGES, SECTIONS, SERVICES_COUNT_KEY, removeServiceCard, resolve, serviceCount } from "./site-content";
 import { parseRich } from "./rich-text";
 
 describe("contenido editable del sitio", () => {
@@ -51,5 +51,25 @@ describe("contenido editable del sitio", () => {
       { type: "em", value: "x" },
     ]);
     expect(parseRich("un * suelto")).toEqual([{ type: "text", value: "un * suelto" }]);
+  });
+});
+
+describe("tarjetas de servicios dinámicas", () => {
+  test("serviceCount usa 3 si no hay valor o es inválido", () => {
+    expect(serviceCount(undefined)).toBe(3);
+    expect(serviceCount("0")).toBe(3);
+    expect(serviceCount("99")).toBe(3);
+    expect(serviceCount("5")).toBe(5);
+  });
+  test("removeServiceCard sube las siguientes y baja la cantidad", () => {
+    const values = { [SERVICES_COUNT_KEY]: "4", "service2.title": "B", "service3.title": "C", "service4.title": "D" };
+    const out = removeServiceCard(values, 2);
+    expect(out[SERVICES_COUNT_KEY]).toBe("3");
+    expect(out["service2.title"]).toBe("C");
+    expect(out["service3.title"]).toBe("D");
+    expect(out["service4.title"]).toBe(DEFAULTS["service4.title"]);
+  });
+  test("no quita la única tarjeta", () => {
+    expect(removeServiceCard({ [SERVICES_COUNT_KEY]: "1" }, 1)).toEqual({});
   });
 });
