@@ -15,7 +15,7 @@ import {
   type ServiceCategory,
 } from "../../lib/services-api";
 
-type Form = { id: string | null; category: ServiceCategory; name: string; description: string; basePrice: string; duration: string; isActive: boolean };
+type Form = { id: string | null; locked?: boolean; category: ServiceCategory; name: string; description: string; basePrice: string; duration: string; isActive: boolean };
 const EMPTY: Form = { id: null, category: "serviteca", name: "", description: "", basePrice: "", duration: "60", isActive: true };
 
 export default function ServicesAdminPage() {
@@ -47,6 +47,7 @@ export default function ServicesAdminPage() {
     setFormError("");
     setForm({
       id: service.id,
+      locked: service.appointmentCount > 0,
       category: service.category,
       name: service.name,
       description: service.description ?? "",
@@ -199,10 +200,11 @@ export default function ServicesAdminPage() {
             </div>
             <form onSubmit={submit} noValidate>
               <label>Categoría *
-                <select value={form.category} onChange={(e) => set("category", e.target.value as ServiceCategory)}>
+                <select value={form.category} disabled={form.locked} onChange={(e) => set("category", e.target.value as ServiceCategory)}>
                   <option value="serviteca">{SERVICE_CATEGORY_LABEL.serviteca}</option>
                   <option value="grua">{SERVICE_CATEGORY_LABEL.grua}</option>
                 </select>
+                {form.locked && <small className="cf-hint">Tiene citas: no se puede cambiar de área. Crea un servicio nuevo y desactiva este.</small>}
               </label>
               <label>Nombre *<input value={form.name} onChange={(e) => set("name", e.target.value)} autoComplete="off" maxLength={255} /></label>
               <label>Descripción<textarea rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} maxLength={1000} /></label>

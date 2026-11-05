@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { sql as rawSql } from "../src/db/connection.js";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { cookieFor, dbReady, futureDate, resetDb, seedBasics, type Seed } from "./db.js";
 import { startServer, type TestServer } from "./helpers.js";
@@ -59,6 +61,25 @@ describe.skipIf(!dbReady)("#195: servicios y categorías del catálogo", () => {
       expect((await call(seed.admin, "PATCH", "/api/admin/services/no-uuid", { name: "Algo" })).status).toBe(400);
       expect((await call(seed.admin, "PATCH", `/api/admin/services/${seed.serviceGrua.id}`, {})).status).toBe(400);
       expect((await call(seed.admin, "PATCH", "/api/admin/services/123e4567-e89b-42d3-a456-426614174000", { name: "Algo" })).status).toBe(404);
+    });
+
+    test("el alta exige precio y duración (400, no 500)", async () => {
+      const { basePrice: _p, ...sinPrecio } = svc;
+      const { estimatedDurationMin: _d, ...sinDuracion } = svc;
+      for (const bad of [sinPrecio, sinDuracion]) {
+        const res = await call(seed.admin, "POST", "/api/admin/services", bad);
+        expect(res.status).toBe(400);
+        expect((await res.json()).message).toMatch(/obligatorio/);
+      }
+    });
+
+    test("con citas no se cambia el área (serviteca/grúa); sin citas sí", async () => {
+      await call(seed.clientA, "POST", "/api/appointments", { serviceId: seed.serviceAceite.id, vehicleId: seed.vehicleA.id, scheduledDate: futureDate(), timeSlot: "10:30" });
+      const blocked = await call(seed.admin, "PATCH", `/api/admin/services/${seed.serviceAceite.id}`, { category: "grua" });
+      expect(blocked.status).toBe(409);
+      expect((await blocked.json()).message).toContain("crea un servicio nuevo");
+      expect((await call(seed.admin, "PATCH", `/api/admin/services/${seed.serviceAceite.id}`, { category: "serviteca", name: "Aceite 2" })).status).toBe(200);
+      expect((await call(seed.admin, "PATCH", `/api/admin/services/${seed.serviceGrua.id}`, { category: "serviteca" })).status).toBe(200);
     });
 
     test("un servicio inactivo no sale en /agendar pero sigue en el admin; reactivar lo devuelve", async () => {
@@ -146,6 +167,30 @@ describe.skipIf(!dbReady)("#195: servicios y categorías del catálogo", () => {
       await call(seed.admin, "PATCH", `/api/admin/catalog-categories/${lub.id}`, { name: "Aceites" });
       const after = (await (await call(seed.admin, "GET", "/api/admin/catalog")).json()).products;
       expect(after.find((p: { id: string }) => p.id === created.id).category).toBe("ACEITES");
+    });
+
+    test("GENERAL no se puede eliminar", async () => {
+      const cats = (await (await call(seed.admin, "GET", "/api/admin/catalog-categories")).json()).categories as { id: string; name: string }[];
+      const general = cats.find((c) => c.name === "GENERAL")!;
+      const res = await call(seed.admin, "DELETE", `/api/admin/catalog-categories/${general.id}`);
+      expect(res.status).toBe(409);
+      expect((await res.json()).message).toContain("GENERAL");
+    });
+
+    test("la migración 0020 normaliza categorías sucias de productos (casing, espacios, vacías)", async () => {
+      await rawSql.unsafe("truncate table product_categories, products restart identity cascade");
+      const dirty = ["lubricantes", "  Lubricantes ", "TOP   ventas", "", "   ", "General"];
+      for (const [i, category] of dirty.entries()) {
+        await rawSql.unsafe(`insert into products (name, description, price, stock, art, category) values ($1, 'x', 1, 1, 'oil', $2)`, [`P${i}`, category]);
+      }
+      const file = readFileSync(new URL("../drizzle/0020_categorias_catalogo.sql", import.meta.url), "utf8");
+      const data = file.split("--> statement-breakpoint").map((x) => x.trim()).filter((x) => /(^|\n)(UPDATE|INSERT) /.test(x));
+      expect(data.length).toBe(3);
+      for (const statement of data) await rawSql.unsafe(statement);
+      const cats = (await rawSql.unsafe("select name from product_categories order by sort_order")) as { name: string }[];
+      expect(cats.map((c) => c.name).sort()).toEqual(["GENERAL", "LUBRICANTES", "TOP VENTAS"]);
+      const prods = (await rawSql.unsafe("select distinct category from products")) as { category: string }[];
+      expect(prods.map((p) => p.category).sort()).toEqual(["GENERAL", "LUBRICANTES", "TOP VENTAS"]);
     });
 
     test("quitar una categoría con productos se impide salvo que se reasigne", async () => {

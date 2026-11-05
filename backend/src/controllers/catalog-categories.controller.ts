@@ -16,6 +16,10 @@ export function normalizeCategoryName(value: unknown): string | null {
   return name.length >= 2 && name.length <= NAME_MAX ? name : null;
 }
 
+const GENERAL = "GENERAL";
+/** Mismo criterio que normalizeCategoryName, en SQL, para comparar con categorías de productos con casing o espacios distintos. */
+const normalizedProductCategory = sql`upper(regexp_replace(btrim(${products.category}), '[[:space:]]+', ' ', 'g'))`;
+
 const NAME_ERROR = `El nombre de la categoría debe tener entre 2 y ${NAME_MAX} caracteres`;
 
 /** Categorías con cuántos productos tiene cada una, en el orden de la tienda. */
@@ -25,7 +29,7 @@ async function listWithCounts() {
       id: productCategories.id,
       name: productCategories.name,
       sortOrder: productCategories.sortOrder,
-      productCount: sql<number>`(select count(*)::int from "products" where "products"."category" = "product_categories"."name")`,
+      productCount: sql<number>`(select count(*)::int from "products" where upper(regexp_replace(btrim("products"."category"), '[[:space:]]+', ' ', 'g')) = "product_categories"."name")`,
     })
     .from(productCategories)
     .orderBy(...categoryOrder);
@@ -98,7 +102,7 @@ export async function updateCategory(req: Request, res: Response) {
         .where(eq(productCategories.id, id))
         .returning();
       if (name !== undefined && name !== current.name) {
-        await tx.update(products).set({ category: name, updatedAt: new Date() }).where(eq(products.category, current.name));
+        await tx.update(products).set({ category: name, updatedAt: new Date() }).where(sql`${normalizedProductCategory} = ${current.name}`);
       }
       return { row, previous: current.name };
     });
@@ -149,19 +153,23 @@ export async function deleteCategory(req: Request, res: Response) {
     const result = await db.transaction(async (tx) => {
       const [current] = await tx.select().from(productCategories).where(eq(productCategories.id, id));
       if (!current) return { status: 404 as const };
-      const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` }).from(products).where(eq(products.category, current.name));
+      if (current.name === GENERAL) return { status: "general" as const };
+      const [{ count }] = await tx.select({ count: sql<number>`count(*)::int` }).from(products).where(sql`${normalizedProductCategory} = ${current.name}`);
       let moved = 0;
       if (count > 0) {
         if (!reassignTo) return { status: 409 as const, count };
         const [target] = await tx.select().from(productCategories).where(eq(productCategories.id, reassignTo as string));
         if (!target) return { status: 422 as const };
-        await tx.update(products).set({ category: target.name, updatedAt: new Date() }).where(eq(products.category, current.name));
+        await tx.update(products).set({ category: target.name, updatedAt: new Date() }).where(sql`${normalizedProductCategory} = ${current.name}`);
         moved = count;
       }
       await tx.delete(productCategories).where(eq(productCategories.id, id));
       return { status: 200 as const, name: current.name, moved };
     });
     if (result.status === 404) return fail(res, 404, "Not Found", "La categoría solicitada no existe");
+    if (result.status === "general") {
+      return fail(res, 409, "Conflict", "«GENERAL» es la categoría de respaldo de los productos y no se puede eliminar");
+    }
     if (result.status === 422) return fail(res, 422, "Unprocessable Entity", "La categoría de destino no existe");
     if (result.status === 409) {
       return fail(res, 409, "Conflict", `La categoría tiene ${result.count} producto(s): reasígnalos a otra categoría para poder quitarla`);

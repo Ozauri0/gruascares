@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { services } from "../db/schema.js";
+import { appointments, services } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { isUuid } from "../utils/validate.js";
 
@@ -34,6 +34,11 @@ function parseService(body: Record<string, unknown>, mode: "create" | "update"):
       return { ok: false, message: "La descripción debe ser texto de hasta 1000 caracteres o null" };
     }
     values.description = typeof body.description === "string" && body.description.trim() ? body.description.trim() : null;
+  }
+  if (mode === "create") {
+    for (const [key, label] of [["basePrice", "El precio base"], ["estimatedDurationMin", "La duración estimada"]] as const) {
+      if (body[key] === undefined) return { ok: false, message: `${label} es obligatorio (${key})` };
+    }
   }
   if (has("basePrice")) {
     const price = body.basePrice;
@@ -109,6 +114,12 @@ export async function updateService(req: Request, res: Response) {
   try {
     const [current] = await db.select().from(services).where(eq(services.id, id));
     if (!current) return fail(res, 404, "Not Found", "El servicio solicitado no existe");
+    if (parsed.values.category !== undefined && parsed.values.category !== current.category) {
+      const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(appointments).where(eq(appointments.serviceId, id));
+      if (count > 0) {
+        return fail(res, 409, "Conflict", "El servicio tiene citas y no se puede cambiar su área (serviteca/grúa): crea un servicio nuevo y desactiva este");
+      }
+    }
     const category = parsed.values.category ?? current.category;
     const name = parsed.values.name ?? current.name;
     if (parsed.values.category !== undefined || parsed.values.name !== undefined) {

@@ -118,12 +118,18 @@ async function resolveCategory(values: Partial<typeof products.$inferInsert>, mo
   const rows = await db.select({ name: productCategories.name }).from(productCategories).orderBy(asc(productCategories.sortOrder), asc(productCategories.name));
   if (values.category === undefined) {
     if (mode === "update") return null;
-    const fallback = rows.find((r) => r.name === "GENERAL") ?? rows[0];
+    const fallback = rows.find((r) => normalizeCategoryName(r.name) === "GENERAL") ?? rows[0];
     if (!fallback) return "Crea al menos una categoría antes de agregar productos";
     values.category = fallback.name;
     return null;
   }
-  return rows.some((r) => r.name === values.category) ? null : "La categoría no existe: elígela de la lista de categorías";
+  const wanted = normalizeCategoryName(values.category);
+  const match = rows.find((r) => normalizeCategoryName(r.name) === wanted);
+  if (match) {
+    values.category = match.name;
+    return null;
+  }
+  return "La categoría no existe: elígela de la lista de categorías";
 }
 
 /** GET /api/catalog — público: productos activos (destacados primero). */
