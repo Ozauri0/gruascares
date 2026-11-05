@@ -2,8 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { cuentaWhatsappUrl } from "../lib/whatsapp";
 
-const PHONE = "56991627809";
 const DEFAULT_MESSAGE = "Hola, necesito coordinar un servicio de grúa o serviteca";
 
 function messageForPath(pathname: string | null): string {
@@ -17,11 +17,7 @@ function messageForPath(pathname: string | null): string {
 
 export default function WhatsAppButton({ message }: { message?: string }) {
   const pathname = usePathname();
-  const text = useMemo(
-    () => encodeURIComponent(message ?? messageForPath(pathname)),
-    [message, pathname]
-  );
-  const href = `https://wa.me/${PHONE}?text=${text}`;
+  const href = useMemo(() => cuentaWhatsappUrl(message ?? messageForPath(pathname)), [message, pathname]);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
