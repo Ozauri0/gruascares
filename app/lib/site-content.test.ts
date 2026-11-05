@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ALL_FIELDS, DEFAULTS, GALLERY_IMAGES, SECTIONS, SERVICES_COUNT_KEY, removeServiceCard, resolve, serviceCount } from "./site-content";
+import { ALL_FIELDS, DEFAULTS, GALLERY_IMAGES, SECTIONS, SERVICES_COUNT_KEY, removeServiceCard, resolve, serviceCount, serviceOptions, serviceRequestName } from "./site-content";
 import { parseRich } from "./rich-text";
 
 describe("contenido editable del sitio", () => {
@@ -71,5 +71,27 @@ describe("tarjetas de servicios dinámicas", () => {
   });
   test("no quita la única tarjeta", () => {
     expect(removeServiceCard({ [SERVICES_COUNT_KEY]: "1" }, 1)).toEqual({});
+  });
+});
+
+describe("servicio solicitado por tarjeta", () => {
+  const get = (v: Record<string, string>) => (k: string) => v[k] ?? DEFAULTS[k] ?? "";
+  test("las tarjetas 1-3 conservan su nombre original y las extras usan su título", () => {
+    expect(serviceRequestName(get({}), 2)).toBe("Transporte de cargas pesadas");
+    expect(serviceRequestName(get({ "service5.title": "Rescate" }), 5)).toBe("Rescate");
+  });
+  test("al quitar una tarjeta, el servicio solicitado se mueve con ella", () => {
+    const values = { [SERVICES_COUNT_KEY]: "3" };
+    const out = { ...values, ...removeServiceCard(values, 1) };
+    expect(serviceRequestName(get(out), 1)).toBe("Transporte de cargas pesadas");
+    expect(serviceRequestName(get(out), 2)).toBe("Camiones grúa");
+  });
+  test("los valores por defecto de las tarjetas extra son únicos", () => {
+    const extras = [4, 5, 6, 7, 8];
+    for (const part of ["title", "text"]) expect(new Set(extras.map((n) => DEFAULTS[`service${n}.${part}`])).size).toBe(extras.length);
+  });
+  test("serviceOptions no repite y añade serviteca", () => {
+    expect(serviceOptions(["A", "B", "A", " "])).toEqual(["A", "B", "Serviteca y taller"]);
+    expect(serviceOptions(["Serviteca y taller"])).toEqual(["Serviteca y taller"]);
   });
 });

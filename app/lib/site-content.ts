@@ -45,21 +45,22 @@ const slide = (n: number, label: string, detail: string): ContentField[] => [
   text(`hero.slide${n}.detail`, `Detalle ${n}`, detail),
 ];
 
-const service = (n: number, title: string, body: string, img: string): ContentField[] => [
+const service = (n: number, title: string, body: string, img: string, request = ""): ContentField[] => [
   text(`service${n}.title`, `Servicio ${n}: nombre`, title),
   area(`service${n}.text`, `Servicio ${n}: descripción`, body),
   image(`service${n}.image`, `Servicio ${n}: imagen`, img),
+  text(`service${n}.request`, `Servicio ${n}: nombre en la agenda`, request, "Servicio que se preselecciona al tocar «Solicitar servicio». Las tarjetas añadidas usan su propio nombre mientras no se cambie aquí."),
 ];
 
 /** Máximo de tarjetas de «Lo que hacemos» y cuántas hay por defecto (las originales). */
 export const SERVICES_MAX = 8;
 export const SERVICES_DEFAULT_COUNT = 3;
 export const SERVICES_COUNT_KEY = "services.count";
-const SERVICE_PARTS = ["title", "text", "image"] as const;
+const SERVICE_PARTS = ["title", "text", "image", "request"] as const;
 
 /** Tarjetas extra (4 en adelante): empiezan con un texto de ejemplo para que el admin las complete. */
 const extraService = (n: number): ContentField[] =>
-  service(n, "Nuevo servicio", "Describe aquí el servicio.", "/images/service-servicios.jpg");
+  service(n, `Nuevo servicio ${n}`, `Describe aquí el servicio ${n}.`, `/images/service-servicios.jpg`, `Nuevo servicio ${n}`);
 
 /** Cantidad vigente de tarjetas (entre 1 y SERVICES_MAX; un valor inválido vuelve al original). */
 export function serviceCount(value: string | undefined): number {
@@ -77,6 +78,19 @@ export function removeServiceCard(values: Record<string, string>, n: number, def
   }
   for (const part of SERVICE_PARTS) out[`service${count}.${part}`] = defaults[`service${count}.${part}`] ?? "";
   return out;
+}
+
+/** Servicio que preselecciona /agendar: la clave propia de la tarjeta o, si está vacía, su título actual. */
+export function serviceRequestName(get: (key: string) => string, n: number): string {
+  const request = get(`service${n}.request`).trim();
+  // El valor de ejemplo de una tarjeta añadida no es un servicio real: se usa su título actual.
+  const isPlaceholder = /^Nuevo servicio \d+$/.test(request);
+  return request && !isPlaceholder ? request : get(`service${n}.title`);
+}
+
+/** Opciones del selector de la portada: servicios de las tarjetas visibles + serviteca, sin repetidos. */
+export function serviceOptions(names: string[], extra = "Serviteca y taller"): string[] {
+  return Array.from(new Set([...names.map((n) => n.trim()).filter(Boolean), extra]));
 }
 
 export const SECTIONS: ContentSection[] = [
@@ -127,9 +141,9 @@ export const SECTIONS: ContentSection[] = [
       text("services.note", "Nota", "Una flota preparada y un equipo que entiende que tu tiempo también se transporta."),
       text("services.cta", "Enlace de cada tarjeta", "Solicitar servicio"),
       text(SERVICES_COUNT_KEY, "Cantidad de tarjetas (usa Añadir / Quitar tarjeta)", String(SERVICES_DEFAULT_COUNT), `Entre 1 y ${SERVICES_MAX}.`),
-      ...service(1, "Grúa de plataforma hidráulica", "Servicio de grúa para el traslado seguro de vehículos, con atención las 24 horas.", "/images/service-plataforma.jpg"),
-      ...service(2, "Transporte de cargas pesadas", "Soluciones de transporte seguras, eficientes y adaptadas a cada necesidad.", "/images/service-carga.jpg"),
-      ...service(3, "Camiones grúa", "Servicios de camiones grúa con un equipo comprometido con la puntualidad y la calidad.", "/images/service-alcance.jpg"),
+      ...service(1, "Grúa de plataforma hidráulica", "Servicio de grúa para el traslado seguro de vehículos, con atención las 24 horas.", "/images/service-plataforma.jpg", "Grúa de plataforma hidráulica"),
+      ...service(2, "Transporte de cargas pesadas", "Soluciones de transporte seguras, eficientes y adaptadas a cada necesidad.", "/images/service-carga.jpg", "Transporte de cargas pesadas"),
+      ...service(3, "Camiones grúa", "Servicios de camiones grúa con un equipo comprometido con la puntualidad y la calidad.", "/images/service-alcance.jpg", "Camiones grúa"),
       ...Array.from({ length: SERVICES_MAX - SERVICES_DEFAULT_COUNT }, (_, i) => extraService(i + SERVICES_DEFAULT_COUNT + 1)).flat(),
     ],
   },
