@@ -134,6 +134,7 @@ export default function RegisterPage() {
                     </label>
                   </div>
                   {errors.form && <small className="field-error" role="alert">{errors.form}</small>}
+                  <p className="verify-hint">Al crear tu cuenta aceptas nuestros <a href="/terminos">Términos de uso y Política de privacidad</a>.</p>
                   <button className="button" type="submit" disabled={busy}>{busy ? "Creando cuenta…" : <>Crear cuenta <span>↗</span></>}</button>
                 </form>
                 <p className="auth-note">¿Ya tienes cuenta? <a href="/login">Inicia sesión</a></p>
