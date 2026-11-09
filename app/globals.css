@@ -1218,4 +1218,4 @@ html[data-theme="dark"] .brand img{filter:drop-shadow(0 0 1px rgba(255,255,255,.
 @media(max-width:760px){.footer-main .brand-serviteca img,.inner-footer .brand-serviteca img{height:30px}.footer-main>.brand-group,.inner-footer-grid>.brand-group{grid-column:1/-1}}
 .inner-footer-grid>.brand-group{display:flex;align-items:center;gap:16px;align-self:start}
 .footer-main>.brand-group,.inner-footer-grid>.brand-group{align-self:start}
-html[data-theme="dark"] .brand-serviteca img{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 2.5px rgba(255,255,255,.9)) drop-shadow(0 0 9px rgba(255,255,255,.45))}
+html[data-theme="dark"] .brand-serviteca img{filter:drop-shadow(0 0 1px rgba(255,255,255,.85)) drop-shadow(0 0 5px rgba(255,255,255,.3))}
