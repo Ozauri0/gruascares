@@ -1147,7 +1147,7 @@ html[data-theme="dark"] .skeleton{background:linear-gradient(90deg,#202422 25%,#
 
 /* Home: bloque de serviteca, enlaces de flota y controles de tarjetas del editor */
 .serviteca{padding:20px 0 120px;display:grid;grid-template-columns:.95fr 1.05fr;gap:80px;align-items:center}
-.serviteca-image{height:480px;background-size:cover;background-position:center;border:1px solid var(--border)}
+.serviteca-image{height:480px;background-size:auto 125%;background-position:38% 90%;background-repeat:no-repeat;border:1px solid var(--border)}
 .serviteca-copy{max-width:460px}
 .serviteca-copy h2{font:500 clamp(36px,4.4vw,60px)/.98 'Space Grotesk';letter-spacing:-.07em;margin:26px 0 0}
 .serviteca-copy>p{font-size:15px;line-height:1.65;color:var(--text-2);margin:28px 0}

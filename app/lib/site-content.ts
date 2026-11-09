@@ -35,6 +35,7 @@ export const GALLERY_IMAGES = [
   "/images/service-servicios.jpg",
   "/images/logo.png",
   "/images/logo-serviteca.png",
+  "/images/service-serviteca.webp",
 ];
 
 /** Fotos de la página Team Cares (`/images/team-NN.webp`). */
@@ -154,7 +155,7 @@ export const SECTIONS: ContentSection[] = [
     title: "Serviteca y taller (inicio)",
     description: "Bloque de la portada sobre la serviteca. Los servicios concretos se gestionan en el sistema de agenda.",
     fields: [
-      image("serviteca.image", "Imagen", "/images/service-servicios.jpg"),
+      image("serviteca.image", "Imagen", "/images/service-serviteca.webp"),
       text("serviteca.eyebrow", "Etiqueta superior", "Serviteca y taller"),
       rich("serviteca.title", "Título", "Mantención para\n*tu vehículo.*"),
       area("serviteca.text", "Texto", "Además de las grúas, contamos con serviteca y taller: cambio de aceite y filtro, cambio y balanceo de neumáticos, mantenimiento preventivo y revisión de frenos. Agenda tu hora en línea."),
