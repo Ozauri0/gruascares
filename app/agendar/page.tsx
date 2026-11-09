@@ -13,6 +13,7 @@ import { useAvailability } from "../lib/use-availability";
 import { useVehicles } from "../lib/use-vehicles";
 import Icon from "../components/Icon";
 import { rememberRedirect } from "../lib/post-login";
+import { saveBookingDraft, takeBookingDraft, withValidDate } from "../lib/booking-draft";
 import TransferFields from "../components/TransferFields";
 import { EMPTY_TRANSFER, cargoIsVehicle, transferPayload, validateTransfer, type TransferDraft } from "../lib/cargo";
 
@@ -53,6 +54,10 @@ export default function AgendarPage() {
 
   // Al volver del login se vuelve a elegir el mismo servicio (?servicio=<nombre>).
   const returnPath = selectedService ? `/agendar?servicio=${encodeURIComponent(selectedService.name)}` : "/agendar";
+  // Antes de ir al login o al registro se guarda todo lo escrito para no perderlo.
+  function keepDraft() {
+    if (selectedService) saveBookingDraft({ serviceId: selectedService.id, date, time, location, transfer, notes, vehicleId });
+  }
 
   // Hoy (hora de Chile) como fecha inicial.
   useEffect(() => {
@@ -75,10 +80,22 @@ export default function AgendarPage() {
         // ?categoria=grua|serviteca abre la pestaña correspondiente (enlaces de la portada).
         const groups = groupServices(list);
         const byCategory = params.get("categoria") === "grua" ? groups.gruas[0] : params.get("categoria") === "serviteca" ? groups.serviteca[0] : undefined;
-        const initial = wanted ?? byCategory ?? groups.serviteca[0] ?? list[0];
+        // Si la persona volvió del login/registro, se restaura lo que había elegido.
+        const draft = takeBookingDraft();
+        const restored = draft ? list.find((item) => item.id === draft.serviceId) : undefined;
+        const initial = restored ?? wanted ?? byCategory ?? groups.serviteca[0] ?? list[0];
         if (initial) {
           setCategory(initial.category === "grua" ? "gruas" : "serviteca");
           setServiceId(initial.id);
+        }
+        if (draft && restored) {
+          const kept = withValidDate(draft, todayInSantiago());
+          if (kept.date) setDate(kept.date);
+          setTime(kept.time);
+          setLocation(kept.location);
+          setTransfer({ ...EMPTY_TRANSFER, ...kept.transfer });
+          setNotes(kept.notes);
+          setVehicleId(kept.vehicleId);
         }
       })
       .catch((err) => {
@@ -361,10 +378,10 @@ export default function AgendarPage() {
                 ) : (
                   <div className="booking-gate booking-gate-end" role="region" aria-label="Inicia sesión para enviar tu solicitud">
                     <span>Último paso: inicia sesión para enviar tu solicitud</span>
-                    <small>Necesitas una cuenta con tu correo confirmado. Así el taller sabe quién eres y puedes seguir tu solicitud. Elegiremos de nuevo este servicio cuando vuelvas.</small>
+                    <small>Necesitas una cuenta con tu correo confirmado. Así el taller sabe quién eres y puedes seguir tu solicitud. Cuando vuelvas, todo lo que elegiste seguirá aquí.</small>
                     <div className="success-actions">
-                      <a className="button" href={`/login?redirect=${encodeURIComponent(returnPath)}`}>Iniciar sesión <span>→</span></a>
-                      <a className="button button-secondary" href="/registro" onClick={() => rememberRedirect(returnPath)}>Crear cuenta</a>
+                      <a className="button" href={`/login?redirect=${encodeURIComponent(returnPath)}`} onClick={keepDraft}>Iniciar sesión <span>→</span></a>
+                      <a className="button button-secondary" href="/registro" onClick={() => { keepDraft(); rememberRedirect(returnPath); }}>Crear cuenta</a>
                     </div>
                   </div>
                 )}
