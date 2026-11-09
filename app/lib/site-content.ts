@@ -34,6 +34,7 @@ export const GALLERY_IMAGES = [
   "/images/service-alcance.jpg",
   "/images/service-servicios.jpg",
   "/images/logo.png",
+  "/images/logo-serviteca.png",
 ];
 
 /** Fotos de la página Team Cares (`/images/team-NN.webp`). */
@@ -102,6 +103,7 @@ export const SECTIONS: ContentSection[] = [
       text("topbar.text", "Barra superior: mensaje", "Atención de emergencias 24/7"),
       text("topbar.location", "Barra superior: ubicación", "Villarrica · IX Región"),
       image("site.logo.image", "Logo", "/images/logo.png", "Se usa en el menú y en el pie de página."),
+      image("site.logo2.image", "Logo de Serviteca Cares", "/images/logo-serviteca.png", "Va junto al logo principal en el menú y en el pie de página."),
     ],
   },
   {
