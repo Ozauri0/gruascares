@@ -1211,9 +1211,11 @@ html[data-theme="dark"] .not-found-card{background:#141816;border:1px solid var(
 .brand-serviteca{position:relative;padding-left:16px}
 .brand-serviteca:before{content:"";position:absolute;left:0;top:50%;height:60%;transform:translateY(-50%);border-left:1px solid var(--border-strong)}
 .brand-serviteca img{width:auto;height:40px;max-height:none}
-html[data-theme="dark"] .brand-serviteca img{background:#fff;border-radius:8px;padding:4px 8px;height:44px}
+/* Modo noche: resplandor claro para que se lean las estrellas y el azul marino de los logos */
+html[data-theme="dark"] .brand img{filter:drop-shadow(0 0 1px rgba(255,255,255,.9)) drop-shadow(0 0 7px rgba(255,255,255,.4))}
 /* Con menos de 1200px el menú no tiene espacio para dos logos: el de Serviteca se queda en el pie de página */
 @media(max-width:1199px){.nav .brand-serviteca{display:none}}
 @media(max-width:760px){.footer-main .brand-serviteca img,.inner-footer .brand-serviteca img{height:30px}.footer-main>.brand-group,.inner-footer-grid>.brand-group{grid-column:1/-1}}
 .inner-footer-grid>.brand-group{display:flex;align-items:center;gap:16px;align-self:start}
 .footer-main>.brand-group,.inner-footer-grid>.brand-group{align-self:start}
+html[data-theme="dark"] .brand-serviteca img{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 2.5px rgba(255,255,255,.9)) drop-shadow(0 0 9px rgba(255,255,255,.45))}
