@@ -33,7 +33,7 @@ export default function TerminosPage() {
 
             <article className="terms-card">
               <span>02</span>
-              <h2>Solicitud de servicios y agenda (`/agendar`)</h2>
+              <h2>Solicitud de servicios y agenda</h2>
               <p>
                 El envío de un formulario en la sección de agendamiento genera una <strong>solicitud de hora sujeta a confirmación</strong> por parte de nuestro equipo de taller o despacho de grúas. La solicitud no constituye una reserva confirmada hasta que el personal de Grúas Cares verifique la disponibilidad técnica y lo confirme al cliente.
               </p>
@@ -44,7 +44,7 @@ export default function TerminosPage() {
 
             <article className="terms-card">
               <span>03</span>
-              <h2>Catálogo y carro de solicitud (`/catalogo` y `/carro`)</h2>
+              <h2>Catálogo y carro de solicitud</h2>
               <p>
                 Los precios, fotografías y niveles de stock publicados en el catálogo en línea son <strong>referenciales e informativos</strong>, y están sujetos a confirmación presencial en el local o por nuestros canales de contacto directo.
               </p>
@@ -55,12 +55,12 @@ export default function TerminosPage() {
 
             <article className="terms-card">
               <span>04</span>
-              <h2>Datos personales y privacidad (Ley N° 19.628)</h2>
+              <h2>Datos personales y privacidad</h2>
               <p>
-                Al crear una cuenta en el portal de clientes, agendar un servicio o registrarse presencialmente en nuestro taller, recopilamos únicamente los datos necesarios para la atención: <strong>nombre, RUT, correo electrónico, teléfono de contacto, datos de los vehículos (patente, marca, modelo, año y kilometraje) e historial de informes técnicos</strong>.
+                Al crear una cuenta en el portal de clientes, agendar un servicio o registrarse presencialmente en nuestro taller, recopilamos los datos necesarios para la atención: <strong>nombre, RUT, correo electrónico, teléfono de contacto, datos de los vehículos (patente, marca, modelo, año y kilometraje) e historial de informes técnicos</strong>.
               </p>
               <p>
-                Estos datos se utilizan exclusivamente para identificar al titular, coordinar sus solicitudes de grúa o serviteca, enviar confirmaciones o recuperaciones de acceso por correo electrónico y mantener disponible su historial de atenciones. Grúas Cares no vende, arrienda ni cede estos datos a terceros.
+                Estos datos se utilizan para identificar al titular, coordinar sus solicitudes de grúa o serviteca, enviar confirmaciones o recuperaciones de acceso por correo electrónico y mantener disponible su historial de atenciones.
               </p>
             </article>
 
@@ -68,15 +68,15 @@ export default function TerminosPage() {
               <span>05</span>
               <h2>Cookies y almacenamiento local</h2>
               <p>
-                El sitio utiliza únicamente una cookie técnica de sesión (`httpOnly`) para mantener iniciada la cuenta del usuario de forma segura y almacenamiento local (`localStorage`) en el navegador para recordar los productos agregados al carro de consulta y la preferencia de modo día/noche. No utilizamos cookies publicitarias ni rastreadores de terceros.
+                El sitio utiliza únicamente una cookie técnica de sesión para mantener iniciada la cuenta del usuario de forma segura y almacenamiento local en el navegador para recordar los productos agregados al carro de consulta y la preferencia de modo día/noche.
               </p>
             </article>
 
             <article className="terms-card">
               <span>06</span>
-              <h2>Derechos del titular y contacto</h2>
+              <h2>Contacto</h2>
               <p>
-                Puedes actualizar tu nombre, teléfono, contraseña y vehículos registrados directamente desde tu cuenta en <a href="/portal/perfil">Mi perfil</a>, o solicitar la rectificación o eliminación de tu cuenta y datos personales escribiendo a <a href="mailto:contacto@gruascares.cl">contacto@gruascares.cl</a> o <a href="mailto:administracion@gruascares.cl">administracion@gruascares.cl</a>.
+                Puedes actualizar tu nombre, teléfono, contraseña y vehículos registrados directamente desde tu cuenta en <a href="/portal/perfil">Mi perfil</a>, o escribirnos para cualquier consulta sobre tus datos a <a href="mailto:contacto@gruascares.cl">contacto@gruascares.cl</a> o <a href="mailto:administracion@gruascares.cl">administracion@gruascares.cl</a>.
               </p>
             </article>
           </div>
