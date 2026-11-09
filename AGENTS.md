@@ -110,6 +110,7 @@ No reintroducir claims no comprobados como años de experiencia, cobertura nacio
 Los assets se descargan localmente para evitar pixelación y dependencia de URLs externas.
 
 - `public/images/logo.png`: logo original.
+- `public/images/logo-serviteca.png`: logo de Serviteca Cares (PNG con fondo transparente); va junto al logo principal en el header (desde 1200 px de ancho) y en los pies de página, editable en `site.logo2.image`.
 - `public/images/portada-01.webp` a `portada-04.webp`: imágenes de portada del carrusel del hero (fotos propias, 2000 px de ancho).
 - `public/images/carousel-01.webp` a `carousel-04.webp`: imágenes originales del carrusel de la web antigua; ya no se usan en el hero, pero se conservan y siguen en la galería del editor.
 - `public/images/service-*.jpg`: imágenes de secciones y servicios originales.
