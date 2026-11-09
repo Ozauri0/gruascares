@@ -1220,3 +1220,7 @@ html[data-theme="dark"] .brand img{filter:drop-shadow(0 0 1px rgba(255,255,255,.
 .footer-main>.brand-group,.inner-footer-grid>.brand-group{align-self:start}
 /* Contorno fino y nítido (no un halo ancho) para que se lean las estrellas y «cares» sin que brille de más */
 html[data-theme="dark"] .brand-serviteca img{filter:drop-shadow(0 0 .6px #fff) drop-shadow(0 0 .6px #fff) drop-shadow(0 0 3px rgba(255,255,255,.3))}
+
+/* Los anclas (#servicios, #serviteca…) no deben quedar tapados por el header fijo */
+section[id]:not(#inicio),footer[id]{scroll-margin-top:110px}
+#serviteca{scroll-margin-top:clamp(120px,16vh,190px)}
