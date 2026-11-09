@@ -1224,3 +1224,9 @@ html[data-theme="dark"] .brand-serviteca img{filter:drop-shadow(0 0 .6px #fff) d
 /* Los anclas (#servicios, #serviteca…) no deben quedar tapados por el header fijo */
 section[id]:not(#inicio),footer[id]{scroll-margin-top:110px}
 #serviteca{scroll-margin-top:clamp(120px,16vh,190px)}
+
+/* Agendar sin sesión: el formulario se ve completo y el acceso se pide al final (envío) */
+.booking-gate-end{display:grid;gap:6px;padding:14px 16px;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface-2)}
+.booking-gate-end>span{font:600 15px 'Space Grotesk',sans-serif;color:var(--text)}
+.booking-gate-end small{font-size:13px;line-height:1.5;color:var(--text-2)}
+.booking-gate-end .success-actions{margin:6px 0 0;display:flex;flex-wrap:wrap;gap:10px}

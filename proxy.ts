@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { fetchSession, guardDecision } from "./app/lib/route-guard";
 
 // Protección de rutas por rol (T2.3 / issue #51): ver app/lib/route-guard.ts.
+// /agendar NO va aquí: el formulario se ve sin cuenta y la página pide iniciar sesión al enviar la solicitud.
 const BACKEND_URL = (process.env.BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
 
 export async function proxy(request: NextRequest) {
@@ -22,5 +23,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/portal/:path*", "/mecanico/:path*", "/admin/:path*", "/vendedor/:path*", "/grua/:path*", "/personal/:path*", "/personal", "/atencion-presencial/:path*", "/atencion-presencial", "/agendar"],
+  matcher: ["/portal/:path*", "/mecanico/:path*", "/admin/:path*", "/vendedor/:path*", "/grua/:path*", "/personal/:path*", "/personal", "/atencion-presencial/:path*", "/atencion-presencial"],
 };

@@ -12,8 +12,8 @@ import { formatPlate } from "../lib/plate";
 import { useAvailability } from "../lib/use-availability";
 import { useVehicles } from "../lib/use-vehicles";
 import Icon from "../components/Icon";
-import Skeleton from "../components/Skeleton";
 import { rememberRedirect } from "../lib/post-login";
+import { saveBookingDraft, takeBookingDraft, withValidDate } from "../lib/booking-draft";
 import TransferFields from "../components/TransferFields";
 import { EMPTY_TRANSFER, cargoIsVehicle, transferPayload, validateTransfer, type TransferDraft } from "../lib/cargo";
 
@@ -52,6 +52,13 @@ export default function AgendarPage() {
   const askVehicle = !isCrane || cargoIsVehicle(transfer.cargoType);
   const selectedVehicle = askVehicle ? vehicles.find((item) => item.id === vehicleId) : undefined;
 
+  // Al volver del login se vuelve a elegir el mismo servicio (?servicio=<nombre>).
+  const returnPath = selectedService ? `/agendar?servicio=${encodeURIComponent(selectedService.name)}` : "/agendar";
+  // Antes de ir al login o al registro se guarda todo lo escrito para no perderlo.
+  function keepDraft() {
+    if (selectedService) saveBookingDraft({ serviceId: selectedService.id, date, time, location, transfer, notes, vehicleId });
+  }
+
   // Hoy (hora de Chile) como fecha inicial.
   useEffect(() => {
     const current = todayInSantiago();
@@ -68,11 +75,27 @@ export default function AgendarPage() {
       .then((list) => {
         if (cancelled) return;
         setServices(list);
-        const wanted = findServiceByQuery(list, new URLSearchParams(window.location.search).get("servicio"));
-        const initial = wanted ?? groupServices(list).serviteca[0] ?? list[0];
+        const params = new URLSearchParams(window.location.search);
+        const wanted = findServiceByQuery(list, params.get("servicio"));
+        // ?categoria=grua|serviteca abre la pestaña correspondiente (enlaces de la portada).
+        const groups = groupServices(list);
+        const byCategory = params.get("categoria") === "grua" ? groups.gruas[0] : params.get("categoria") === "serviteca" ? groups.serviteca[0] : undefined;
+        // Si la persona volvió del login/registro, se restaura lo que había elegido.
+        const draft = takeBookingDraft();
+        const restored = draft ? list.find((item) => item.id === draft.serviceId) : undefined;
+        const initial = restored ?? wanted ?? byCategory ?? groups.serviteca[0] ?? list[0];
         if (initial) {
           setCategory(initial.category === "grua" ? "gruas" : "serviteca");
           setServiceId(initial.id);
+        }
+        if (draft && restored) {
+          const kept = withValidDate(draft, todayInSantiago());
+          if (kept.date) setDate(kept.date);
+          setTime(kept.time);
+          setLocation(kept.location);
+          setTransfer({ ...EMPTY_TRANSFER, ...kept.transfer });
+          setNotes(kept.notes);
+          setVehicleId(kept.vehicleId);
         }
       })
       .catch((err) => {
@@ -96,6 +119,10 @@ export default function AgendarPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError("");
+    if (!user) {
+      setFormError("Para enviar tu solicitud inicia sesión o crea tu cuenta.");
+      return;
+    }
     if (!selectedService) {
       setFormError("Selecciona un servicio.");
       return;
@@ -185,22 +212,6 @@ export default function AgendarPage() {
                   <a className="button" href="/portal/citas">Ver mis citas <span>→</span></a>
                   <a className="button button-secondary" href="/">Volver al inicio</a>
                 </div>
-              </div>
-            ) : authLoading ? (
-              <div className="wide-form" aria-busy="true"><Skeleton label="Comprobando tu sesión…" rows={4} /></div>
-            ) : !user ? (
-              <div className="wide-form booking-gate" role="region" aria-label="Inicia sesión para agendar">
-                <div className="form-heading">
-                  <div>
-                    <span>Inicia sesión para agendar</span>
-                    <small>Para pedir una hora necesitas una cuenta con tu correo confirmado. Así el taller sabe quién eres y puedes seguir tu solicitud.</small>
-                  </div>
-                </div>
-                <div className="success-actions">
-                  <a className="button" href={`/login?redirect=${encodeURIComponent(`/agendar${typeof window === "undefined" ? "" : window.location.search}`)}`}>Iniciar sesión <span>→</span></a>
-                  <a className="button button-secondary" href="/registro" onClick={() => rememberRedirect(`/agendar${window.location.search}`)}>Crear cuenta</a>
-                </div>
-                <p className="verify-hint">¿Es una emergencia? Para grúa o auxilio en ruta llámanos directo al <a href="tel:+56991627809"><b>+56 9 9162 7809</b></a>, 24/7.</p>
               </div>
             ) : (
               <form onSubmit={submit} className="wide-form">
@@ -323,10 +334,12 @@ export default function AgendarPage() {
                   </div>
                 </div>
 
-                <p className="booking-account">
-                  <Icon name="user" />A nombre de <b>{user.name}</b> · {user.email}
-                  {user.phone ? <> · <Icon name="phone" />{user.phone}</> : <small> (agrega tu teléfono en tu perfil para que el taller te llame)</small>}
-                </p>
+                {user && (
+                  <p className="booking-account">
+                    <Icon name="user" />A nombre de <b>{user.name}</b> · {user.email}
+                    {user.phone ? <> · <Icon name="phone" />{user.phone}</> : <small> (agrega tu teléfono en tu perfil para que el taller te llame)</small>}
+                  </p>
+                )}
 
                 {vehicles.length > 0 && askVehicle && (
                   <label>
@@ -358,9 +371,20 @@ export default function AgendarPage() {
 
                 {formError && <p className="field-error" role="alert"><Icon name="alert" />{formError}</p>}
 
-                <button className="button button-submit" type="submit" disabled={submitting || servicesLoading || !selectedService}>
-                  {submitting ? "Enviando solicitud…" : <>Confirmar y Solicitar Servicio <span>↗</span></>}
-                </button>
+                {user || authLoading ? (
+                  <button className="button button-submit" type="submit" disabled={submitting || servicesLoading || !selectedService || authLoading}>
+                    {submitting ? "Enviando solicitud…" : <>Confirmar y Solicitar Servicio <span>↗</span></>}
+                  </button>
+                ) : (
+                  <div className="booking-gate booking-gate-end" role="region" aria-label="Inicia sesión para enviar tu solicitud">
+                    <span>Último paso: inicia sesión para enviar tu solicitud</span>
+                    <small>Necesitas una cuenta con tu correo confirmado. Así el taller sabe quién eres y puedes seguir tu solicitud. Cuando vuelvas, todo lo que elegiste seguirá aquí.</small>
+                    <div className="success-actions">
+                      <a className="button" href={`/login?redirect=${encodeURIComponent(returnPath)}`} onClick={keepDraft}>Iniciar sesión <span>→</span></a>
+                      <a className="button button-secondary" href="/registro" onClick={() => { keepDraft(); rememberRedirect(returnPath); }}>Crear cuenta</a>
+                    </div>
+                  </div>
+                )}
               </form>
             )}
           </div>
