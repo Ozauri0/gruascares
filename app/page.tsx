@@ -102,7 +102,7 @@ export default function Home() {
 
       <section className="intro wrap" id="nosotros">
         <div><p className="eyebrow">{t("about.eyebrow")}</p><h2><RichText value={t("about.title")} /></h2></div>
-        <div className="intro-text"><p>{t("about.text")}</p><a className="arrow-link" href="/catalogo">{t("about.link")} <span>↗</span></a></div>
+        <div className="intro-text"><p>{t("about.text")}</p><a className="arrow-link" href="/agendar?categoria=grua">{t("about.link")} <span>↗</span></a></div>
       </section>
 
       <section className="services-section" id="servicios"><div className="wrap"><div className="section-head"><div><p className="eyebrow">{t("services.eyebrow")}</p><h2><RichText value={t("services.title")} /></h2></div><p className="section-note">{t("services.note")}</p></div>

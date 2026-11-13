@@ -132,7 +132,7 @@ export const SECTIONS: ContentSection[] = [
       text("about.eyebrow", "Etiqueta superior", "Transporte seguro"),
       rich("about.title", "Título", "Tu carga es\nnuestra *responsabilidad.*"),
       area("about.text", "Texto", "Somos Grúas Cares, especialistas en transporte de cargas pesadas y servicios de camiones grúa. Contamos con una flota moderna y un equipo de profesionales comprometidos con la puntualidad, la seguridad y la calidad."),
-      text("about.link", "Enlace", "Explora el catálogo"),
+      text("about.link", "Enlace", "Solicita una grúa"),
     ],
   },
   {
