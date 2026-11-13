@@ -1074,6 +1074,7 @@ body>footer{flex-shrink:0}
 /* Agendar: datos de la cuenta y pantalla de acceso */
 .booking-account{margin:0 0 4px;padding:12px 14px;border-radius:12px;background:var(--surface-2);font-size:14px;line-height:1.5;color:var(--text-2)}
 .booking-account small{color:var(--warn-text)}
+.booking-vehicle-empty{margin:0;font-size:14px;line-height:1.5;color:var(--text-2)}.booking-vehicle-empty svg{margin-right:8px;vertical-align:-3px}.booking-vehicle-empty a{color:var(--accent-text);text-decoration:underline;text-underline-offset:3px}
 .booking-gate .success-actions{margin:18px 0}
 .worker-stats{display:grid;align-items:stretch}.worker-stats-head{display:flex;flex-wrap:wrap;gap:16px 24px;justify-content:space-between;align-items:end}.worker-stats-month{min-width:130px;text-align:center}.worker-stats .export-actions{display:flex;gap:8px;align-items:center}
 

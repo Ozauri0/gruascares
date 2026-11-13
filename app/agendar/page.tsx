@@ -20,7 +20,7 @@ import { EMPTY_TRANSFER, cargoIsVehicle, transferPayload, validateTransfer, type
 export default function AgendarPage() {
   const { user, loading: authLoading } = useAuth();
   const canBookPast = userHasRole(user, "vendedor", "admin");
-  const { vehicles } = useVehicles({ enabled: Boolean(user) });
+  const { vehicles, loading: vehiclesLoading } = useVehicles({ enabled: Boolean(user) });
 
   const [services, setServices] = useState<ApiService[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
@@ -347,6 +347,12 @@ export default function AgendarPage() {
                   <p className="booking-account">
                     <Icon name="user" />A nombre de <b>{user.name}</b> · {user.email}
                     {user.phone ? <> · <Icon name="phone" />{user.phone}</> : <small> (agrega tu teléfono en tu perfil para que el taller te llame)</small>}
+                  </p>
+                )}
+
+                {user && askVehicle && !vehiclesLoading && vehicles.length === 0 && (
+                  <p className="booking-vehicle-empty">
+                    <Icon name="car" />No tienes vehículos guardados en tu cuenta. <a href="/portal/vehiculos" onClick={keepDraft}>Regístralo en Mis vehículos</a> para elegirlo aquí (es opcional).
                   </p>
                 )}
 
