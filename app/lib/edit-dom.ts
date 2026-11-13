@@ -2,6 +2,13 @@
 import { ALL_FIELDS, resolve, type ContentOverrides } from "../lib/site-content";
 
 export const KEY_ATTR = "data-gc-key";
+/** Clave declarada por la propia página (tarjetas repetidas): tiene prioridad sobre casar por texto o imagen. */
+export const FIELD_ATTR = "data-gc-field";
+
+/** Clave final de un elemento: la explícita si existe, si no la que se casó por contenido. */
+export function pickKey(explicit: string | null | undefined, matched: string | undefined): string | undefined {
+  return explicit || matched;
+}
 
 /** Texto comparable: sin espacios ni asteriscos de énfasis (el formato rich añade saltos y *). */
 export function comparable(value: string): string {
@@ -55,6 +62,10 @@ export function tagElements(values: ContentOverrides) {
     if (inline.includes("url(")) {
       for (const [src, key] of images) if (inline.includes(src)) found.set(el, key);
     }
+  }
+  for (const el of all) {
+    const explicit = el.getAttribute(FIELD_ATTR);
+    if (explicit) found.set(el, pickKey(explicit, found.get(el))!);
   }
   // Si un hijo ya representa el mismo campo, solo se marca el más interno.
   for (const [el, key] of found) {

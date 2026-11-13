@@ -38,7 +38,7 @@ export default function TeamCaresPage() {
         </section>
 
         <section className="wrap team-section team-school">
-          <p className="eyebrow">Escuela de fútbol</p>
+          <p className="eyebrow">{t("team.school.eyebrow")}</p>
           <h2>{t("team.school.title")}</h2>
           <div className="team-copy">
             <p>{t("team.school.text1")}</p>

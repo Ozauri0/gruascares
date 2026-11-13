@@ -8,8 +8,9 @@ describe("INT-4: decisión de acceso por rol", () => {
     }
   });
 
-  test("/agendar exige sesión, pero la puede usar cualquier rol", () => {
-    expect(guardDecision("/agendar", null)).toEqual({ type: "login" });
+  test("/agendar la puede usar cualquier rol y el proxy no la bloquea sin sesión (el acceso se pide al enviar)", async () => {
+    const proxy = await Bun.file(new URL("../../proxy.ts", import.meta.url)).text();
+    expect(proxy.match(/matcher:\s*\[[^\]]*\]/)?.[0] ?? "").not.toContain('"/agendar"');
     for (const role of ["usuario", "mecanico", "vendedor", "admin"] as const) {
       expect(guardDecision("/agendar", role)).toEqual({ type: "allow" });
     }

@@ -28,6 +28,19 @@ export function categoriesOf(products: Product[]): string[] {
   return [...new Set(products.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
 }
 
+/**
+ * Categorías que ofrecen los chips y el desplegable de /catalogo: solo las que tienen productos (con stock, ya filtrados),
+ * en el orden de la tienda. Las que el servidor no informa, o todas si no hubo lista, van alfabéticas al final.
+ */
+export function storeCategories(products: Product[], serverOrder: string[] | null): string[] {
+  const present = categoriesOf(products);
+  if (!serverOrder) return present;
+  const presentSet = new Set(present);
+  const ordered = [...new Set(serverOrder)].filter((name) => presentSet.has(name));
+  const known = new Set(ordered);
+  return [...ordered, ...present.filter((name) => !known.has(name))];
+}
+
 /** Cada palabra de la búsqueda debe aparecer en el nombre, la descripción, la categoría o la etiqueta. */
 export function filterProducts(products: Product[], filters: CatalogFilters): Product[] {
   const words = normalize(filters.query).split(/\s+/).filter(Boolean);

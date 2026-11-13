@@ -4,7 +4,7 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
 COPY drizzle ./drizzle
 COPY src ./src
-# Imágenes subidas desde /admin/contenido: este volumen debe persistir entre despliegues.
+# Imágenes subidas desde el editor de la página y el catálogo: este volumen debe persistir entre despliegues.
 ENV NODE_ENV=production PORT=4000 UPLOADS_DIR=/data/uploads
 RUN mkdir -p /data/uploads && chown -R bun:bun /data /app
 VOLUME /data/uploads

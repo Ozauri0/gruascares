@@ -8,6 +8,8 @@ type Props = {
   categories: string[];
   /** Filtros de gestión (stock y visibilidad), solo en el panel de ventas. */
   manage?: boolean;
+  /** Lista visible de categorías («Todas» + una por chip), para la tienda pública. Usa las mismas `categories` que el desplegable. */
+  chips?: boolean;
 };
 
 const STOCK_OPTIONS: { value: StockFilter; label: string }[] = [
@@ -24,7 +26,7 @@ const VISIBILITY_OPTIONS: { value: VisibilityFilter; label: string }[] = [
 ];
 
 /** Buscador y filtros del catálogo; lo usan la tienda pública y el panel de ventas. */
-export default function CatalogFilterBar({ filters, onChange, categories, manage = false }: Props) {
+export default function CatalogFilterBar({ filters, onChange, categories, manage = false, chips = false }: Props) {
   const set = (patch: Partial<CatalogFilters>) => onChange({ ...filters, ...patch });
   return (
     <div className="catalog-filters" role="search">
@@ -56,6 +58,12 @@ export default function CatalogFilterBar({ filters, onChange, categories, manage
         </>
       )}
       {hasActiveFilters(filters) && <button type="button" className="catalog-filters-clear" onClick={() => onChange(EMPTY_FILTERS)}>Limpiar filtros</button>}
+      {chips && (
+        <div className="catalog-chips" role="group" aria-label="Filtrar por categoría">
+          <button type="button" className="catalog-chip" aria-pressed={filters.category === ""} onClick={() => set({ category: "" })}>Todas</button>
+          {categories.map((c) => <button key={c} type="button" className="catalog-chip" aria-pressed={filters.category === c} onClick={() => set({ category: c })}>{c}</button>)}
+        </div>
+      )}
     </div>
   );
 }

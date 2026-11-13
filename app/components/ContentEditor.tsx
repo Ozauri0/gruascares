@@ -6,12 +6,12 @@ import ContentField from "../admin/components/ContentField";
 import { discardDraft, fetchDraft, publishDraft, saveDraft } from "../lib/admin-api";
 import { useAuth, userHasRole } from "../lib/auth";
 import { KEY_ATTR, editableAt, tagElements } from "../lib/edit-dom";
-import { ALL_FIELDS, DEFAULTS, SECTIONS, resolve } from "../lib/site-content";
+import { ALL_FIELDS, DEFAULTS, SECTIONS, SERVICES_COUNT_KEY, SERVICES_MAX, removeServiceCard, resolve, serviceCount } from "../lib/site-content";
 import { useContentPreview } from "./SiteContentProvider";
 import Icon from "./Icon";
 
 /** Páginas públicas que se pueden editar en el sitio. */
-export const EDITABLE_PATHS = ["/", "/catalogo"];
+export const EDITABLE_PATHS = ["/", "/catalogo", "/team-cares"];
 
 type Values = Record<string, string>;
 
@@ -258,6 +258,12 @@ export default function ContentEditor() {
   }
 
   const field = ALL_FIELDS.find((f) => f.key === selected);
+  const cardCount = serviceCount(work[SERVICES_COUNT_KEY]);
+  const cardOf = (key: string) => Number(/^service(\d+)\./.exec(key)?.[1] ?? 0);
+  const visibleField = (f: (typeof ALL_FIELDS)[number]) => f.key !== SERVICES_COUNT_KEY && cardOf(f.key) <= cardCount;
+  const addCard = () => cardCount < SERVICES_MAX && setWork((cur) => ({ ...cur, [SERVICES_COUNT_KEY]: String(cardCount + 1) }));
+  const removeCard = (n: number) => setWork((cur) => ({ ...cur, ...removeServiceCard(cur, n) }));
+  const selectedCard = selected ? cardOf(selected) : 0;
   const renderField = (f: (typeof ALL_FIELDS)[number]) => (
     <ContentField
       key={f.key}
@@ -312,7 +318,10 @@ export default function ContentEditor() {
           </div>
           {tab === "elemento" ? (
             field ? (
-              <div className="cms-fields">{renderField(field)}</div>
+              <div className="cms-fields">
+                {renderField(field)}
+                {selectedCard > 0 && cardCount > 1 && <button type="button" className="toggle-btn danger" onClick={() => { removeCard(selectedCard); setSelected(null); }}>Quitar la tarjeta {selectedCard}</button>}
+              </div>
             ) : (
               <p className="cms-desc ve-empty">Toca un texto o una imagen de la página para editarlo aquí. Los cambios se ven al instante y solo el público los verá al publicar.</p>
             )
@@ -327,7 +336,14 @@ export default function ContentEditor() {
                       {dirty > 0 && <span className="cf-flag dirty">{dirty} sin guardar</span>}
                     </summary>
                     <div className="cms-fields">
-                      {section.fields.map((f) => (
+                      {section.id === "services" && (
+                        <div className="ed-cards">
+                          <button type="button" className="toggle-btn" disabled={cardCount >= SERVICES_MAX} onClick={addCard}>Añadir tarjeta</button>
+                          <button type="button" className="toggle-btn" disabled={cardCount <= 1} onClick={() => removeCard(cardCount)}>Quitar última</button>
+                          <small>{cardCount} de {SERVICES_MAX} tarjetas. Para quitar otra, tócala en la página y usa «Quitar la tarjeta».</small>
+                        </div>
+                      )}
+                      {section.fields.filter(visibleField).map((f) => (
                         <button type="button" key={f.key} className={`ve-field-link${work[f.key] !== saved[f.key] ? " dirty" : ""}`} onClick={() => { setSelected(f.key); setTab("elemento"); }}>
                           <span>{f.label}</span>
                           <small>{f.kind === "image" ? "Imagen" : (work[f.key] ?? "").replace(/\n/g, " ").slice(0, 60)}</small>

@@ -40,7 +40,7 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 
 ### ADR 004: Modelo RBAC (Role-Based Access Control) con 3 Roles
 - **Fecha**: 2026-10-02
-- **Estado**: Aceptado
+- **Estado**: Ampliado por los ADR 016 (rol `grua`), 017 (trabajadores sin cuenta) y 020 (rol `vendedor`). Hoy hay cinco roles (`admin`, `mecanico`, `grua`, `vendedor`, `usuario`) y una cuenta de personal puede tener varios; el primero define su página de inicio (`app/lib/route-guard.ts`, `backend/src/utils/roles.ts`).
 - **Contexto**: Las necesidades del negocio involucran 3 tipos de actores claramente diferenciados.
 - **Decisión**: Definir tres roles estrictos:
   1. `admin`: Control total de la empresa, métricas, personal y configuración.
@@ -142,8 +142,8 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Fecha**: 2026-10-17
 - **Estado**: Aceptado (issue #124)
 - **Contexto**: Las solicitudes de invitado se aceptaban con un correo sin verificar: cualquiera podía llenar los cupos de la agenda con citas falsas (solo limitado por IP) y el taller recibía solicitudes y enviaba correos a direcciones de terceros.
-- **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. `/agendar` es una ruta protegida: sin sesión redirige a `/login?redirect=…` y se vuelve a la ruta tras iniciar sesión (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora). Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
-- **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo). Para emergencias se mantiene el teléfono 24/7 visible.
+- **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. Al principio `/agendar` era una ruta protegida que redirigía a `/login?redirect=…`; desde el PR #204 el formulario se ve y se llena sin cuenta, y al final, en lugar del botón de envío, ofrece iniciar sesión o crear la cuenta. Se vuelve a `/agendar` (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora) con lo elegido restaurado (`app/lib/booking-draft.ts`). El envío sigue exigiendo sesión en el backend. Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
+- **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo), aunque puede revisar servicios y horarios antes de hacerlo. Para emergencias se mantiene el teléfono 24/7 visible.
 
 ### ADR 015: Horario base 08:30–19:30 y tope de 4 citas por horario
 - **Fecha**: 2026-10-24
@@ -197,7 +197,7 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Fecha**: 2026-10-28
 - **Estado**: Aceptado (issue #161)
 - **Contexto**: Los días y horarios bloqueados por el administrador impedían que el mostrador registrara una atención presencial, aunque el local estuviera atendiendo.
-- **Decisión**: `GET /api/appointments/availability?ignoreBlocks=true` (con sesión de **vendedor** o **admin**) devuelve los bloqueos como horarios agendables, marcados con `blocked: true` y su motivo; `POST /api/appointments` acepta `ignoreBlocks: true` solo de esos roles (los demás reciben 403). Solo se omite el bloqueo: los horarios ya transcurridos y el tope de citas por horario siguen vigentes. Cada cita creada así guarda `bypassedBlock` (el motivo) en el registro de actividad. Solo `/atencion-presencial` usa esta opción; `/agendar` y el portal del cliente siguen sujetos al calendario.
+- **Decisión**: `GET /api/appointments/availability?ignoreBlocks=true` (con sesión de **vendedor** o **admin**) devuelve los bloqueos como horarios agendables, marcados con `blocked: true` y su motivo; `POST /api/appointments` acepta `ignoreBlocks: true` solo de esos roles (los demás reciben 403). Además, **vendedor** y **admin** pueden consultar disponibilidad y agendar en fechas pasadas (`date < todayInSantiago()`, issue #182), guardando `pastDate: true` en el registro de actividad (`audit_logs`). Para hoy, los horarios ya transcurridos siguen cerrados, y el tope de citas por horario sigue vigente. Cada cita sobre bloqueo guarda `bypassedBlock` (el motivo) en el registro de actividad. Los clientes, taller y grúas siguen sin poder agendar en fechas pasadas ni sobre bloqueos.
 - **Consecuencias**: el calendario maestro sigue siendo obligatorio para clientes, taller y grúas.
 
 ### ADR 023: Flota de grúas con gruero a cargo
@@ -214,3 +214,10 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Contexto**: El destino es un VPS con Docker y Cloudflare por delante. Publicar puertos del host (aunque sea en `127.0.0.1`) amplía la superficie y obliga a mantener un proxy y un firewall.
 - **Decisión**: ningún contenedor de producción publica puertos. Los servicios se llaman por nombre en la red del compose (`frontend` → `http://backend:4000` → `postgres:5432`). `docker-compose.prod.yml` quita los puertos de desarrollo de postgres y redis; el backend nunca publica el suyo. La entrada es un contenedor `cloudflared` (perfil `tunnel`) con conexión saliente a Cloudflare y destino `http://frontend:3000`. El frontend usa un `Dockerfile` en la raíz (Node 22 alpine, `output: "standalone"` activado con `NEXT_OUTPUT`, usuario sin privilegios). Los respaldos (`scripts/backup.sh`) usan `docker compose exec`.
 - **Consecuencias**: no hay Nginx ni certificados en el servidor (Cloudflare termina HTTPS); `TRUST_PROXY=2`. Si se prefiere otro punto de entrada, debe unirse a la red del compose. El `package-lock.json` de la raíz es el que usa la imagen (`npm ci`) y debe mantenerse al día.
+
+### ADR 025: Categorías del catálogo en tabla propia; los productos guardan el nombre
+- **Fecha**: 2026-11-05
+- **Estado**: Aceptado (issue #195)
+- **Contexto**: `products.category` era texto libre (TOP VENTAS, MANTENCIÓN…); no había forma de ordenarlas ni de ofrecerlas como lista (#184).
+- **Decisión**: tabla `product_categories` (`name` único en mayúsculas, `sort_order`), poblada por la migración 0020 con las categorías que ya usaban los productos (más `GENERAL`, la de respaldo). **`products.category` sigue guardando el nombre** (no un id): evita cambiar el tipo `Product` y los filtros del frontend, el catálogo público y los reportes. La integridad la da el backend: crear o editar un producto exige una categoría existente (sin categoría en el alta se usa `GENERAL`); renombrar una categoría actualiza sus productos en la misma transacción; quitar una con productos responde 409 salvo `?reassignTo=<id>`, que los mueve antes. Gestión de admin y vendedor (`/api/admin/catalog-categories`, incluye `PUT .../order`; al principio era solo admin y se abrió a ventas, que es quien mantiene el catálogo). Lectura pública ordenada: `GET /api/catalog/categories` (`app/lib/catalog-categories-api.ts`).
+- **Consecuencias**: no hay clave foránea en la base, así que un cambio directo en SQL podría dejar un producto con categoría inexistente (la API no lo permite). Pasar a id más adelante es una migración simple.

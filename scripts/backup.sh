@@ -29,6 +29,14 @@ $COMPOSE exec -T backend tar -C /data/uploads -czf - . > "$BACKUP_DIR/uploads-$S
 # Un respaldo vacío o truncado es peor que ninguno: se verifica antes de rotar.
 gzip -t "$BACKUP_DIR/db-$STAMP.sql.gz"
 gzip -t "$BACKUP_DIR/uploads-$STAMP.tar.gz"
+# En sh no hay pipefail: si pg_dump o tar fallan, gzip igual deja un .gz válido (vacío) que pasa gzip -t.
+# pg_dump escribe esta línea solo al terminar bien; un tar real mide al menos 1 KB (sus bloques de cierre) aunque la carpeta esté vacía.
+if ! gzip -dc "$BACKUP_DIR/db-$STAMP.sql.gz" | tail -n 5 | grep -q 'PostgreSQL database dump complete' \
+  || [ "$(gzip -dc "$BACKUP_DIR/uploads-$STAMP.tar.gz" | wc -c)" -lt 1024 ]; then
+  echo "Respaldo $STAMP incompleto: no se rota ni se sube" >&2
+  rm -f "$BACKUP_DIR/db-$STAMP.sql.gz" "$BACKUP_DIR/uploads-$STAMP.tar.gz"
+  exit 1
+fi
 
 find "$BACKUP_DIR" -maxdepth 1 \( -name 'db-*.sql.gz' -o -name 'uploads-*.tar.gz' \) -mtime "+$KEEP_DAYS" -delete
 echo "Respaldo $STAMP listo en $BACKUP_DIR"

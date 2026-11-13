@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { db, sql } from "./connection.js";
-import { users, services, vehicles, appointments, serviceRecords, products, workers } from "./schema.js";
+import { users, services, vehicles, appointments, serviceRecords, products, productCategories, workers } from "./schema.js";
 import { hashPassword } from "../utils/password.js";
 import { todayInSantiago } from "../utils/dates.js";
 import { DEMO_ACCOUNTS, DEMO_EMAIL_DOMAIN } from "../config/demo.js";
@@ -93,6 +93,9 @@ async function seed() {
 
   // 2.1 Catálogo de productos (solo los que faltan)
   console.log("-> Catálogo de productos...");
+  // Categorías del catálogo: las de los productos de ejemplo, en orden de aparición, más GENERAL (respaldo).
+  const categoryNames = [...new Set([...BASE_PRODUCTS.map((p) => p.category), "GENERAL"])];
+  await db.insert(productCategories).values(categoryNames.map((name, sortOrder) => ({ name, sortOrder }))).onConflictDoNothing();
   const existingProducts = new Set((await db.select({ name: products.name }).from(products)).map((p) => p.name));
   const missingProducts = BASE_PRODUCTS.map((p, index) => ({ ...p, sortOrder: index })).filter((p) => !existingProducts.has(p.name));
   if (missingProducts.length > 0) await db.insert(products).values(missingProducts);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ALL_FIELDS, DEFAULTS, GALLERY_IMAGES, SECTIONS, resolve } from "./site-content";
+import { ALL_FIELDS, DEFAULTS, GALLERY_IMAGES, SECTIONS, SERVICES_COUNT_KEY, removeServiceCard, resolve, serviceCount, serviceOptions, serviceRequestName } from "./site-content";
 import { parseRich } from "./rich-text";
 
 describe("contenido editable del sitio", () => {
@@ -51,5 +51,63 @@ describe("contenido editable del sitio", () => {
       { type: "em", value: "x" },
     ]);
     expect(parseRich("un * suelto")).toEqual([{ type: "text", value: "un * suelto" }]);
+  });
+});
+
+describe("cambios de varias imágenes seguidas (#187)", () => {
+  test("cada imagen conserva su cambio aunque dos campos terminen con la misma foto", () => {
+    let work: Record<string, string> = {};
+    work = { ...work, "hero.slide1.image": "/images/team-01.webp" };
+    work = { ...work, "hero.slide2.image": "/images/team-01.webp" };
+    expect(resolve(work, "hero.slide1.image")).toBe("/images/team-01.webp");
+    expect(resolve(work, "hero.slide2.image")).toBe("/images/team-01.webp");
+    expect(resolve(work, "hero.slide3.image")).toBe(DEFAULTS["hero.slide3.image"]);
+  });
+
+  test("las diapositivas del hero no usan la ruta de la imagen como key de React", async () => {
+    const page = await Bun.file(new URL("../page.tsx", import.meta.url)).text();
+    expect(page).not.toContain("key={slide.image}");
+  });
+});
+
+describe("tarjetas de servicios dinámicas", () => {
+  test("serviceCount usa 3 si no hay valor o es inválido", () => {
+    expect(serviceCount(undefined)).toBe(3);
+    expect(serviceCount("0")).toBe(3);
+    expect(serviceCount("99")).toBe(3);
+    expect(serviceCount("5")).toBe(5);
+  });
+  test("removeServiceCard sube las siguientes y baja la cantidad", () => {
+    const values = { [SERVICES_COUNT_KEY]: "4", "service2.title": "B", "service3.title": "C", "service4.title": "D" };
+    const out = removeServiceCard(values, 2);
+    expect(out[SERVICES_COUNT_KEY]).toBe("3");
+    expect(out["service2.title"]).toBe("C");
+    expect(out["service3.title"]).toBe("D");
+    expect(out["service4.title"]).toBe(DEFAULTS["service4.title"]);
+  });
+  test("no quita la única tarjeta", () => {
+    expect(removeServiceCard({ [SERVICES_COUNT_KEY]: "1" }, 1)).toEqual({});
+  });
+});
+
+describe("servicio solicitado por tarjeta", () => {
+  const get = (v: Record<string, string>) => (k: string) => v[k] ?? DEFAULTS[k] ?? "";
+  test("las tarjetas 1-3 conservan su nombre original y las extras usan su título", () => {
+    expect(serviceRequestName(get({}), 2)).toBe("Transporte de cargas pesadas");
+    expect(serviceRequestName(get({ "service5.title": "Rescate" }), 5)).toBe("Rescate");
+  });
+  test("al quitar una tarjeta, el servicio solicitado se mueve con ella", () => {
+    const values = { [SERVICES_COUNT_KEY]: "3" };
+    const out = { ...values, ...removeServiceCard(values, 1) };
+    expect(serviceRequestName(get(out), 1)).toBe("Transporte de cargas pesadas");
+    expect(serviceRequestName(get(out), 2)).toBe("Camiones grúa");
+  });
+  test("los valores por defecto de las tarjetas extra son únicos", () => {
+    const extras = [4, 5, 6, 7, 8];
+    for (const part of ["title", "text"]) expect(new Set(extras.map((n) => DEFAULTS[`service${n}.${part}`])).size).toBe(extras.length);
+  });
+  test("serviceOptions no repite y añade serviteca", () => {
+    expect(serviceOptions(["A", "B", "A", " "])).toEqual(["A", "B", "Serviteca y taller"]);
+    expect(serviceOptions(["Serviteca y taller"])).toEqual(["Serviteca y taller"]);
   });
 });
