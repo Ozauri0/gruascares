@@ -40,7 +40,7 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 
 ### ADR 004: Modelo RBAC (Role-Based Access Control) con 3 Roles
 - **Fecha**: 2026-10-02
-- **Estado**: Aceptado
+- **Estado**: Ampliado por los ADR 016 (rol `grua`), 017 (trabajadores sin cuenta) y 020 (rol `vendedor`). Hoy hay cinco roles (`admin`, `mecanico`, `grua`, `vendedor`, `usuario`) y una cuenta de personal puede tener varios; el primero define su página de inicio (`app/lib/route-guard.ts`, `backend/src/utils/roles.ts`).
 - **Contexto**: Las necesidades del negocio involucran 3 tipos de actores claramente diferenciados.
 - **Decisión**: Definir tres roles estrictos:
   1. `admin`: Control total de la empresa, métricas, personal y configuración.
@@ -142,8 +142,8 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Fecha**: 2026-10-17
 - **Estado**: Aceptado (issue #124)
 - **Contexto**: Las solicitudes de invitado se aceptaban con un correo sin verificar: cualquiera podía llenar los cupos de la agenda con citas falsas (solo limitado por IP) y el taller recibía solicitudes y enviaba correos a direcciones de terceros.
-- **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. `/agendar` es una ruta protegida: sin sesión redirige a `/login?redirect=…` y se vuelve a la ruta tras iniciar sesión (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora). Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
-- **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo). Para emergencias se mantiene el teléfono 24/7 visible.
+- **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. Al principio `/agendar` era una ruta protegida que redirigía a `/login?redirect=…`; desde el PR #204 el formulario se ve y se llena sin cuenta, y al final, en lugar del botón de envío, ofrece iniciar sesión o crear la cuenta. Se vuelve a `/agendar` (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora) con lo elegido restaurado (`app/lib/booking-draft.ts`). El envío sigue exigiendo sesión en el backend. Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
+- **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo), aunque puede revisar servicios y horarios antes de hacerlo. Para emergencias se mantiene el teléfono 24/7 visible.
 
 ### ADR 015: Horario base 08:30–19:30 y tope de 4 citas por horario
 - **Fecha**: 2026-10-24

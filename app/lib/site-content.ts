@@ -171,7 +171,8 @@ export const SECTIONS: ContentSection[] = [
     title: "Bloque de catálogo (inicio)",
     fields: [
       image("catalog.image", "Imagen", "/images/hero-01.jpg"),
-      text("catalog.eyebrow", "Etiqueta superior", "Catálogo de soluciones"),
+      text("catalog.eyebrow", "Etiqueta superior", "Nuestras soluciones"),
+      rich("catalog.label", "Etiqueta sobre la imagen", "Flota\n*Cares*"),
       rich("catalog.title", "Título", "Una flota\npara cada\n*necesidad.*"),
       area("catalog.text", "Texto", "Conoce los servicios de Grúas Cares y encuentra una solución segura, eficiente y adaptada a tu traslado."),
       text("catalog.button", "Botón", "Contáctanos"),
