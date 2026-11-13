@@ -13,7 +13,7 @@ import { useAvailability } from "../lib/use-availability";
 import { useVehicles } from "../lib/use-vehicles";
 import Icon from "../components/Icon";
 import { rememberRedirect } from "../lib/post-login";
-import { saveBookingDraft, takeBookingDraft, withValidDate } from "../lib/booking-draft";
+import { saveBookingDraft, takeBookingDraft, withValidDate, type BookingDraft } from "../lib/booking-draft";
 import TransferFields from "../components/TransferFields";
 import { EMPTY_TRANSFER, cargoIsVehicle, transferPayload, validateTransfer, type TransferDraft } from "../lib/cargo";
 
@@ -38,6 +38,8 @@ export default function AgendarPage() {
   const [transfer, setTransfer] = useState<TransferDraft>(EMPTY_TRANSFER);
   const [notes, setNotes] = useState("");
   const [vehicleId, setVehicleId] = useState("");
+  // Borrador restaurado cuya fecha y horario esperan a saber quién inició sesión (ventas y admin pueden mantener una fecha pasada).
+  const [pendingDraft, setPendingDraft] = useState<BookingDraft | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -89,13 +91,11 @@ export default function AgendarPage() {
           setServiceId(initial.id);
         }
         if (draft && restored) {
-          const kept = withValidDate(draft, todayInSantiago());
-          if (kept.date) setDate(kept.date);
-          setTime(kept.time);
-          setLocation(kept.location);
-          setTransfer({ ...EMPTY_TRANSFER, ...kept.transfer });
-          setNotes(kept.notes);
-          setVehicleId(kept.vehicleId);
+          setLocation(draft.location);
+          setTransfer({ ...EMPTY_TRANSFER, ...draft.transfer });
+          setNotes(draft.notes);
+          setVehicleId(draft.vehicleId);
+          setPendingDraft(draft);
         }
       })
       .catch((err) => {
@@ -108,6 +108,14 @@ export default function AgendarPage() {
       cancelled = true;
     };
   }, [servicesNonce]);
+
+  useEffect(() => {
+    if (!pendingDraft || authLoading) return;
+    const kept = withValidDate(pendingDraft, todayInSantiago(), canBookPast);
+    if (kept.date) setDate(kept.date);
+    setTime(kept.time);
+    setPendingDraft(null);
+  }, [pendingDraft, authLoading, canBookPast]);
 
   function changeCategory(next: BookingCategory) {
     setCategory(next);
@@ -146,7 +154,8 @@ export default function AgendarPage() {
         timeSlot: time,
         ...(isCrane ? transferPayload(transfer) : { location: location.trim() }),
         notes: notes.trim(),
-        vehicleId: askVehicle ? vehicleId : "",
+        // Un vehículo del borrador que no es de esta cuenta (se volvió con otra) no se envía.
+        vehicleId: selectedVehicle?.id ?? "",
       });
       setCreated(result);
     } catch (err) {
@@ -344,7 +353,7 @@ export default function AgendarPage() {
                 {vehicles.length > 0 && askVehicle && (
                   <label>
                     <span><Icon name="car" />Vehículo guardado en tu cuenta (opcional)</span>
-                    <select value={vehicleId} onChange={(event) => setVehicleId(event.target.value)}>
+                    <select value={selectedVehicle?.id ?? ""} onChange={(event) => setVehicleId(event.target.value)}>
                       <option value="">Seleccionar vehículo o registrar otro...</option>
                       {vehicles.map((item) => (
                         <option key={item.id} value={item.id}>

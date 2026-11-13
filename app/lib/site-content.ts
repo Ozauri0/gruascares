@@ -132,7 +132,7 @@ export const SECTIONS: ContentSection[] = [
       text("about.eyebrow", "Etiqueta superior", "Transporte seguro"),
       rich("about.title", "Título", "Tu carga es\nnuestra *responsabilidad.*"),
       area("about.text", "Texto", "Somos Grúas Cares, especialistas en transporte de cargas pesadas y servicios de camiones grúa. Contamos con una flota moderna y un equipo de profesionales comprometidos con la puntualidad, la seguridad y la calidad."),
-      text("about.link", "Enlace", "Explora el catálogo"),
+      text("about.link", "Enlace", "Solicita una grúa"),
     ],
   },
   {
@@ -171,7 +171,8 @@ export const SECTIONS: ContentSection[] = [
     title: "Bloque de catálogo (inicio)",
     fields: [
       image("catalog.image", "Imagen", "/images/hero-01.jpg"),
-      text("catalog.eyebrow", "Etiqueta superior", "Catálogo de soluciones"),
+      text("catalog.eyebrow", "Etiqueta superior", "Nuestras soluciones"),
+      rich("catalog.label", "Etiqueta sobre la imagen", "Flota\n*Cares*"),
       rich("catalog.title", "Título", "Una flota\npara cada\n*necesidad.*"),
       area("catalog.text", "Texto", "Conoce los servicios de Grúas Cares y encuentra una solución segura, eficiente y adaptada a tu traslado."),
       text("catalog.button", "Botón", "Contáctanos"),

@@ -40,17 +40,18 @@ router.get("/catalog", catalogAccess, getAdminCatalog);
 router.post("/catalog", catalogAccess, createProduct);
 router.patch("/catalog/:id", catalogAccess, updateProduct);
 router.delete("/catalog/:id", catalogAccess, deleteProduct);
+// Categorías del catálogo (ADR 025): las gestionan el admin y el vendedor.
 router.get("/catalog-categories", catalogAccess, getAdminCategories);
+router.post("/catalog-categories", catalogAccess, createCategory);
+router.put("/catalog-categories/order", catalogAccess, reorderCategories);
+router.patch("/catalog-categories/:id", catalogAccess, updateCategory);
+router.delete("/catalog-categories/:id", catalogAccess, deleteCategory);
 router.post("/uploads", catalogAccess, express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "5mb" }), uploadImage);
 
 // El resto de la administración es solo del admin
 router.use(authorizeRoles("admin"));
 
-// Categorías del catálogo (ADR 025) y servicios de agenda (#195)
-router.post("/catalog-categories", createCategory);
-router.put("/catalog-categories/order", reorderCategories);
-router.patch("/catalog-categories/:id", updateCategory);
-router.delete("/catalog-categories/:id", deleteCategory);
+// Servicios de agenda (#195)
 router.get("/services", listServices);
 router.post("/services", createService);
 router.patch("/services/:id", updateService);

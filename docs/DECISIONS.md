@@ -40,7 +40,7 @@ Este documento contiene la justificación histórica y técnica de cada decisió
 
 ### ADR 004: Modelo RBAC (Role-Based Access Control) con 3 Roles
 - **Fecha**: 2026-10-02
-- **Estado**: Aceptado
+- **Estado**: Ampliado por los ADR 016 (rol `grua`), 017 (trabajadores sin cuenta) y 020 (rol `vendedor`). Hoy hay cinco roles (`admin`, `mecanico`, `grua`, `vendedor`, `usuario`) y una cuenta de personal puede tener varios; el primero define su página de inicio (`app/lib/route-guard.ts`, `backend/src/utils/roles.ts`).
 - **Contexto**: Las necesidades del negocio involucran 3 tipos de actores claramente diferenciados.
 - **Decisión**: Definir tres roles estrictos:
   1. `admin`: Control total de la empresa, métricas, personal y configuración.
@@ -142,8 +142,8 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Fecha**: 2026-10-17
 - **Estado**: Aceptado (issue #124)
 - **Contexto**: Las solicitudes de invitado se aceptaban con un correo sin verificar: cualquiera podía llenar los cupos de la agenda con citas falsas (solo limitado por IP) y el taller recibía solicitudes y enviaba correos a direcciones de terceros.
-- **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. `/agendar` es una ruta protegida: sin sesión redirige a `/login?redirect=…` y se vuelve a la ruta tras iniciar sesión (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora). Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
-- **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo). Para emergencias se mantiene el teléfono 24/7 visible.
+- **Decisión**: `POST /api/appointments` exige sesión (`authenticate`) y se elimina la rama de invitado. La cita se asocia siempre a la cuenta (que ya confirmó su correo); nombre y correo del cuerpo se ignoran. Al principio `/agendar` era una ruta protegida que redirigía a `/login?redirect=…`; desde el PR #204 el formulario se ve y se llena sin cuenta, y al final, en lugar del botón de envío, ofrece iniciar sesión o crear la cuenta. Se vuelve a `/agendar` (también tras crear la cuenta y confirmar el correo, vía `localStorage` con vigencia de 1 hora) con lo elegido restaurado (`app/lib/booking-draft.ts`). El envío sigue exigiendo sesión en el backend. Una persona no puede ocupar dos veces el mismo horario. Las solicitudes de invitado ya existentes se conservan (`guest_*`) y se vinculan al confirmar el correo.
+- **Consecuencias**: baja la fricción de abuso; sube la de una persona nueva (debe crear cuenta y confirmar el correo), aunque puede revisar servicios y horarios antes de hacerlo. Para emergencias se mantiene el teléfono 24/7 visible.
 
 ### ADR 015: Horario base 08:30–19:30 y tope de 4 citas por horario
 - **Fecha**: 2026-10-24
@@ -219,5 +219,5 @@ El editor vive en la página pública, como en WordPress: al iniciar sesión com
 - **Fecha**: 2026-11-05
 - **Estado**: Aceptado (issue #195)
 - **Contexto**: `products.category` era texto libre (TOP VENTAS, MANTENCIÓN…); no había forma de ordenarlas ni de ofrecerlas como lista (#184).
-- **Decisión**: tabla `product_categories` (`name` único en mayúsculas, `sort_order`), poblada por la migración 0020 con las categorías que ya usaban los productos (más `GENERAL`, la de respaldo). **`products.category` sigue guardando el nombre** (no un id): evita cambiar el tipo `Product` y los filtros del frontend, el catálogo público y los reportes. La integridad la da el backend: crear o editar un producto exige una categoría existente (sin categoría en el alta se usa `GENERAL`); renombrar una categoría actualiza sus productos en la misma transacción; quitar una con productos responde 409 salvo `?reassignTo=<id>`, que los mueve antes. Gestión solo admin (`/api/admin/catalog-categories`, incluye `PUT .../order`); el vendedor puede leerlas para el menú del producto. Lectura pública ordenada: `GET /api/catalog/categories` (`app/lib/catalog-categories-api.ts`).
+- **Decisión**: tabla `product_categories` (`name` único en mayúsculas, `sort_order`), poblada por la migración 0020 con las categorías que ya usaban los productos (más `GENERAL`, la de respaldo). **`products.category` sigue guardando el nombre** (no un id): evita cambiar el tipo `Product` y los filtros del frontend, el catálogo público y los reportes. La integridad la da el backend: crear o editar un producto exige una categoría existente (sin categoría en el alta se usa `GENERAL`); renombrar una categoría actualiza sus productos en la misma transacción; quitar una con productos responde 409 salvo `?reassignTo=<id>`, que los mueve antes. Gestión de admin y vendedor (`/api/admin/catalog-categories`, incluye `PUT .../order`; al principio era solo admin y se abrió a ventas, que es quien mantiene el catálogo). Lectura pública ordenada: `GET /api/catalog/categories` (`app/lib/catalog-categories-api.ts`).
 - **Consecuencias**: no hay clave foránea en la base, así que un cambio directo en SQL podría dejar un producto con categoría inexistente (la API no lo permite). Pasar a id más adelante es una migración simple.

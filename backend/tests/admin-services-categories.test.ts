@@ -122,13 +122,13 @@ describe.skipIf(!dbReady)("#195: servicios y categorías del catálogo", () => {
       expect(await names()).toEqual(["TOP VENTAS", "LUBRICANTES", "GENERAL"]);
     });
 
-    test("crear, renombrar y ordenar: solo admin gestiona; el vendedor solo lee", async () => {
+    test("crear, renombrar y ordenar: las gestionan admin y vendedor; el resto no", async () => {
       expect((await call(null, "POST", "/api/admin/catalog-categories", { name: "Frenos" })).status).toBe(401);
-      expect((await call(seed.seller, "POST", "/api/admin/catalog-categories", { name: "Frenos" })).status).toBe(403);
+      expect((await call(seed.mechanic, "POST", "/api/admin/catalog-categories", { name: "Frenos" })).status).toBe(403);
       expect((await call(seed.mechanic, "GET", "/api/admin/catalog-categories")).status).toBe(403);
       expect((await call(seed.seller, "GET", "/api/admin/catalog-categories")).status).toBe(200);
 
-      const created = await call(seed.admin, "POST", "/api/admin/catalog-categories", { name: "  frenos  y  discos " });
+      const created = await call(seed.seller, "POST", "/api/admin/catalog-categories", { name: "  frenos  y  discos " });
       expect(created.status).toBe(201);
       const { category } = await created.json();
       expect(category.name).toBe("FRENOS Y DISCOS");
@@ -136,7 +136,7 @@ describe.skipIf(!dbReady)("#195: servicios y categorías del catálogo", () => {
       expect((await call(seed.admin, "POST", "/api/admin/catalog-categories", { name: "frenos y discos" })).status).toBe(409);
       expect((await call(seed.admin, "POST", "/api/admin/catalog-categories", { name: "x" })).status).toBe(400);
 
-      const patched = await call(seed.admin, "PATCH", `/api/admin/catalog-categories/${category.id}`, { name: "Frenos" });
+      const patched = await call(seed.seller, "PATCH", `/api/admin/catalog-categories/${category.id}`, { name: "Frenos" });
       expect(patched.status).toBe(200);
       expect((await patched.json()).category.name).toBe("FRENOS");
       expect((await call(seed.admin, "PATCH", `/api/admin/catalog-categories/${category.id}`, { name: "general" })).status).toBe(409);
@@ -144,7 +144,7 @@ describe.skipIf(!dbReady)("#195: servicios y categorías del catálogo", () => {
 
       const list = (await (await call(seed.admin, "GET", "/api/admin/catalog-categories")).json()).categories as { id: string; name: string }[];
       const reordered = [...list].reverse().map((c) => c.id);
-      expect((await call(seed.admin, "PUT", "/api/admin/catalog-categories/order", { ids: reordered })).status).toBe(200);
+      expect((await call(seed.seller, "PUT", "/api/admin/catalog-categories/order", { ids: reordered })).status).toBe(200);
       expect(await names()).toEqual(["FRENOS", "GENERAL", "LUBRICANTES", "TOP VENTAS"]);
       expect((await call(seed.admin, "PUT", "/api/admin/catalog-categories/order", { ids: reordered.slice(1) })).status).toBe(400);
       expect((await call(seed.admin, "PUT", "/api/admin/catalog-categories/order", { ids: [] })).status).toBe(400);

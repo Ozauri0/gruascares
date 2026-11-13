@@ -291,7 +291,7 @@ export default function CatalogAdminPage() {
                 <button type="button" aria-pressed={view === "grid"} className={view === "grid" ? "on" : ""} onClick={() => changeView("grid")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 2h7v7H2zM11 2h7v7h-7zM2 11h7v7H2zM11 11h7v7h-7z" fill="currentColor" /></svg> Cuadrícula</button>
                 <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => changeView("list")}><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M2 3h16v4H2zM2 9h16v4H2zM2 15h16v3H2z" fill="currentColor" /></svg> Filas</button>
               </div>
-              {isAdmin && <button type="button" className="toggle-btn" onClick={() => setManageCategories(true)}>Categorías</button>}
+              <button type="button" className="toggle-btn" onClick={() => setManageCategories(true)}>Categorías</button>
               <button type="button" className="portal-add" onClick={() => { setErrors({}); setForm(EMPTY_FORM); setModal(true); }}>
                 + Nuevo producto
               </button>
