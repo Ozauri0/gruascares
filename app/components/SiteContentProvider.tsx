@@ -3,14 +3,23 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { resolve, type ContentOverrides } from "../lib/site-content";
 
-type Ctx = { overrides: ContentOverrides; setPreview: (values: ContentOverrides | null) => void };
-const SiteContentContext = createContext<Ctx>({ overrides: {}, setPreview: () => {} });
+/** Acciones que el editor ofrece a la página mientras está en modo edición (p. ej. el «+» de los servicios). */
+export type EditorActions = { addServiceCard: (() => void) | null };
+
+type Ctx = {
+  overrides: ContentOverrides;
+  setPreview: (values: ContentOverrides | null) => void;
+  editor: EditorActions | null;
+  setEditor: (actions: EditorActions | null) => void;
+};
+const SiteContentContext = createContext<Ctx>({ overrides: {}, setPreview: () => {}, editor: null, setEditor: () => {} });
 
 /** Entrega el contenido publicado (leído en el servidor) a los componentes del sitio. */
 export function SiteContentProvider({ overrides, children }: { overrides: ContentOverrides; children: React.ReactNode }) {
   // Vista previa del editor: mientras el admin edita, se muestra su borrador en lugar de lo publicado (solo en su navegador).
   const [preview, setPreview] = useState<ContentOverrides | null>(null);
-  const value = useMemo(() => ({ overrides: preview ?? overrides, setPreview }), [preview, overrides]);
+  const [editor, setEditor] = useState<EditorActions | null>(null);
+  const value = useMemo(() => ({ overrides: preview ?? overrides, setPreview, editor, setEditor }), [preview, overrides, editor]);
   return <SiteContentContext.Provider value={value}>{children}</SiteContentContext.Provider>;
 }
 
@@ -23,4 +32,14 @@ export function useSiteContent() {
 /** Para el editor: fija (o quita con null) el borrador que se muestra en vez de lo publicado. */
 export function useContentPreview() {
   return useContext(SiteContentContext).setPreview;
+}
+
+/** Para el editor: publica (o quita con null) las acciones que la página puede mostrar en modo edición. */
+export function useRegisterEditor() {
+  return useContext(SiteContentContext).setEditor;
+}
+
+/** Para la página: acciones del editor, o null si no se está editando. */
+export function useEditorActions() {
+  return useContext(SiteContentContext).editor;
 }

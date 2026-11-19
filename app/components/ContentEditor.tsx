@@ -7,7 +7,7 @@ import { discardDraft, fetchDraft, publishDraft, saveDraft } from "../lib/admin-
 import { useAuth, userHasRole } from "../lib/auth";
 import { KEY_ATTR, editableAt, tagElements } from "../lib/edit-dom";
 import { ALL_FIELDS, DEFAULTS, SECTIONS, SERVICES_COUNT_KEY, SERVICES_MAX, removeServiceCard, resolve, serviceCount } from "../lib/site-content";
-import { useContentPreview } from "./SiteContentProvider";
+import { useContentPreview, useRegisterEditor } from "./SiteContentProvider";
 import Icon from "./Icon";
 
 /** Páginas públicas que se pueden editar en el sitio. */
@@ -67,6 +67,7 @@ export default function ContentEditor() {
   const pathname = usePathname();
   const router = useRouter();
   const setPreview = useContentPreview();
+  const setEditorActions = useRegisterEditor();
   const barDrag = useDrag<HTMLDivElement>();
   const panelDrag = useDrag<HTMLElement>();
   const allowed = userHasRole(user, "admin") && EDITABLE_PATHS.includes(pathname);
@@ -117,6 +118,23 @@ export default function ContentEditor() {
     setPreview(editing && !loading && Object.keys(work).length > 0 ? work : null);
     return () => setPreview(null);
   }, [editing, loading, work, setPreview]);
+
+  // Añade una tarjeta de servicio al final y la abre en el panel para completarla.
+  const addServiceCard = useCallback(() => {
+    const next = serviceCount(current.current[SERVICES_COUNT_KEY]) + 1;
+    if (next > SERVICES_MAX) return;
+    setWork((cur) => ({ ...cur, [SERVICES_COUNT_KEY]: String(next) }));
+    setSelected(`service${next}.title`);
+    setTab("elemento");
+    setPanelOpen(true);
+  }, []);
+  const canAddCard = serviceCount(work[SERVICES_COUNT_KEY]) < SERVICES_MAX;
+
+  // La página muestra el «+» de los servicios solo en modo edición (y mientras quepan más tarjetas).
+  useEffect(() => {
+    setEditorActions(editing && !loading ? { addServiceCard: canAddCard ? addServiceCard : null } : null);
+    return () => setEditorActions(null);
+  }, [editing, loading, canAddCard, addServiceCard, setEditorActions]);
 
   const unsaved = useMemo(() => ALL_FIELDS.filter((f) => work[f.key] !== saved[f.key]), [work, saved]);
   const pending = useMemo(() => ALL_FIELDS.filter((f) => saved[f.key] !== published[f.key]), [saved, published]);
@@ -261,7 +279,6 @@ export default function ContentEditor() {
   const cardCount = serviceCount(work[SERVICES_COUNT_KEY]);
   const cardOf = (key: string) => Number(/^service(\d+)\./.exec(key)?.[1] ?? 0);
   const visibleField = (f: (typeof ALL_FIELDS)[number]) => f.key !== SERVICES_COUNT_KEY && cardOf(f.key) <= cardCount;
-  const addCard = () => cardCount < SERVICES_MAX && setWork((cur) => ({ ...cur, [SERVICES_COUNT_KEY]: String(cardCount + 1) }));
   const removeCard = (n: number) => setWork((cur) => ({ ...cur, ...removeServiceCard(cur, n) }));
   const selectedCard = selected ? cardOf(selected) : 0;
   const renderField = (f: (typeof ALL_FIELDS)[number]) => (
@@ -338,7 +355,7 @@ export default function ContentEditor() {
                     <div className="cms-fields">
                       {section.id === "services" && (
                         <div className="ed-cards">
-                          <button type="button" className="toggle-btn" disabled={cardCount >= SERVICES_MAX} onClick={addCard}>Añadir tarjeta</button>
+                          <button type="button" className="toggle-btn" disabled={cardCount >= SERVICES_MAX} onClick={addServiceCard}>Añadir tarjeta</button>
                           <button type="button" className="toggle-btn" disabled={cardCount <= 1} onClick={() => removeCard(cardCount)}>Quitar última</button>
                           <small>{cardCount} de {SERVICES_MAX} tarjetas. Para quitar otra, tócala en la página y usa «Quitar la tarjeta».</small>
                         </div>
