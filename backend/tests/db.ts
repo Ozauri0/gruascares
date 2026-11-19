@@ -9,8 +9,10 @@ export const dbReady: boolean = Boolean((globalThis as any).__TEST_DB_READY__);
 
 export async function resetDb(): Promise<void> {
   await rawSql.unsafe(
-    "truncate table product_categories, cranes, revoked_tokens, email_verification_tokens, password_reset_tokens, custom_time_slots, site_content, products, audit_logs, blocked_dates, service_records, appointments, vehicles, services, users restart identity cascade"
+    "truncate table product_categories, crane_types, cranes, revoked_tokens, email_verification_tokens, password_reset_tokens, custom_time_slots, site_content, products, audit_logs, blocked_dates, service_records, appointments, vehicles, services, users restart identity cascade"
   );
+  // Los tipos de grúa base los crea la migración 0021; se reponen tras vaciar la tabla.
+  await rawSql.unsafe("insert into crane_types (name) values ('Plataforma hidráulica'), ('Camión grúa'), ('Otro')");
 }
 
 export type WorkerRow = typeof workers.$inferSelect;
