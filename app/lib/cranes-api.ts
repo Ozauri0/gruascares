@@ -1,10 +1,10 @@
 // Flota de grúas de la empresa: cada grúa puede tener un gruero (trabajador sin cuenta) a cargo.
 // Rutas /api/cranes (solo jefe de grúas y admin).
 
-import { apiGet, apiPatch, apiPost } from "./api";
+import { api, apiDelete, apiGet, apiPatch, apiPost } from "./api";
 
-/** Tipo de grúa (tabla `crane_types`); la grúa guarda su nombre. El jefe de grúas y el admin agregan tipos nuevos. */
-export type CraneType = { id: string; name: string };
+/** Tipo de grúa (tabla `crane_types`); la grúa guarda su nombre. El jefe de grúas y el admin los gestionan en «Tipos de grúa». */
+export type CraneType = { id: string; name: string; sortOrder: number; craneCount: number };
 
 export type Crane = {
   id: string;
@@ -32,6 +32,22 @@ export async function listCraneTypes(signal?: AbortSignal): Promise<CraneType[]>
 export async function createCraneType(name: string): Promise<CraneType> {
   const { type } = await apiPost<{ type: CraneType }>("/api/cranes/types", { name });
   return type;
+}
+
+/** Las grúas de ese tipo pasan al nombre nuevo. */
+export async function renameCraneType(id: string, name: string): Promise<void> {
+  await apiPatch(`/api/cranes/types/${encodeURIComponent(id)}`, { name });
+}
+
+/** `ids` = todos los tipos en el nuevo orden. */
+export async function reorderCraneTypes(ids: string[]): Promise<void> {
+  await api("/api/cranes/types/order", { method: "PUT", body: { ids } });
+}
+
+/** Si hay grúas de ese tipo hay que indicar a cuál pasan (`reassignTo`); si no, el servidor responde 409. */
+export async function deleteCraneType(id: string, reassignTo?: string): Promise<void> {
+  const suffix = reassignTo ? `?reassignTo=${encodeURIComponent(reassignTo)}` : "";
+  await apiDelete(`/api/cranes/types/${encodeURIComponent(id)}${suffix}`);
 }
 
 export async function createCrane(input: CraneInput): Promise<Crane> {
