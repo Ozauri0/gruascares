@@ -63,7 +63,7 @@ describe.skipIf(!dbReady)("flota de grúas y gruero a cargo (#160)", () => {
   test("tipos de grúa: se listan, se agregan y la grúa solo acepta uno existente", async () => {
     const types = await call(seed.crane, "GET", "/api/cranes/types");
     expect(types.status).toBe(200);
-    expect(types.body.types.map((t: { name: string }) => t.name)).toEqual(["Camión grúa", "Otro", "Plataforma hidráulica"]);
+    expect(types.body.types.map((t: { name: string }) => t.name)).toEqual(["Camión grúa", "Plataforma hidráulica", "Otro"]);
     for (const user of [null, seed.clientA, seed.mechanic, seed.seller]) {
       expect((await call(user, "POST", "/api/cranes/types", { name: "Cama baja" })).status).toBe(user ? 403 : 401);
     }
@@ -86,6 +86,44 @@ describe.skipIf(!dbReady)("flota de grúas y gruero a cargo (#160)", () => {
 
     const [log] = await sql`select action from audit_logs where action = 'CRANE_TYPE_CREATED'`;
     expect(log?.action).toBe("CRANE_TYPE_CREATED");
+  });
+
+  test("tipos de grúa: se renombran, se ordenan y se quitan pasando sus grúas a otro tipo", async () => {
+    const list = async () => (await call(seed.crane, "GET", "/api/cranes/types")).body.types as { id: string; name: string; craneCount: number }[];
+    const byName = async (name: string) => (await list()).find((t) => t.name === name)!;
+    const cama = (await call(seed.crane, "POST", "/api/cranes/types", { name: "Cama baja" })).body.type as { id: string };
+    const crane = (await create({ type: "Cama baja" })).body.crane as { id: string };
+    expect((await byName("Cama baja")).craneCount).toBe(1);
+    for (const user of [null, seed.clientA, seed.mechanic, seed.seller]) {
+      expect((await call(user, "DELETE", `/api/cranes/types/${cama.id}`)).status).toBe(user ? 403 : 401);
+    }
+
+    // renombrar: la grúa sigue al tipo
+    expect((await call(seed.crane, "PATCH", `/api/cranes/types/${cama.id}`, { name: "Cama baja 3 ejes" })).status).toBe(200);
+    expect((await call(seed.crane, "PATCH", `/api/cranes/types/${cama.id}`, { name: "camión GRÚA" })).status).toBe(409);
+    expect((await call(seed.admin, "GET", "/api/cranes")).body.cranes[0].type).toBe("Cama baja 3 ejes");
+
+    // ordenar: hay que mandar todos los tipos
+    const ids = (await list()).map((t) => t.id).reverse();
+    expect((await call(seed.crane, "PUT", "/api/cranes/types/order", { ids: ids.slice(1) })).status).toBe(400);
+    expect((await call(seed.crane, "PUT", "/api/cranes/types/order", { ids })).status).toBe(200);
+    expect((await list()).map((t) => t.id)).toEqual(ids);
+
+    // quitar: con grúas exige destino; «Otro» no se quita ni se renombra
+    expect((await call(seed.crane, "DELETE", `/api/cranes/types/${cama.id}`)).status).toBe(409);
+    const plataforma = await byName("Plataforma hidráulica");
+    const removed = await call(seed.crane, "DELETE", `/api/cranes/types/${cama.id}?reassignTo=${plataforma.id}`);
+    expect(removed.status).toBe(200);
+    expect(removed.body.reassigned).toBe(1);
+    expect((await call(seed.crane, "GET", "/api/cranes")).body.cranes.find((c: { id: string }) => c.id === crane.id).type).toBe("Plataforma hidráulica");
+    const otro = await byName("Otro");
+    expect((await call(seed.crane, "DELETE", `/api/cranes/types/${otro.id}`)).status).toBe(409);
+    expect((await call(seed.crane, "PATCH", `/api/cranes/types/${otro.id}`, { name: "Varios" })).status).toBe(409);
+    const camion = await byName("Camión grúa");
+    expect((await call(seed.crane, "DELETE", `/api/cranes/types/${camion.id}`)).status).toBe(200); // sin grúas se quita directo
+
+    const actions = (await sql`select action from audit_logs where action like 'CRANE_TYPE_%'`).map((r) => r.action);
+    expect(actions).toEqual(expect.arrayContaining(["CRANE_TYPE_UPDATED", "CRANE_TYPE_REORDERED", "CRANE_TYPE_DELETED"]));
   });
 
   test("solo un gruero activo puede quedar a cargo; se puede cambiar y quitar", async () => {

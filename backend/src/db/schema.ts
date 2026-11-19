@@ -74,12 +74,13 @@ export const cranes = pgTable(
   (table) => [index("cranes_worker_id_idx").on(table.workerId)]
 );
 
-// 2d. Tipos de grúa de la flota (plataforma hidráulica, camión grúa…). El jefe de grúas y el admin agregan tipos nuevos.
+// 2d. Tipos de grúa de la flota (plataforma hidráulica, camión grúa…). El jefe de grúas y el admin los crean, renombran, ordenan y quitan.
 export const craneTypes = pgTable(
   "crane_types",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     name: varchar("name", { length: 60 }).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [uniqueIndex("crane_types_name_uq").on(sql`lower(${table.name})`)]

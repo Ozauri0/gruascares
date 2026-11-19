@@ -8,9 +8,8 @@ import { isValidChileanPlate, normalizePlate } from "../utils/plate.js";
 import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { findAssignableWorker } from "../utils/workers.js";
 
-/** Tipo usado cuando no se indica otro (siempre existe: lo crea la migración 0021). */
+/** Tipo usado cuando no se indica otro (siempre existe: lo crea la migración 0021 y no se puede renombrar ni quitar). */
 export const DEFAULT_CRANE_TYPE = "Otro";
-const MAX_TYPE_LEN = 60;
 const cleanTypeName = (value: string) => value.trim().replace(/\s+/g, " ");
 
 /** Nombre guardado del tipo (sin distinguir mayúsculas) o null si no existe en `crane_types`. */
@@ -24,41 +23,7 @@ async function resolveCraneType(value: unknown): Promise<string | null> {
   return found?.name ?? null;
 }
 
-const TYPE_NOT_FOUND = "El tipo de grúa no existe: elígelo de la lista o agrégalo como tipo nuevo";
-
-/** GET /api/cranes/types — tipos de grúa disponibles, en orden alfabético. */
-export async function listCraneTypes(_req: Request, res: Response) {
-  try {
-    const types = await db.select({ id: craneTypes.id, name: craneTypes.name }).from(craneTypes).orderBy(asc(craneTypes.name));
-    return res.json({ types });
-  } catch (error) {
-    console.error("Error al listar los tipos de grúa:", error);
-    return res.status(500).json({ error: "Internal Server Error", message: "Error al consultar los tipos de grúa" });
-  }
-}
-
-/** POST /api/cranes/types { name } — agrega un tipo de grúa nuevo. */
-export async function createCraneType(req: Request, res: Response) {
-  try {
-    const { name } = req.body ?? {};
-    const clean = typeof name === "string" ? cleanTypeName(name) : "";
-    if (clean.length < 2) {
-      return res.status(400).json({ error: "Bad Request", message: "El nombre del tipo es obligatorio (mínimo 2 caracteres)" });
-    }
-    if (clean.length > MAX_TYPE_LEN) {
-      return res.status(400).json({ error: "Bad Request", message: `El nombre del tipo no puede superar ${MAX_TYPE_LEN} caracteres` });
-    }
-    const [created] = await db.insert(craneTypes).values({ name: clean }).returning({ id: craneTypes.id, name: craneTypes.name });
-    logAudit({ action: "CRANE_TYPE_CREATED", entityType: "crane_type", entityId: created.id, details: { name: created.name }, req });
-    return res.status(201).json({ message: "Tipo de grúa agregado", type: created });
-  } catch (error) {
-    if (isUniqueViolation(error)) {
-      return res.status(409).json({ error: "Conflict", message: "Ya existe un tipo de grúa con ese nombre" });
-    }
-    console.error("Error al agregar el tipo de grúa:", error);
-    return res.status(500).json({ error: "Internal Server Error", message: "Error al agregar el tipo de grúa" });
-  }
-}
+const TYPE_NOT_FOUND = "El tipo de grúa no existe: elígelo de la lista o créalo en «Tipos de grúa»";
 
 const publicCrane = {
   id: cranes.id,

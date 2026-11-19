@@ -12,7 +12,7 @@ export async function resetDb(): Promise<void> {
     "truncate table product_categories, crane_types, cranes, revoked_tokens, email_verification_tokens, password_reset_tokens, custom_time_slots, site_content, products, audit_logs, blocked_dates, service_records, appointments, vehicles, services, users restart identity cascade"
   );
   // Los tipos de grúa base los crea la migración 0021; se reponen tras vaciar la tabla.
-  await rawSql.unsafe("insert into crane_types (name) values ('Plataforma hidráulica'), ('Camión grúa'), ('Otro')");
+  await rawSql.unsafe("insert into crane_types (name, sort_order) values ('Camión grúa', 0), ('Plataforma hidráulica', 1), ('Otro', 2)");
 }
 
 export type WorkerRow = typeof workers.$inferSelect;
