@@ -1231,3 +1231,8 @@ section[id]:not(#inicio),footer[id]{scroll-margin-top:110px}
 .booking-gate-end>span{font:600 15px 'Space Grotesk',sans-serif;color:var(--text)}
 .booking-gate-end small{font-size:13px;line-height:1.5;color:var(--text-2)}
 .booking-gate-end .success-actions{margin:6px 0 0;display:flex;flex-wrap:wrap;gap:10px}
+/* «+» de la grilla de servicios: solo aparece en modo edición (lo publica ContentEditor). */
+.service-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:320px;border:2px dashed var(--border-strong);background:transparent;color:var(--text-2);font:600 15px 'Fira Sans';cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+.service-add span{font:300 56px/1 'Space Grotesk'}
+.service-add:hover,.service-add:focus-visible{border-color:var(--btn-bg);color:var(--accent-text);background:var(--surface-2)}
+@media(max-width:760px){.service-add{min-height:160px}}
