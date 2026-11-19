@@ -75,6 +75,7 @@ const LABELS: Record<string, string> = {
   CRANE_ASSIGNED: "Asignó el conductor de una grúa",
   CRANE_ACTIVATED: "Reactivó una grúa de la flota",
   CRANE_DEACTIVATED: "Dio de baja una grúa de la flota",
+  CRANE_TYPE_CREATED: "Agregó un tipo de grúa",
   WORKER_CREATED: "Registró un trabajador",
   WORKER_UPDATED: "Editó un trabajador",
   WORKER_ACTIVATED: "Reactivó un trabajador",

@@ -1236,3 +1236,6 @@ section[id]:not(#inicio),footer[id]{scroll-margin-top:110px}
 .service-add span{font:300 56px/1 'Space Grotesk'}
 .service-add:hover,.service-add:focus-visible{border-color:var(--btn-bg);color:var(--accent-text);background:var(--surface-2)}
 @media(max-width:760px){.service-add{min-height:160px}}
+/* Flota de grúas: agregar un tipo nuevo desde el formulario de la grúa. */
+.crane-type-new{display:flex;flex-direction:column;gap:8px}
+.crane-type-actions{display:flex;gap:8px;flex-wrap:wrap}

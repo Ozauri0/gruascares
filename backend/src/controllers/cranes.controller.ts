@@ -1,16 +1,64 @@
 import { Request, Response } from "express";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { cranes, workers } from "../db/schema.js";
+import { craneTypes, cranes, workers } from "../db/schema.js";
 import { logAudit } from "../services/audit/audit.service.js";
 import { isUniqueViolation } from "../utils/db-errors.js";
 import { isValidChileanPlate, normalizePlate } from "../utils/plate.js";
 import { MAX_LEN, findTooLong, isUuid } from "../utils/validate.js";
 import { findAssignableWorker } from "../utils/workers.js";
 
-export const CRANE_TYPES = ["plataforma", "camion_grua", "otro"] as const;
-type CraneType = (typeof CRANE_TYPES)[number];
-const isCraneType = (value: unknown): value is CraneType => typeof value === "string" && (CRANE_TYPES as readonly string[]).includes(value);
+/** Tipo usado cuando no se indica otro (siempre existe: lo crea la migración 0021). */
+export const DEFAULT_CRANE_TYPE = "Otro";
+const MAX_TYPE_LEN = 60;
+const cleanTypeName = (value: string) => value.trim().replace(/\s+/g, " ");
+
+/** Nombre guardado del tipo (sin distinguir mayúsculas) o null si no existe en `crane_types`. */
+async function resolveCraneType(value: unknown): Promise<string | null> {
+  if (typeof value !== "string" || !cleanTypeName(value)) return null;
+  const [found] = await db
+    .select({ name: craneTypes.name })
+    .from(craneTypes)
+    .where(sql`lower(${craneTypes.name}) = lower(${cleanTypeName(value)})`)
+    .limit(1);
+  return found?.name ?? null;
+}
+
+const TYPE_NOT_FOUND = "El tipo de grúa no existe: elígelo de la lista o agrégalo como tipo nuevo";
+
+/** GET /api/cranes/types — tipos de grúa disponibles, en orden alfabético. */
+export async function listCraneTypes(_req: Request, res: Response) {
+  try {
+    const types = await db.select({ id: craneTypes.id, name: craneTypes.name }).from(craneTypes).orderBy(asc(craneTypes.name));
+    return res.json({ types });
+  } catch (error) {
+    console.error("Error al listar los tipos de grúa:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al consultar los tipos de grúa" });
+  }
+}
+
+/** POST /api/cranes/types { name } — agrega un tipo de grúa nuevo. */
+export async function createCraneType(req: Request, res: Response) {
+  try {
+    const { name } = req.body ?? {};
+    const clean = typeof name === "string" ? cleanTypeName(name) : "";
+    if (clean.length < 2) {
+      return res.status(400).json({ error: "Bad Request", message: "El nombre del tipo es obligatorio (mínimo 2 caracteres)" });
+    }
+    if (clean.length > MAX_TYPE_LEN) {
+      return res.status(400).json({ error: "Bad Request", message: `El nombre del tipo no puede superar ${MAX_TYPE_LEN} caracteres` });
+    }
+    const [created] = await db.insert(craneTypes).values({ name: clean }).returning({ id: craneTypes.id, name: craneTypes.name });
+    logAudit({ action: "CRANE_TYPE_CREATED", entityType: "crane_type", entityId: created.id, details: { name: created.name }, req });
+    return res.status(201).json({ message: "Tipo de grúa agregado", type: created });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({ error: "Conflict", message: "Ya existe un tipo de grúa con ese nombre" });
+    }
+    console.error("Error al agregar el tipo de grúa:", error);
+    return res.status(500).json({ error: "Internal Server Error", message: "Error al agregar el tipo de grúa" });
+  }
+}
 
 const publicCrane = {
   id: cranes.id,
@@ -63,8 +111,9 @@ export async function createCrane(req: Request, res: Response) {
     if (typeof plate !== "string" || !isValidChileanPlate(plate)) {
       return res.status(400).json({ error: "Bad Request", message: "Ingresa una patente chilena válida (ej. ABCD12 o AB1234)" });
     }
-    if (type !== undefined && !isCraneType(type)) {
-      return res.status(400).json({ error: "Bad Request", message: "El tipo debe ser plataforma, camion_grua u otro" });
+    const craneType = type === undefined ? undefined : await resolveCraneType(type);
+    if (craneType === null) {
+      return res.status(400).json({ error: "Bad Request", message: TYPE_NOT_FOUND });
     }
     if (notes !== undefined && notes !== null && typeof notes !== "string") {
       return res.status(400).json({ error: "Bad Request", message: "Las notas deben ser texto" });
@@ -87,7 +136,7 @@ export async function createCrane(req: Request, res: Response) {
       .values({
         name: name.trim(),
         plate: normalizePlate(plate),
-        type: type ?? "otro",
+        type: craneType ?? DEFAULT_CRANE_TYPE,
         notes: typeof notes === "string" && notes.trim() ? notes.trim() : null,
         workerId: assigned,
         createdBy: req.user!.userId,
@@ -125,8 +174,9 @@ export async function updateCrane(req: Request, res: Response) {
     if (plate !== undefined && (typeof plate !== "string" || !isValidChileanPlate(plate))) {
       return res.status(400).json({ error: "Bad Request", message: "Ingresa una patente chilena válida (ej. ABCD12 o AB1234)" });
     }
-    if (type !== undefined && !isCraneType(type)) {
-      return res.status(400).json({ error: "Bad Request", message: "El tipo debe ser plataforma, camion_grua u otro" });
+    const craneType = type === undefined ? undefined : await resolveCraneType(type);
+    if (craneType === null) {
+      return res.status(400).json({ error: "Bad Request", message: TYPE_NOT_FOUND });
     }
     if (notes !== undefined && notes !== null && typeof notes !== "string") {
       return res.status(400).json({ error: "Bad Request", message: "Las notas deben ser texto" });
@@ -146,7 +196,7 @@ export async function updateCrane(req: Request, res: Response) {
     const updates: Partial<typeof cranes.$inferInsert> = { updatedAt: new Date() };
     if (typeof name === "string") updates.name = name.trim();
     if (typeof plate === "string") updates.plate = normalizePlate(plate);
-    if (type !== undefined) updates.type = type;
+    if (craneType !== undefined) updates.type = craneType;
     if (notes !== undefined) updates.notes = typeof notes === "string" && notes.trim() ? notes.trim() : null;
     if (typeof isActive === "boolean") updates.isActive = isActive;
     if (workerId !== undefined) {
