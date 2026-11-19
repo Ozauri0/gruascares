@@ -62,8 +62,8 @@ export const cranes = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     name: varchar("name", { length: 100 }).notNull(),
     plate: varchar("plate", { length: 10 }).notNull().unique(),
-    // plataforma | camion_grua | otro (validado en el controlador y por un CHECK en la migración).
-    type: varchar("type", { length: 20 }).default("otro").notNull(),
+    // Nombre de un tipo de `crane_types` (lo valida el controlador; el jefe de grúas puede crear tipos nuevos).
+    type: varchar("type", { length: 60 }).default("Otro").notNull(),
     notes: text("notes"),
     workerId: uuid("worker_id").references(() => workers.id, { onDelete: "set null" }),
     isActive: boolean("is_active").default(true).notNull(),
@@ -72,6 +72,17 @@ export const cranes = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [index("cranes_worker_id_idx").on(table.workerId)]
+);
+
+// 2d. Tipos de grúa de la flota (plataforma hidráulica, camión grúa…). El jefe de grúas y el admin agregan tipos nuevos.
+export const craneTypes = pgTable(
+  "crane_types",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 60 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("crane_types_name_uq").on(sql`lower(${table.name})`)]
 );
 
 // 3. Tabla Vehículos

@@ -28,7 +28,7 @@ describe.skipIf(!dbReady)("flota de grúas y gruero a cargo (#160)", () => {
     return { status: res.status, body: (await res.json().catch(() => ({}))) as any };
   };
   const create = (extra: Record<string, unknown> = {}) =>
-    call(seed.crane, "POST", "/api/cranes", { name: "Grúa 1", plate: "ab-cd12", type: "plataforma", ...extra });
+    call(seed.crane, "POST", "/api/cranes", { name: "Grúa 1", plate: "ab-cd12", type: "plataforma hidráulica", ...extra });
 
   test("solo el jefe de grúas y el admin gestionan la flota", async () => {
     for (const user of [null, seed.clientA, seed.mechanic, seed.seller]) {
@@ -42,7 +42,7 @@ describe.skipIf(!dbReady)("flota de grúas y gruero a cargo (#160)", () => {
   test("registra una grúa con patente normalizada y gruero a cargo", async () => {
     const res = await create({ workerId: seed.rigger.id });
     expect(res.status).toBe(201);
-    expect(res.body.crane).toMatchObject({ name: "Grúa 1", plate: "ABCD12", type: "plataforma", isActive: true, workerId: seed.rigger.id, workerName: seed.rigger.name });
+    expect(res.body.crane).toMatchObject({ name: "Grúa 1", plate: "ABCD12", type: "Plataforma hidráulica", isActive: true, workerId: seed.rigger.id, workerName: seed.rigger.name });
 
     const list = await call(seed.admin, "GET", "/api/cranes");
     expect(list.body.cranes).toHaveLength(1);
@@ -58,6 +58,34 @@ describe.skipIf(!dbReady)("flota de grúas y gruero a cargo (#160)", () => {
     expect((await call(seed.crane, "PATCH", "/api/cranes/00000000-0000-4000-8000-000000000000", { name: "Otro" })).status).toBe(404);
     const ok = await create();
     expect((await call(seed.crane, "PATCH", `/api/cranes/${ok.body.crane.id}`, {})).status).toBe(400);
+  });
+
+  test("tipos de grúa: se listan, se agregan y la grúa solo acepta uno existente", async () => {
+    const types = await call(seed.crane, "GET", "/api/cranes/types");
+    expect(types.status).toBe(200);
+    expect(types.body.types.map((t: { name: string }) => t.name)).toEqual(["Camión grúa", "Otro", "Plataforma hidráulica"]);
+    for (const user of [null, seed.clientA, seed.mechanic, seed.seller]) {
+      expect((await call(user, "POST", "/api/cranes/types", { name: "Cama baja" })).status).toBe(user ? 403 : 401);
+    }
+
+    expect((await create({ type: "Cama baja" })).status).toBe(400); // aún no existe
+    const added = await call(seed.crane, "POST", "/api/cranes/types", { name: "  Cama   baja " });
+    expect(added.status).toBe(201);
+    expect(added.body.type.name).toBe("Cama baja");
+    expect((await call(seed.admin, "POST", "/api/cranes/types", { name: "CAMA BAJA" })).status).toBe(409);
+    expect((await call(seed.admin, "POST", "/api/cranes/types", { name: "x" })).status).toBe(400);
+
+    const crane = await create({ type: "cama baja" });
+    expect(crane.status).toBe(201);
+    expect(crane.body.crane.type).toBe("Cama baja");
+    const id = crane.body.crane.id as string;
+    expect((await call(seed.crane, "PATCH", `/api/cranes/${id}`, { type: "Camión grúa" })).body.crane.type).toBe("Camión grúa");
+    expect((await call(seed.crane, "PATCH", `/api/cranes/${id}`, { type: "Helicóptero" })).status).toBe(400);
+    const noType = await call(seed.crane, "POST", "/api/cranes", { name: "Grúa 2", plate: "BCDF34" });
+    expect(noType.body.crane.type).toBe("Otro");
+
+    const [log] = await sql`select action from audit_logs where action = 'CRANE_TYPE_CREATED'`;
+    expect(log?.action).toBe("CRANE_TYPE_CREATED");
   });
 
   test("solo un gruero activo puede quedar a cargo; se puede cambiar y quitar", async () => {
