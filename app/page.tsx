@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import CartLink from "./components/CartLink";
 import NavUser from "./components/NavUser";
 import SocialLinks from "./components/SocialLinks";
-import { useSiteContent } from "./components/SiteContentProvider";
+import { useEditorActions, useSiteContent } from "./components/SiteContentProvider";
 import { RichText } from "./components/RichText";
 import { SERVICES_COUNT_KEY, serviceCount, serviceOptions, serviceRequestName, telHref } from "./lib/site-content";
 import { contactMessage, cuentaWhatsappUrl } from "./lib/whatsapp";
@@ -16,6 +16,7 @@ const SERVITECA_ITEMS = [1, 2, 3, 4];
 
 export default function Home() {
   const t = useSiteContent();
+  const editor = useEditorActions();
   const logo = t("site.logo.image");
   const slides = SLIDE_NUMBERS.map((n) => ({ image: t(`hero.slide${n}.image`), label: t(`hero.slide${n}.label`), detail: t(`hero.slide${n}.detail`) }));
   const serviceNumbers = Array.from({ length: serviceCount(t(SERVICES_COUNT_KEY)) }, (_, i) => i + 1);
@@ -106,7 +107,7 @@ export default function Home() {
       </section>
 
       <section className="services-section" id="servicios"><div className="wrap"><div className="section-head"><div><p className="eyebrow">{t("services.eyebrow")}</p><h2><RichText value={t("services.title")} /></h2></div><p className="section-note">{t("services.note")}</p></div>
-        <div className="service-grid">{services.map((item) => <article className="service-card" key={item.number}><div className="service-image" data-gc-field={`service${item.n}.image`} style={{ backgroundImage: `url(${item.image})` }}><span>{item.number}</span></div><div className="service-info"><h3 data-gc-field={`service${item.n}.title`}>{item.title}</h3><p data-gc-field={`service${item.n}.text`}>{item.text}</p><a href={`/agendar?servicio=${encodeURIComponent(item.requestName)}`} onClick={() => setService(item.requestName)}>{t("services.cta")} <span>↗</span></a></div></article>)}</div>
+        <div className="service-grid">{services.map((item) => <article className="service-card" key={item.number}><div className="service-image" data-gc-field={`service${item.n}.image`} style={{ backgroundImage: `url(${item.image})` }}><span>{item.number}</span></div><div className="service-info"><h3 data-gc-field={`service${item.n}.title`}>{item.title}</h3><p data-gc-field={`service${item.n}.text`}>{item.text}</p><a href={`/agendar?servicio=${encodeURIComponent(item.requestName)}`} onClick={() => setService(item.requestName)}>{t("services.cta")} <span>↗</span></a></div></article>)}{editor?.addServiceCard && <button type="button" className="service-add" data-gc-ui onClick={editor.addServiceCard} aria-label="Agregar un servicio"><span aria-hidden="true">+</span>Agregar servicio</button>}</div>
       </div></section>
 
       <section className="serviteca wrap" id="serviteca"><div className="serviteca-image" style={{ backgroundImage: `url(${t("serviteca.image")})` }} /><div className="serviteca-copy"><p className="eyebrow">{t("serviteca.eyebrow")}</p><h2><RichText value={t("serviteca.title")} /></h2><p>{t("serviteca.text")}</p><ul className="serviteca-list">{SERVITECA_ITEMS.map((n) => <li key={n}>{t(`serviteca.item${n}`)}</li>)}</ul><a className="button dark" href="/agendar?categoria=serviteca">{t("serviteca.cta")} <span>↗</span></a></div></section>
